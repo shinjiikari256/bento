@@ -61,7 +61,10 @@
   --bkp-resizer-hover: rgb(247 166 0 / 0.45);
 }
 #app .bkp-toggle {
-  box-shadow: 0 1px 4px light-dark(rgb(20 30 45 / 0.12), rgb(0 0 0 / 0.45));
+  box-shadow: 0 1px 4px rgb(20 30 45 / 0.12);
+}
+:root[data-theme="dark"] #app .bkp-toggle {
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
 }
 #app .bkp-toggle:hover { color: var(--ink); border-color: var(--line-strong); }
 
