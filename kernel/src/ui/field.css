@@ -1,0 +1,84 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SHARED FORM-FIELD PRIMITIVE'S STYLES — tier 2, alongside panel.css.
+   `.bk-field` is the base look of a text input / select / textarea in an
+   editor chrome: border, background, radius, padding, font-size, and a
+   focus outline. It is not a component with behaviour (see dom.ts's h() for
+   the element itself, and kernel/src/ui/dialog.ts etc. for primitives that
+   DO have logic) — this sheet is the answer to "what does a well-styled
+   field look like", shared the same way menu.css shares "what does a
+   well-styled dropdown look like".
+
+   WHY THIS EXISTS. `dash` ships NO base rule for input/select at all — every
+   field there is either bare native chrome or gets its own one-off class.
+   `slides`/`spaces`/`type` each have one, and the three independently landed
+   on different radii and padding for what is, by concept, the same control.
+   This is the same "one design implemented four times, and once not at all"
+   shape menu.ts's own header describes, just for form fields instead of
+   dropdowns — and it is the exact class of bug that motivated this sheet:
+   slides' `.ed-row input[type='text']` rule (`slides/src/styles.css`) did
+   not also match `input[type='url']`, so a URL field sat unstyled next to
+   every other field in the same row until that one selector was patched by
+   hand. A shared base rule does not have that failure mode, because
+   `.bk-field` does not care what an input's `type` attribute says.
+
+   VALUES ARE THE HOST APP'S, exactly as menu.css's own header explains at
+   length — this sheet CONSUMES whichever themed token each app already
+   defines (`--field`, `--line`, `--ink`, `--radius`, `--blue`), by
+   whichever theming mechanism that app uses, and never uses `light-dark()`
+   itself for the same reason menu.css does not (slides' `:root { color-
+   scheme: only light }`; see menu.css for the full four-way theming-
+   mechanism comparison, unchanged here).
+
+   A NOTE FOR TIER 4, found here and not settled here: `--radius` itself
+   disagrees across apps (dash 7px, slides/spaces/type 10px) — not settled
+   by this sheet, which lands on whatever `--radius` an app already themes.
+*/
+
+.bk-field {
+  font: inherit;
+  font-size: var(--bkf-font-size, 13px);
+  padding: var(--bkf-pad-y, 4px) var(--bkf-pad-x, 8px);
+  color: var(--bkf-ink, var(--ink, #1e2a3a));
+  /* --field first: slides/spaces/type all comment it as "form-control
+     surface — CHROME, not paper/the slide", the exact thing this class is.
+     dash has no --field at all — it never needed one until now — so it
+     falls back to --surface, which it already themes for its own chrome. */
+  background: var(--bkf-bg, var(--field, var(--surface, #fff)));
+  border: 1px solid var(--bkf-border, var(--line, #e3e8ef));
+  border-radius: var(--bkf-radius, var(--radius, 8px));
+}
+
+.bk-field:focus {
+  border-color: var(--bkf-focus, var(--blue, #5b8def));
+  outline: none;
+}
+
+.bk-field:disabled {
+  opacity: var(--bkf-disabled-opacity, 0.55);
+  cursor: not-allowed;
+}
+
+/* `.bk-check` — a checkbox/radio, NATIVE (no `appearance: none`, no
+   hand-drawn box). Three of the four apps had independently reinvented this
+   control before this rule existed — one of them three separate times, at
+   three different accent colours — which is what a field primitive that
+   simply EXCLUDED checkbox/radio bought nobody: a control nothing converges
+   on just gets reinvented instead. See field.ts for the fuller account.
+
+   The accent reuses --bkf-focus, the exact blue a `.bk-field`'s own focus
+   ring already paints, so a checkbox reads as the same family of control as
+   the text/select field beside it rather than a colour of its own. The
+   vertical margin is not decorative: a bare native checkbox is shorter than
+   a `.bk-field` (padding + border, ~26px in every app that measured it), so
+   a row holding ONLY a checkbox — no sibling field to stretch the row to
+   height — would sit thinner than one holding a field. The margin closes
+   that gap; centering still comes from whatever layout (flex/grid
+   `align-items: center`) the row around it already uses. */
+.bk-check {
+  accent-color: var(--bkf-focus, var(--blue, #5b8def));
+  margin: var(--bkf-check-margin-y, 6px) 0;
+  cursor: pointer;
+}
+.bk-check:disabled { opacity: var(--bkf-disabled-opacity, 0.55); cursor: not-allowed; }

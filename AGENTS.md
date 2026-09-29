@@ -266,6 +266,14 @@ something `kernel/` already has:
 - `kernel/src/ui/menu.ts` / `panel.ts` / `dialog.ts` / `toggle.ts` /
   `tooltip.ts` — dropdown menus, resizable side panels, modal dialogs, on/off
   switches, hover tooltips.
+- `kernel/src/ui/field.ts`/`field.css` — `fieldize(el)` adds `.bk-field`
+  (a text input/select/textarea's base look: border, background, radius,
+  padding, focus outline) to a real text-like control, and `.bk-check` (one
+  accent colour + a row-pitch-matching margin) to a checkbox/radio;
+  color/file/range/button/submit/reset/image/hidden get neither. Adopted in
+  all four apps, each from its own panel's `row()`-equivalent choke-point,
+  plus each app's standalone toggles (not beside a field in the same row)
+  calling `fieldize()` at their own build site.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`

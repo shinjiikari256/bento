@@ -94,6 +94,96 @@ links opening outside it, that answer is "no" and the rating 4+.
 the host should not launch another app on its say-so. http, https and mailto are
 what a link in a document means. A custom URL scheme is dropped rather than
 opened, the same choice Android makes.
+## 2026-09-29 — Form-field styling: `.bk-field` (kernel/src/ui/field.ts + .css), tier 2
+
+**Decision.** `kernel/src/ui/field.css` gives every app one `.bk-field`
+class for the base look of a text input / select / textarea — border,
+background, radius, padding, font-size, focus outline — via `--bkf-*`
+token chains resolving to each app's own themed tokens, same discipline
+as `menu.css`/`panel.css`. `kernel/src/ui/field.ts` exports the one
+function that attaches it, `fieldize(el)` — dispatching on `tagName`/the
+`type` ATTRIBUTE rather than `instanceof HTMLSelectElement`/`.type`,
+because every app's Node test rig is a minimal DOM shim with neither the
+global class nor real `.type` IDL reflection, and the instanceof form
+threw there. A real text-like input/select/textarea gets `.bk-field`;
+color/file/range/button/submit/reset/image/hidden get nothing.
+
+**Checkbox/radio get their OWN class, `.bk-check`, not `.bk-field`.** They
+were simply excluded here at first — "a switch is not a text field" — which
+held up only until three of the four apps turned out to have reinvented
+the checkbox independently anyway: `dash` alone had accepted three
+different accent colours across three files (a custom `appearance: none`
+box in one, `--accent` in another, `--blue` in a third), `slides` had a
+bare unthemed hex, `type` had never styled one at all. A primitive that
+excludes a control does not stop four apps from reinventing it — it just
+means nothing was ever there to converge on. `.bk-check` is NATIVE (no
+`appearance: none`, no hand-drawn box): its accent reuses `--bkf-focus`,
+the same blue a field's own focus ring already paints, and its vertical
+margin closes the height gap between a bare native checkbox and a padded
+`.bk-field` sibling, so a row holding only a checkbox keeps the same pitch
+as one holding a field. Guarded by `scripts/test-ui-field.ts` (the
+CSS-shape checks plus the shared `ui-theme-guard.ts` chain guard every
+other kernel/ui primitive uses).
+
+**Adopted in all four apps, each from its own panel's `row()`-equivalent
+choke-point** — unlike the five UI primitives before it, this landed with
+every app's adoption in the same pass as the kernel half, same reasoning
+as `h()`'s own entry below (real values still differ per app — dash's
+`--radius` is 7px against the other three's 10px, `dash` had no `--field`
+token at all — but `fieldize()` itself has nothing app-specific to
+decide, so splitting adoption into four separate follow-ups would have
+added process without buying independence). `panels.ts`/`props.ts`
+import `fieldize` from `field.ts` rather than each defining their own
+copy — the first draft of this primitive DID duplicate the function into
+all four files by hand, which is exactly the mistake this whole effort
+exists to stop making; caught in review before landing.
+
+Each app's own hardcoded border/padding/radius/color rules for its
+fields are gone, replaced by `.bk-field`'s, with only each rule's genuine
+local difference (a fixed width, in every case) staying: slides'
+`.ed-row input[type='text']`/`input[type='number'], select`, spaces'
+`.sp-select`, and type's THREE near-identical field styles — `.t-input`,
+`.t-field`, `.t-select`, differing from each other by a pixel or two of
+padding/radius/font-size, an in-app duplicate nobody had noticed because
+each was scoped to a different panel. `dash` had no base rule to replace
+at all.
+
+**Checkboxes converged the same way, once someone actually looked.** Every
+app's own `row()`-equivalent already called `fieldize()` on every control
+including its checkboxes — so once `.bk-check` existed, each app's
+properties-panel checkbox (`dash`'s `.dp-row`, `spaces`'s `.sp-insp-row`,
+`slides`'s `.ed-row`, `type`'s `.t-row`) picked it up for free, no new
+call sites. The STANDALONE toggles (not beside a field in the same row —
+`dash`'s About/Settings switches, its filter-value checklist, `spaces`'s
+export-options card, `type`'s find-options bar) needed `fieldize()` called
+explicitly at their own build sites, and locally override `.bk-check`'s
+row-pitch margin back to whatever spacing their own layout (a flex `gap`,
+a title's cap-height) already provides — the margin exists to match a
+SIBLING field's height, and there is no sibling field to match in a
+standalone toggle line.
+
+**Why this one, found while adopting `h()`.** `dash` ships NO base input/
+select rule at all — every field there is bare native chrome or a one-off
+class; the tell that this was worth doing at all rather than three-times-
+duplicated-and-once-absent being fine. The bug that made it concrete:
+slides' old `.ed-row input[type='text']` rule did not also match
+`input[type='url']` — measured directly: a branch built from `main` (this
+primitive's own base, no C3/C4 history) still had the unstyled field,
+because the earlier hand-patch to that one selector lived only on
+`slides-editor-refresh` and was never on `main`. `.bk-field` makes the
+whole bug class structurally impossible rather than patching the one
+selector again — it names no `type` at all.
+
+**`--bkf-bg`'s chain is `--field → --surface`, not the reverse order
+`menu.css` uses.** `--field` is documented in three apps' own CSS as
+"form-control surface — CHROME, not paper/the slide" — the literal thing
+this class is — while `--surface` is slides' own "panels, dialogs, menus"
+token, a sibling concern. `dash` is the one app with `--surface` and no
+`--field`, so it lands on the fallback instead of the primary; `type` has
+`--field` and no `--surface`, unaffected either way.
+
+Pointers: `kernel/src/ui/field.ts`, `kernel/src/ui/field.css`,
+`scripts/test-ui-field.ts`, `working/PLAN-1-shared-infra.md` (item 2).
 
 ---
 
