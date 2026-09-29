@@ -46,6 +46,7 @@
 import type { SpacesDoc, Page } from './model'
 import { renderPage } from './render'
 import { homePage } from './model'
+import { h } from '../../kernel/src/dom.ts'
 
 /** Above this the preview is trimmed, then dropped to a title card. A preview
  *  is a courtesy; it must never be why a file is large. */
@@ -152,9 +153,7 @@ function staticize(root: HTMLElement, keepImages: boolean, doc: SpacesDoc): void
   // deleting it leaves a list of oddly indented sentences with no sign they are
   // tasks, or which are done. Swap in the glyph before the ban runs.
   for (const box of Array.from(root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))) {
-    const mark = document.createElement('span')
-    mark.textContent = box.checked ? '☑ ' : '☐ '
-    mark.setAttribute('style', 'color:#5B6472')
+    const mark = h('span', { textContent: box.checked ? '☑ ' : '☐ ', style: { color: '#5B6472' } })
     box.replaceWith(mark)
   }
   for (const el of Array.from(root.querySelectorAll(BANNED))) el.remove()
@@ -178,11 +177,15 @@ function staticize(root: HTMLElement, keepImages: boolean, doc: SpacesDoc): void
     if (!keepImages || !img.getAttribute('src')) {
       // Keep the BOX. An empty tinted rectangle where the picture was reads as
       // layout; removing it collapses the page into floating text.
-      const tint = document.createElement('div')
       const accent = flat(doc.theme?.accent) ?? '#F7A600'
-      tint.setAttribute('style',
-        `height:120px;border-radius:8px;margin:0 0 14px;` +
-        `background:linear-gradient(135deg,${accent}2E,${accent}12)`)
+      const tint = h('div', {
+        style: {
+          height: '120px',
+          borderRadius: '8px',
+          margin: '0 0 14px',
+          background: `linear-gradient(135deg,${accent}2E,${accent}12)`,
+        },
+      })
       img.replaceWith(tint)
     }
   }
@@ -190,25 +193,22 @@ function staticize(root: HTMLElement, keepImages: boolean, doc: SpacesDoc): void
 
 /** Last resort: the space's name, on its own background. */
 function titleCard(doc: SpacesDoc): HTMLElement {
-  const col = document.createElement('div')
-  col.className = 'bp-col'
-  const h = document.createElement('h1')
-  h.textContent = doc.title || 'Untitled space'
-  col.appendChild(h)
-  const p = document.createElement('p')
+  const col = h('div.bp-col')
+  const h1El = h('h1', { textContent: doc.title || 'Untitled space' })
+  col.appendChild(h1El)
   const pages = doc.pages?.length ?? 0
-  p.textContent = `${pages} page${pages === 1 ? '' : 's'}`
-  p.setAttribute('style', 'color:#5B6472')
+  const p = h('p', {
+    textContent: `${pages} page${pages === 1 ? '' : 's'}`,
+    style: { color: '#5B6472' },
+  })
   col.appendChild(p)
   return col
 }
 
 function wrap(inner: HTMLElement, doc: SpacesDoc): HTMLElement {
-  const box = document.createElement('div')
   // z-index above the splash (9999) and the loader's failure card (99999)
-  box.className = 'bp'
-  const style = document.createElement('style')
-  style.textContent = SHEET(doc)
+  const box = h('div.bp')
+  const style = h('style', { textContent: SHEET(doc) })
   box.appendChild(style)
   box.appendChild(inner)
   return box
@@ -236,8 +236,7 @@ export function buildSpacePreview(doc: SpacesDoc): HTMLElement | null {
       printing: true,
       titleOf: (id) => doc.pages.find((p) => p.id === id)?.title,
     })
-    const col = document.createElement('div')
-    col.className = 'bp-col'
+    const col = h('div.bp-col')
     while (rendered.firstChild) col.appendChild(rendered.firstChild)
     staticize(col, keepImages, doc)
     const built = wrap(col, doc)

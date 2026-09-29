@@ -29,6 +29,7 @@ import { CALLOUT_TONES, SPEC } from './blocks'
 import { toneLabel } from './render'
 import { CODE_LANGS, normLang } from './highlight'
 import { t } from './i18n'
+import { h } from '../../kernel/src/dom.ts'
 
 /**
  * What the panel needs from the editor.
@@ -66,12 +67,7 @@ const OPEN_KEY = 'bento-sp-insp-open'
 
 const mk = <K extends keyof HTMLElementTagNameMap>(
   tag: K, cls: string, text?: string,
-): HTMLElementTagNameMap[K] => {
-  const n = document.createElement(tag)
-  n.className = cls
-  if (text !== undefined) n.textContent = text
-  return n
-}
+): HTMLElementTagNameMap[K] => h(tag as string, { className: cls, textContent: text }) as unknown as HTMLElementTagNameMap[K]
 
 export class PropsPanel {
   private stale = false
@@ -274,13 +270,13 @@ export class PropsPanel {
 
   /** Percentage of the text column — no block carries absolute px. */
   private widthRow(b: Block): void {
-    const n = document.createElement('input')
-    n.type = 'number'
-    n.className = 'sp-insp-num'
-    n.min = '10'
-    n.max = '100'
-    n.step = '5'
-    n.value = String(Number(b.width ?? 100))
+    const n = h('input.sp-insp-num', {
+      type: 'number',
+      min: '10',
+      max: '100',
+      step: '5',
+      value: String(Number(b.width ?? 100)),
+    })
     n.addEventListener('change', () => {
       const v = Math.round(Math.min(100, Math.max(10, Number(n.value) || 100)))
       this.commit(b.id, (bb) => { if (v === 100) delete bb.width; else bb.width = v })
@@ -424,24 +420,16 @@ export class PropsPanel {
   }
 
   private select(opts: Array<[string, string]>, value: string, on: (v: string) => void): HTMLElement {
-    const sel = document.createElement('select')
-    sel.className = 'sp-select'
+    const sel = h('select.sp-select')
     for (const [v, label] of opts) {
-      const o = document.createElement('option')
-      o.value = v
-      o.textContent = label
-      if (v === value) o.selected = true
-      sel.append(o)
+      sel.append(h('option', { value: v, textContent: label, selected: v === value }))
     }
     sel.addEventListener('change', () => on(sel.value))
     return sel
   }
 
   private toggle(value: boolean, on: (v: boolean) => void): HTMLElement {
-    const cb = document.createElement('input')
-    cb.type = 'checkbox'
-    cb.className = 'sp-insp-tog'
-    cb.checked = value
+    const cb = h('input.sp-insp-tog', { type: 'checkbox', checked: value })
     cb.addEventListener('change', () => on(cb.checked))
     return cb
   }
@@ -449,10 +437,7 @@ export class PropsPanel {
   /** `change`, not `input`: one commit when the field is done with, rather
    *  than one undo entry per keystroke. */
   private text(value: string, hint: string, on: (v: string) => void): HTMLElement {
-    const i = document.createElement('input')
-    i.className = 'sp-insp-txt'
-    i.value = value
-    i.placeholder = hint
+    const i = h('input.sp-insp-txt', { value, placeholder: hint })
     i.addEventListener('change', () => on(i.value.trim()))
     i.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); i.blur() } })
     return i

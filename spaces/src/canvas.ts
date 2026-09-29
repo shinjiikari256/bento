@@ -62,6 +62,7 @@ import { descendantsOf, newBlock } from './model.ts'
 import { sanitizeInline } from './sanitize.ts'
 import { t } from './i18n.ts'
 import { ICONS } from './icons.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 /** The surface's shape, width ÷ height. Wide, because the first thing anyone
  *  draws here is a row of steps. */
@@ -214,31 +215,28 @@ export function renderCanvasHead(el: HTMLElement, b: Block, editable: boolean, c
   el.classList.add('sp-canvas')
   el.style.setProperty('--sp-ratio', String(canvasRatio(b)))
 
-  const head = document.createElement('div')
-  head.className = 'sp-canvas-head'
+  const head = h('div.sp-canvas-head')
 
-  const title = document.createElement(editable ? 'div' : 'span')
-  title.className = 'sp-canvas-title'
-  title.dir = 'auto'
+  const title = h(editable ? 'div' : 'span', {
+    className: 'sp-canvas-title',
+    dir: 'auto',
+    innerHTML: sanitizeInline(b.html ?? ''),
+  })
   if (editable) {
     title.contentEditable = 'true'
     title.dataset.canvasTitle = b.id
     title.dataset.ph = t('Name this canvas')
   }
-  title.innerHTML = sanitizeInline(b.html ?? '')
   head.appendChild(title)
 
   if (editable) {
-    const btn = (attr: string, label: string, tip: string): HTMLButtonElement => {
-      const el2 = document.createElement('button')
-      el2.type = 'button'
-      el2.className = 'sp-btn sp-canvas-btn'
-      el2.dataset[attr] = b.id
-      el2.textContent = label
-      el2.title = tip
-      el2.setAttribute('aria-label', tip)
-      return el2
-    }
+    const btn = (attr: string, label: string, tip: string): HTMLButtonElement => h('button.sp-btn.sp-canvas-btn', {
+      type: 'button',
+      dataset: { [attr]: b.id },
+      textContent: label,
+      title: tip,
+      ariaLabel: tip,
+    })
     const shape = ratioName(canvasRatio(b))
     // ONE cycling button, not a menu of three: the view block's layout control
     // settled this argument already, and the reason is the same — the word on
@@ -255,9 +253,7 @@ export function renderCanvasHead(el: HTMLElement, b: Block, editable: boolean, c
   el.appendChild(head)
 
   if (!cards) {
-    const empty = document.createElement('p')
-    empty.className = 'sp-canvas-empty'
-    empty.textContent = t('Nothing on this canvas yet.')
+    const empty = h('p.sp-canvas-empty', { textContent: t('Nothing on this canvas yet.') })
     el.appendChild(empty)
   }
 }
@@ -419,12 +415,12 @@ function wireCard(card: HTMLElement, body: HTMLElement, hooks: CanvasHooks): voi
   // inside a canvas is a second answer to a question already answered, and it
   // was the reason an earlier draft hid the gutter, which is the ONLY way to
   // reach Turn into, Duplicate and Delete on a phone.
-  const grip = document.createElement('button')
-  grip.type = 'button'
-  grip.className = 'sp-cv-grip'
-  grip.innerHTML = ICONS.grip
-  grip.title = t('Drag to move this card')
-  grip.setAttribute('aria-label', t('Drag to move this card'))
+  const grip = h('button.sp-cv-grip', {
+    type: 'button',
+    innerHTML: ICONS.grip,
+    title: t('Drag to move this card'),
+    ariaLabel: t('Drag to move this card'),
+  })
   card.appendChild(grip)
 
   grip.addEventListener('mousedown', (down) => startDrag(down, card, body, id, hooks))

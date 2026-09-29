@@ -23,6 +23,7 @@ import {
 import { answer, feed, freshContext, type CalcCtx } from './calc.ts'
 import { ICONS, type IconName } from './icons'
 import { renderCanvasHead, placeCard } from './canvas.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 export interface RenderOpts {
   /** editable per-block hosts (the editor); false for reader/print */
@@ -96,8 +97,7 @@ export function renderBlocks(page: Page, doc: SpacesDoc, opts: RenderOpts = {}):
   const head = headerLength(page)
   let strip: HTMLElement | null = null
   if (head > 0) {
-    strip = document.createElement('div')
-    strip.className = 'sp-props'
+    strip = h('div.sp-props')
     frag.appendChild(strip)
   }
 
@@ -120,8 +120,7 @@ export function renderBlocks(page: Page, doc: SpacesDoc, opts: RenderOpts = {}):
     // adjacent same-kind list items share one <ul>/<ol>
     if (kind) {
       if (!list || list.kind !== kind || list.under !== (b.parent ?? '')) {
-        const el: HTMLElement = document.createElement(kind)
-        el.className = 'sp-list'
+        const el: HTMLElement = h(`${kind}.sp-list`)
         host.appendChild(el)
         list = { el, kind, under: b.parent ?? '' }
       }
@@ -146,9 +145,10 @@ export function renderBlocks(page: Page, doc: SpacesDoc, opts: RenderOpts = {}):
     // into a bug waiting for the third one.
     const container = SPEC.get(b.type)?.container
     if (container) {
-      const body = document.createElement('div')
-      body.className = `sp-${b.type}-body`
-      if (container === 'fold' && !(opts.forceOpen || b.open)) body.hidden = true
+      const body = h('div', {
+        className: `sp-${b.type}-body`,
+        hidden: (container === 'fold' && !(opts.forceOpen || b.open)) || undefined,
+      })
       node.appendChild(body)
       stack.push([b.id, body, b.type])
       list = null
@@ -173,25 +173,27 @@ export function renderBlocks(page: Page, doc: SpacesDoc, opts: RenderOpts = {}):
 
 export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, calc: CalcCtx = {}): HTMLElement {
   const type = b.type
-  const el = document.createElement(TAG_OF[type] ?? 'div')
-  el.dataset.blockId = b.id
-  el.dataset.type = type
-  el.className = `sp-b sp-b-${type}`
+  const el = h(TAG_OF[type] ?? 'div', {
+    dataset: { blockId: b.id, type },
+    className: `sp-b sp-b-${type}`,
+  })
 
   switch (type) {
     case 'divider':
       el.className = 'sp-b sp-b-divider'
-      el.appendChild(document.createElement('hr'))
+      el.appendChild(h('hr'))
       return el
 
     case 'code': {
-      const pre = document.createElement('pre')
-      const code = document.createElement('code')
+      const pre = h('pre')
       // `language-xx` is the convention every markdown pipeline already reads,
       // and it carries the author's raw tag even when this build cannot
       // highlight it. esc() because it lands in a class attribute.
-      if (b.lang) code.className = `language-${esc(String(b.lang))}`
-      if (opts.editable) { code.contentEditable = 'true'; code.dataset.edit = b.id }
+      const code = h('code', {
+        className: b.lang ? `language-${esc(String(b.lang))}` : undefined,
+        contentEditable: opts.editable ? 'true' : undefined,
+        dataset: opts.editable ? { edit: b.id } : undefined,
+      })
       paintCode(code, textFromHtml(b.html), b.lang)
       pre.appendChild(code)
       el.appendChild(pre)
@@ -199,7 +201,7 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
     }
 
     case 'image': {
-      const fig = document.createElement('figure')
+      const fig = h('figure')
       const rawSrc = String(b.src ?? '')
 
       // A REMOTE image is not loaded until the reader asks for it.
@@ -219,26 +221,24 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
         fig.appendChild(remotePlaceholder(rawSrc, b, opts,
           t('Image from {host}', { host: remoteHost(resolveSrc(rawSrc, doc)) }), t('Load this image')))
         if (b.caption) {
-          const cap = document.createElement('figcaption')
-          cap.innerHTML = sanitizeInline(String(b.caption))
-          fig.appendChild(cap)
+          fig.appendChild(h('figcaption', { innerHTML: sanitizeInline(String(b.caption)) }))
         }
         el.appendChild(fig)
         return el
       }
 
-      const img = document.createElement('img')
-      img.src = resolveSrc(rawSrc, doc)
-      img.alt = String(b.alt ?? '')
-      if (b.width) img.style.width = `${Math.max(10, Math.min(100, Number(b.width)))}%`
       // intrinsic size holds the aspect box while the image decodes, so the
       // page does not reflow under the reader's cursor
-      if (b.w && b.h) { img.width = Number(b.w); img.height = Number(b.h) }
+      const img = h('img', {
+        src: resolveSrc(rawSrc, doc),
+        alt: String(b.alt ?? ''),
+        style: b.width ? { width: `${Math.max(10, Math.min(100, Number(b.width)))}%` } : undefined,
+        width: (b.w && b.h) ? Number(b.w) : undefined,
+        height: (b.w && b.h) ? Number(b.h) : undefined,
+      })
       fig.appendChild(img)
       if (b.caption) {
-        const cap = document.createElement('figcaption')
-        cap.innerHTML = sanitizeInline(String(b.caption))
-        fig.appendChild(cap)
+        fig.appendChild(h('figcaption', { innerHTML: sanitizeInline(String(b.caption)) }))
       }
       el.appendChild(fig)
       return el
@@ -250,15 +250,13 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
     }
 
     case 'media': {
-      const fig = document.createElement('figure')
+      const fig = h('figure')
       const play = mediaPlayback(b)
       const rawSrc = String(b.src ?? '')
       el.dataset.kind = play.kind
       const done = () => {
         if (b.caption) {
-          const cap = document.createElement('figcaption')
-          cap.innerHTML = sanitizeInline(String(b.caption))
-          fig.appendChild(cap)
+          fig.appendChild(h('figcaption', { innerHTML: sanitizeInline(String(b.caption)) }))
         }
         el.appendChild(fig)
         return el
@@ -271,25 +269,17 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
       // printout and a still see the same box saying what is missing, which is
       // more honest than a gap.
       if (!rawSrc) {
-        const box = document.createElement('div')
-        box.className = 'sp-media-empty'
-        const line = document.createElement('div')
-        line.className = 'sp-remote-line'
-        line.textContent = play.kind === 'audio' ? t('Audio') : t('Video')
+        const box = h('div.sp-media-empty')
+        const line = h('div.sp-remote-line', { textContent: play.kind === 'audio' ? t('Audio') : t('Video') })
         box.appendChild(line)
         if (opts.editable && !opts.printing) {
-          const pick = document.createElement('button')
-          pick.type = 'button'
-          pick.className = 'sp-btn sp-remote-load'
-          pick.textContent = t('Choose a file…')
-          pick.dataset.pickMedia = b.id
-          const link = document.createElement('button')
-          link.type = 'button'
-          link.className = 'sp-btn sp-remote-load'
-          link.textContent = t('Use a link…')
-          link.dataset.linkMedia = b.id
-          const row = document.createElement('div')
-          row.className = 'sp-media-actions'
+          const pick = h('button.sp-btn.sp-remote-load', {
+            type: 'button', textContent: t('Choose a file…'), dataset: { pickMedia: b.id },
+          })
+          const link = h('button.sp-btn.sp-remote-load', {
+            type: 'button', textContent: t('Use a link…'), dataset: { linkMedia: b.id },
+          })
+          const row = h('div.sp-media-actions')
           row.append(pick, link)
           box.appendChild(row)
         }
@@ -324,20 +314,20 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
         return done()
       }
 
-      const m = document.createElement(play.kind === 'audio' ? 'audio' : 'video') as
-        HTMLVideoElement | HTMLAudioElement
+      const m = document.createElement(play.kind === 'audio' ? 'audio' : 'video') as HTMLVideoElement | HTMLAudioElement
       m.className = 'sp-media'
       m.src = resolveSrc(rawSrc, doc)
-      // metadata, not auto: enough to draw the first frame and a duration, and
-      // no more. `auto` on a linked clip downloads the whole thing to display a
-      // page nobody has pressed play on.
+      // metadata, not auto: enough to draw the first frame and a duration,
+      // and no more. `auto` on a linked clip downloads the whole thing to
+      // display a page nobody has pressed play on.
       m.preload = 'metadata'
-      // A block with controls off is a rectangle you cannot use, which is fine
-      // for a reader looking at a caption-and-poster figure and useless to the
-      // author who has to click it to change it. So the editor always has them.
+      // A block with controls off is a rectangle you cannot use, which is
+      // fine for a reader looking at a caption-and-poster figure and
+      // useless to the author who has to click it to change it. So the
+      // editor always has them.
       m.controls = play.controls || opts.editable === true
       m.loop = play.loop
-      // NOTHING SETS `m.autoplay`. mediaPlayback() cannot return true for it,
+      // NOTHING SETS `autoplay`. mediaPlayback() cannot return true for it,
       // and this is the surface that would have obeyed it — see blocks.ts.
       if (play.kind === 'video') {
         const v = m as HTMLVideoElement
@@ -362,12 +352,9 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
     }
 
     case 'pagelink': {
-      const a = document.createElement('a')
       const target = String(b.page ?? '')
-      a.href = `#p/${target}`
-      a.className = 'sp-pagecard'
       const title = opts.titleOf?.(target)
-      a.textContent = title ?? '(missing page)'
+      const a = h('a.sp-pagecard', { href: `#p/${target}`, textContent: title ?? '(missing page)' })
       if (!title) a.classList.add('sp-dead')
       el.appendChild(a)
       return el
@@ -389,8 +376,7 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
       // <div>: `linkCard` returns '' for all three, and an <a> with no href is
       // a link a keyboard can focus and a screen reader will announce, leading
       // nowhere.
-      const card = document.createElement(c.url ? 'a' : 'div')
-      card.className = 'sp-linkcard'
+      const card = h(c.url ? 'a' : 'div', { className: 'sp-linkcard' })
       if (c.url) {
         const a = card as HTMLAnchorElement
         a.href = c.url
@@ -409,41 +395,30 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
       // to happen at the one place that holds both the src and the document —
       // here, which is also the only place that loads anything.
       if (c.image && !loadsRemotely(c.image, doc)) {
-        const img = document.createElement('img')
+        const img = h('img.sp-linkcard-img', { alt: '' })
         img.src = resolveSrc(c.image, doc)
-        img.alt = ''
-        img.className = 'sp-linkcard-img'
         card.appendChild(img)
       }
 
-      const body = document.createElement('span')
-      body.className = 'sp-linkcard-body'
+      const body = h('span.sp-linkcard-body')
 
-      const title = document.createElement('span')
-      title.className = 'sp-linkcard-title'
       // an empty card is not an empty box: it says what it is and, in the
       // editor, offers the way to fill it in
-      title.textContent = c.title || t('A link with nothing in it yet')
+      const title = h('span.sp-linkcard-title', { textContent: c.title || t('A link with nothing in it yet') })
       body.appendChild(title)
 
       if (c.desc) {
-        const desc = document.createElement('span')
-        desc.className = 'sp-linkcard-desc'
-        desc.textContent = c.desc
+        const desc = h('span.sp-linkcard-desc', { textContent: c.desc })
         body.appendChild(desc)
       }
 
-      const foot = document.createElement('span')
-      foot.className = 'sp-linkcard-site'
+      const foot = h('span.sp-linkcard-site')
       if (c.icon) {
-        const mark = document.createElement('span')
-        mark.className = 'sp-linkcard-mark'
         // textContent, never innerHTML: this is one field out of a mailed file
-        mark.textContent = c.icon
+        const mark = h('span.sp-linkcard-mark', { textContent: c.icon })
         foot.appendChild(mark)
       }
-      const site = document.createElement('span')
-      site.textContent = c.site || c.url
+      const site = h('span', { textContent: c.site || c.url })
       foot.appendChild(site)
       if (c.site || c.url || c.icon) body.appendChild(foot)
 
@@ -454,24 +429,21 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
       // only where there is an editor. Reading view, print and a locked space
       // must not paint a button that does nothing (the callout chip's rule).
       if (opts.editable) {
-        const edit = document.createElement('button')
-        edit.type = 'button'
-        edit.className = 'sp-linkcard-edit'
-        edit.dataset.editLink = b.id
-        edit.title = t('Edit this link card')
-        edit.textContent = c.url ? t('Edit') : t('Add a link')
+        const edit = h('button.sp-linkcard-edit', {
+          type: 'button',
+          dataset: { editLink: b.id },
+          title: t('Edit this link card'),
+          textContent: c.url ? t('Edit') : t('Add a link'),
+        })
         el.appendChild(edit)
       }
       return el
     }
 
     case 'todo': {
-      const box = document.createElement('input')
-      box.type = 'checkbox'
-      box.checked = !!b.done
-      box.className = 'sp-check'
       // the checkbox is a control, not text: it must not be inside the
       // editable host or typing would land in it
+      const box = h('input.sp-check', { type: 'checkbox', checked: !!b.done })
       el.appendChild(box)
       hostAndAnswer(el, b, opts, calc)
       if (b.done) el.classList.add('sp-done')
@@ -488,28 +460,22 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
       el.classList.add('sp-prop')
       el.dataset.field = key
 
-      const label = document.createElement('span')
-      label.className = 'sp-prop-key'
-      label.textContent = f?.label ?? key
+      const label = h('span.sp-prop-key', { textContent: f?.label ?? key })
       el.appendChild(label)
 
-      const val = document.createElement(opts.editable ? 'button' : 'span')
-      val.className = 'sp-prop-val'
+      const val = h(opts.editable ? 'button' : 'span', { className: 'sp-prop-val' })
       if (opts.editable) {
         ;(val as HTMLButtonElement).type = 'button'
         val.dataset.editField = key
       }
       const opt = f && optionOf(f, value)
       if (opt) {
-        const dot = document.createElement('span')
-        dot.className = 'sp-prop-dot'
         // colour is a HINT, never the meaning — the label is always present, so
         // this reads correctly in monochrome and without colour vision
-        if (opt.color) dot.style.background = opt.color
+        const dot = h('span.sp-prop-dot', { style: opt.color ? { background: opt.color } : undefined })
         val.appendChild(dot)
       }
-      const text = document.createElement('span')
-      text.textContent = shownValue(f, value)
+      const text = h('span', { textContent: shownValue(f, value) })
       val.appendChild(text)
       el.appendChild(val)
       return el
@@ -545,21 +511,17 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
       // The chip is the tone control when there is an editor to change it in,
       // and a plain label otherwise — reading view, print and a locked space
       // must not paint a button that does nothing.
-      const chip = document.createElement(opts.editable ? 'button' : 'span')
-      chip.className = 'sp-callout-chip'
+      const chip = h(opts.editable ? 'button' : 'span', { className: 'sp-callout-chip' })
       if (chip instanceof HTMLButtonElement) {
         chip.type = 'button'
         chip.title = t('Change the kind of callout')
       }
-      const mark = document.createElement('span')
-      mark.className = 'sp-callout-mark'
+      const mark = h('span.sp-callout-mark')
       calloutMark(mark, b, known)
-      const label = document.createElement('span')
-      label.className = 'sp-callout-label'
       // NOT aria-hidden and never a ::before: the tone is content the way a
       // "Warning:" printed on a page is content. A screen reader reading this
       // page linearly must hear it, and a printout must carry it.
-      label.textContent = toneLabel(raw)
+      const label = h('span.sp-callout-label', { textContent: toneLabel(raw) })
       chip.append(mark, label)
       el.appendChild(chip)
       hostAndAnswer(el, b, opts, calc)
@@ -567,12 +529,12 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
     }
 
     case 'toggle': {
-      const twist = document.createElement('button')
-      twist.className = 'sp-twist'
-      twist.type = 'button'
-      twist.setAttribute('aria-expanded', String(!!(opts.forceOpen || b.open)))
-      twist.setAttribute('aria-label', t('Toggle section'))
-      twist.textContent = '▸'
+      const twist = h('button.sp-twist', {
+        type: 'button',
+        ariaExpanded: String(!!(opts.forceOpen || b.open)),
+        ariaLabel: t('Toggle section'),
+        textContent: '▸',
+      })
       el.appendChild(twist)
       hostAndAnswer(el, b, opts, calc)
       return el
@@ -607,48 +569,43 @@ export function renderBlock(b: Block, doc: SpacesDoc, opts: RenderOpts = {}, cal
  */
 function renderTable(b: Block, opts: RenderOpts): HTMLElement {
   const t = tableOf(b)
-  const wrap = document.createElement('div')
   // A wide table SCROLLS rather than widening the prose column: the measure is
   // the document's, and a five-column table must not push the paragraph above
   // it off the screen on a phone.
-  wrap.className = 'sp-tb-wrap'
-  const table = document.createElement('table')
-  table.className = 'sp-tb'
+  const wrap = h('div.sp-tb-wrap')
+  const table = h('table.sp-tb')
   const total = t.cols.reduce((s, n) => s + n, 0) || t.w
-  const group = document.createElement('colgroup')
+  const group = h('colgroup')
   for (const w of t.cols) {
-    const col = document.createElement('col')
-    col.style.width = `${((w / total) * 100).toFixed(3)}%`
+    const col = h('col', { style: { width: `${((w / total) * 100).toFixed(3)}%` } })
     group.appendChild(col)
   }
   table.appendChild(group)
 
-  const body = document.createElement('tbody')
+  const body = h('tbody')
   t.rows.forEach((row, r) => {
     const head = t.header && r === 0
-    const tr = document.createElement('tr')
+    const tr = h('tr')
     row.forEach((cell, c) => {
+      // NOT `data-edit`: that name means "this element's html IS the block's
+      // html", and the editor's generic input handler would write one cell
+      // over the whole table. A cell says which block AND which cell it is.
       const td = document.createElement(head ? 'th' : 'td')
       td.className = 'sp-tb-cell'
       td.dataset.r = String(r)
       td.dataset.c = String(c)
+      if (opts.editable) td.dataset.cell = b.id
       if (head) td.setAttribute('scope', 'col')
       if (t.colAlign[c]) td.style.textAlign = t.colAlign[c]
-      // per cell, for the reason text blocks carry it: a table of Arabic terms
-      // beside English ones must lay each column out by what is IN it
+      // per cell, for the reason text blocks carry it: a table of Arabic
+      // terms beside English ones must lay each column out by what is IN it
       td.dir = 'auto'
-      if (opts.editable) {
-        td.contentEditable = 'true'
-        // NOT `data-edit`: that name means "this element's html IS the block's
-        // html", and the editor's generic input handler would write one cell
-        // over the whole table. A cell says which block AND which cell it is.
-        td.dataset.cell = b.id
-      }
+      if (opts.editable) td.contentEditable = 'true'
       td.innerHTML = sanitizeInline(cell)
       tr.appendChild(td)
     })
     if (head) {
-      const thead = document.createElement('thead')
+      const thead = h('thead')
       thead.appendChild(tr)
       table.appendChild(thead)
     } else body.appendChild(tr)
@@ -720,26 +677,21 @@ function hostAndAnswer(el: HTMLElement, b: Block, opts: RenderOpts, ctx: CalcCtx
   el.appendChild(inlineHost(b, opts))
   const ans = answer(textFromHtml(b.html), ctx, locale())
   if (ans === null) return
-  const out = document.createElement('span')
-  out.className = 'sp-ans'
-  out.contentEditable = 'false'
-  out.setAttribute('aria-hidden', 'true')
-  out.textContent = ans
+  const out = h('span.sp-ans', { contentEditable: 'false', ariaHidden: 'true', textContent: ans })
   el.appendChild(out)
 }
 
 /** The editable text host. Per-block, never one big editable container — that
  *  is what keeps Selection block-scoped and stops a merge re-minting ids. */
 function inlineHost(b: Block, opts: RenderOpts): HTMLElement {
-  const inner = document.createElement('span')
-  inner.className = 'sp-text'
-  inner.dataset.edit = b.id
-  // direction is per-block from the CONTENT, inside a container pinned by the
-  // document's theme.dir — PLATFORM §8's two-layer rule
-  inner.dir = 'auto'
-  if (opts.editable) inner.contentEditable = 'true'
-  inner.innerHTML = sanitizeInline(b.html ?? '')
-  if (!b.html) inner.dataset.empty = '1'
+  const inner = h('span.sp-text', {
+    dataset: b.html ? { edit: b.id } : { edit: b.id, empty: '1' },
+    // direction is per-block from the CONTENT, inside a container pinned by
+    // the document's theme.dir — PLATFORM §8's two-layer rule
+    dir: 'auto',
+    contentEditable: opts.editable ? 'true' : undefined,
+    innerHTML: sanitizeInline(b.html ?? ''),
+  })
   return inner
 }
 
@@ -835,25 +787,19 @@ function remoteHost(src: string): string {
 function remotePlaceholder(
   src: string, b: Block, opts: RenderOpts, line0: string, action: string,
 ): HTMLElement {
-  const box = document.createElement('div')
-  box.className = 'sp-remote'
-  box.dataset.remoteSrc = src
+  const box = h('div.sp-remote', { dataset: { remoteSrc: src } })
 
-  const line = document.createElement('div')
-  line.className = 'sp-remote-line'
-  line.textContent = line0
+  const line = h('div.sp-remote-line', { textContent: line0 })
   box.appendChild(line)
 
-  const why = document.createElement('div')
-  why.className = 'sp-remote-why'
-  why.textContent = t('Not loaded — opening it would tell that site you opened this space.')
+  const why = h('div.sp-remote-why', {
+    textContent: t('Not loaded — opening it would tell that site you opened this space.'),
+  })
   box.appendChild(why)
 
   const alt = String(b.alt ?? '')
   if (alt) {
-    const a = document.createElement('div')
-    a.className = 'sp-remote-alt'
-    a.textContent = alt
+    const a = h('div.sp-remote-alt', { textContent: alt })
     box.appendChild(a)
   }
 
@@ -861,11 +807,9 @@ function remotePlaceholder(
   // and paper carried a live "Load this image" button. Print asks for it
   // explicitly instead.
   if (opts.printing !== true && (opts.editable !== false || opts.allowRemote)) {
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.className = 'sp-btn sp-remote-load'
-    btn.textContent = action
-    btn.dataset.loadRemote = src
+    const btn = h('button.sp-btn.sp-remote-load', {
+      type: 'button', textContent: action, dataset: { loadRemote: src },
+    })
     box.appendChild(btn)
   }
   return box
@@ -886,24 +830,19 @@ function remotePlaceholder(
  * request — which is the point, because nobody is there to consent.
  */
 function mediaStill(b: Block, doc: SpacesDoc, opts: RenderOpts, kind: 'video' | 'audio'): HTMLElement {
-  const box = document.createElement('div')
-  box.className = 'sp-media-still'
+  const box = h('div.sp-media-still')
   const poster = String(b.poster ?? '')
   if (poster && !(loadsRemotely(poster, doc) && !opts.allowRemote?.(poster))) {
     const resolved = resolveSrc(poster, doc)
     if (resolved) {
-      const img = document.createElement('img')
-      img.src = resolved
-      img.alt = String(b.alt ?? '')
+      const img = h('img', { src: resolved, alt: String(b.alt ?? '') })
       box.appendChild(img)
       box.classList.add('sp-has-poster')
     }
   }
-  const badge = document.createElement('span')
-  badge.className = 'sp-media-badge'
   // the triangle is the universal mark and needs no font; the word beside it
   // is what makes it readable aloud and in monochrome
-  badge.textContent = `\u25B8 ${kind === 'audio' ? t('Audio') : t('Video')}`
+  const badge = h('span.sp-media-badge', { textContent: `▸ ${kind === 'audio' ? t('Audio') : t('Video')}` })
   box.appendChild(badge)
   return box
 }
@@ -914,13 +853,9 @@ function mediaStill(b: Block, doc: SpacesDoc, opts: RenderOpts, kind: 'video' | 
  * container carries the document's declared base direction.
  */
 export function renderPage(page: Page, doc: SpacesDoc, opts: RenderOpts = {}): HTMLElement {
-  const art = document.createElement('article')
-  art.className = 'sp-page'
-  art.style.direction = 'ltr'
+  const art = h('article.sp-page', { style: { direction: 'ltr' } })
 
-  const inner = document.createElement('div')
-  inner.className = 'sp-page-inner'
-  inner.dir = doc.theme.dir ?? 'ltr'
+  const inner = h('div.sp-page-inner', { dir: doc.theme.dir ?? 'ltr' })
   // THE MEASURE IS FOR PROSE. A line of text has a comfortable width and that
   // is what `theme.measure` is for — but a board is not a line of text, and
   // squeezing one into 720px shows two and a half columns of a six-column
@@ -993,27 +928,23 @@ export function renderPage(page: Page, doc: SpacesDoc, opts: RenderOpts = {}): H
   const cover = resolveSrc(coverSrc(page), doc)
   if (cover) {
     art.classList.add('sp-has-cover')
-    const wrap = document.createElement('div')
-    wrap.className = 'sp-cover'
-    const img = document.createElement('img')
-    img.className = 'sp-cover-img'
-    img.src = cover
+    const wrap = h('div.sp-cover')
     // DECORATIVE, deliberately. The page's own title is right underneath it and
     // says the same thing; a screen reader announcing "cover image" before every
     // title is noise, and there is nowhere to write alt text for it anyway.
-    img.alt = ''
-    img.setAttribute('aria-hidden', 'true')
+    const img = h('img.sp-cover-img', { src: cover, alt: '', ariaHidden: 'true' })
     wrap.appendChild(img)
     art.appendChild(wrap)
   }
 
-  const h = document.createElement('h1')
-  h.className = 'sp-title'
-  h.dataset.pageTitle = page.id
-  h.dir = 'auto'
-  if (opts.editable) h.contentEditable = 'true'
-  h.textContent = page.title
-  inner.appendChild(h)
+  // `h1El`, not `h`: this scope's own `h` would shadow the `h()` DOM builder.
+  const h1El = h('h1.sp-title', {
+    dataset: { pageTitle: page.id },
+    dir: 'auto',
+    contentEditable: opts.editable ? 'true' : undefined,
+    textContent: page.title,
+  })
+  inner.appendChild(h1El)
 
   inner.appendChild(renderBlocks(page, doc, opts))
   art.appendChild(inner)
@@ -1089,30 +1020,24 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   const all = viewRows(doc, (b as { source?: unknown }).source)
   const rows = sortRows(doc, all.filter((r) => passesFilter(doc, r.values, filter)), sort)
 
-  const head = document.createElement('div')
-  head.className = 'sp-view-head'
-  const title = document.createElement('span')
-  title.className = 'sp-view-title'
-  title.textContent = String(b.html || t('Issues'))
-  const count = document.createElement('span')
-  count.className = 'sp-view-count'
-  count.textContent = String(rows.length)
+  const head = h('div.sp-view-head')
+  const title = h('span.sp-view-title', { textContent: String(b.html || t('Issues')) })
+  const count = h('span.sp-view-count', { textContent: String(rows.length) })
   head.append(title, count)
 
   // The controls belong to the EDITOR, like the callout chip and the language
   // chip: a reader, a printout and a locked space get the view, not the buttons
   // that change what it holds.
   if (opts.editable) {
-    const btn = (attr: string, label: string, title: string, on = false): HTMLButtonElement => {
-      const el2 = document.createElement('button')
-      el2.type = 'button'
-      el2.className = 'sp-btn sp-view-btn' + (on ? ' sp-on' : '')
-      el2.dataset[attr] = '1'
-      el2.textContent = label
-      el2.title = title
-      el2.setAttribute('aria-label', title)
-      return el2
-    }
+    const btn = (attr: string, label: string, title: string, on = false): HTMLButtonElement =>
+      h('button', {
+        type: 'button',
+        className: 'sp-btn sp-view-btn' + (on ? ' sp-on' : ''),
+        dataset: { [attr]: '1' },
+        textContent: label,
+        title,
+        ariaLabel: title,
+      })
 
     // LAYOUT. Both shapes have always rendered; only the board was reachable,
     // so a view block could hold `layout:'list'` that nothing in the app could
@@ -1196,9 +1121,9 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   // asked for. Additivity keeps the rule; honesty says so.
   const unknown = unknownFilterKeys(filter)
   if (unknown.length) {
-    const note = document.createElement('p')
-    note.className = 'sp-view-empty'
-    note.textContent = t('A filter here is newer than this build and was not applied.')
+    const note = h('p.sp-view-empty', {
+      textContent: t('A filter here is newer than this build and was not applied.'),
+    })
     host.appendChild(note)
   }
   // Same rule, same honesty: a sort key naming a field this build has no schema
@@ -1206,21 +1131,21 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   // asked for. Silently showing a different order is the failure additivity
   // trades for.
   if (unknownSortKeys(doc, sort).length) {
-    const note = document.createElement('p')
-    note.className = 'sp-view-empty'
-    note.textContent = t('A sort here is newer than this build and was not applied.')
+    const note = h('p.sp-view-empty', {
+      textContent: t('A sort here is newer than this build and was not applied.'),
+    })
     host.appendChild(note)
   }
 
   if (!rows.length) {
-    const empty = document.createElement('p')
-    empty.className = 'sp-view-empty'
     // says how to fix it, because an empty board with no explanation reads as
     // broken rather than as empty — and an empty board with issues behind a
     // filter is a DIFFERENT thing to fix
-    empty.textContent = all.length
-      ? t('No issues match this filter.')
-      : t('No issues yet. Add a status field to any page and it appears here.')
+    const empty = h('p.sp-view-empty', {
+      textContent: all.length
+        ? t('No issues match this filter.')
+        : t('No issues yet. Add a status field to any page and it appears here.'),
+    })
     host.appendChild(empty)
     return
   }
@@ -1231,32 +1156,25 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
     // with a finger), and interactive content inside an <a> is invalid and
     // unreachable from the keyboard. The whole card is still one click target —
     // the title's ::after stretches over it (styles.css).
-    const a = document.createElement('div')
-    a.className = 'sp-issue'
-    a.dataset.issue = page.id
-    const t1 = document.createElement(opts.editable === false ? 'span' : 'a')
-    t1.className = 'sp-issue-title'
+    const a = h('div.sp-issue', { dataset: { issue: page.id } })
+    const t1 = h(opts.editable === false ? 'span' : 'a', { className: 'sp-issue-title', textContent: page.title })
     if (t1 instanceof HTMLAnchorElement) t1.href = `#p/${page.id}`
-    t1.textContent = page.title
     a.appendChild(t1)
-    const meta = document.createElement('span')
-    meta.className = 'sp-issue-meta'
+    const meta = h('span.sp-issue-meta')
 
     // THE STATUS IS A CONTROL, because a phone cannot drag. It is the same
     // picker and the same writer the issue's own header strip uses — one path,
     // so `value` and `html` can never fall out of step.
     const own = opts.editable && field && propBlockOf(page, groupKey)
     if (own) {
-      const set = document.createElement('button')
-      set.type = 'button'
-      set.className = 'sp-issue-chip sp-issue-set'
-      set.dataset.setField = own.id
-      set.title = t('Change {field}', { field: field!.label })
-      set.setAttribute('aria-label', t('Change {field}', { field: field!.label }))
+      const set = h('button.sp-issue-chip.sp-issue-set', {
+        type: 'button',
+        dataset: { setField: own.id },
+        title: t('Change {field}', { field: field!.label }),
+        ariaLabel: t('Change {field}', { field: field!.label }),
+      })
       const cur = optionOf(field, values.get(groupKey))
-      const d = document.createElement('span')
-      d.className = 'sp-prop-dot'
-      if (cur?.color) d.style.background = cur.color
+      const d = h('span.sp-prop-dot', { style: cur?.color ? { background: cur.color } : undefined })
       set.append(d, document.createTextNode(shownValue(field, values.get(groupKey))))
       meta.appendChild(set)
     }
@@ -1265,13 +1183,10 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
       const v = values.get(k)
       if (v === undefined || v === '' || v === null) continue
       const f2 = fieldByKey(doc, k)
-      const chip = document.createElement('span')
-      chip.className = 'sp-issue-chip'
+      const chip = h('span.sp-issue-chip')
       const o = f2 && optionOf(f2, v)
       if (o?.color) {
-        const d = document.createElement('span')
-        d.className = 'sp-prop-dot'
-        d.style.background = o.color
+        const d = h('span.sp-prop-dot', { style: { background: o.color } })
         chip.appendChild(d)
       }
       chip.append(document.createTextNode(shownValue(f2, v)))
@@ -1288,37 +1203,31 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   // the others lack should not be the reason everyone gets an empty column.
   if (layout === 'table') {
     const keys = fieldsOf(doc).map((f) => f.key).filter((k) => rows.some((r) => r.values.has(k)))
-    const wrap = document.createElement('div')
     // its own scroller: a wide table must not make the PAGE scroll sideways
-    wrap.className = 'sp-view-tablewrap'
-    const table = document.createElement('table')
-    table.className = 'sp-view-table'
-    const thead = document.createElement('thead')
-    const hr = document.createElement('tr')
-    const th0 = document.createElement('th')
-    th0.textContent = t('Page')
+    const wrap = h('div.sp-view-tablewrap')
+    const table = h('table.sp-view-table')
+    const thead = h('thead')
+    const hr = h('tr')
+    const th0 = h('th', { textContent: t('Page') })
     hr.appendChild(th0)
     for (const k of keys) {
-      const th = document.createElement('th')
-      th.textContent = fieldByKey(doc, k)?.label ?? k
+      const th = h('th', { textContent: fieldByKey(doc, k)?.label ?? k })
       hr.appendChild(th)
     }
     thead.appendChild(hr)
     table.appendChild(thead)
-    const tb = document.createElement('tbody')
+    const tb = h('tbody')
     for (const r of rows) {
-      const tr = document.createElement('tr')
-      const td0 = document.createElement('td')
+      const tr = h('tr')
+      const td0 = h('td')
       // the page itself, reached the same way a card reaches it
-      const a = document.createElement('a')
-      a.className = 'sp-view-cellink'
-      a.href = `#p/${r.page.id}`
-      a.dataset.page = r.page.id
-      a.textContent = r.page.title || t('Untitled')
+      const a = h('a.sp-view-cellink', {
+        href: `#p/${r.page.id}`, dataset: { page: r.page.id }, textContent: r.page.title || t('Untitled'),
+      })
       td0.appendChild(a)
       tr.appendChild(td0)
       for (const k of keys) {
-        const td = document.createElement('td')
+        const td = h('td')
         const f = fieldByKey(doc, k)
         const v = r.values.get(k)
         // THROUGH THE OPTION, so a select shows its label and its colour rather
@@ -1326,11 +1235,8 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
         // header strip, and for the same reason: the id is not for reading.
         const opt = optionOf(f, v)
         if (opt) {
-          const chip = document.createElement('span')
-          chip.className = 'sp-prop-chip'
-          const dot = document.createElement('span')
-          dot.className = 'sp-prop-dot'
-          if (opt.color) dot.style.background = opt.color
+          const chip = h('span.sp-prop-chip')
+          const dot = h('span.sp-prop-dot', { style: opt.color ? { background: opt.color } : undefined })
           chip.append(dot, document.createTextNode(opt.label))
           td.appendChild(chip)
         } else if (v !== undefined && v !== null && String(v) !== '') {
@@ -1360,26 +1266,19 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   // so a gallery of pages nobody has given a picture to still reads as a set of
   // distinct things rather than as a grid of grey rectangles.
   if (layout === 'gallery') {
-    const grid = document.createElement('div')
-    grid.className = 'sp-gallery'
+    const grid = h('div.sp-gallery')
     for (const r of rows) {
-      const cardEl = document.createElement('div')
-      cardEl.className = 'sp-gcard'
-      cardEl.dataset.issue = r.page.id
+      const cardEl = h('div.sp-gcard', { dataset: { issue: r.page.id } })
 
-      const shot = document.createElement('div')
-      shot.className = 'sp-gcard-shot'
+      const shot = h('div.sp-gcard-shot')
       const src = resolveSrc(coverSrc(r.page), doc)
       if (src) {
-        const img = document.createElement('img')
-        img.src = src
-        img.alt = ''
-        img.setAttribute('aria-hidden', 'true')
         // A gallery is many pictures at once — the one place in this app where
         // decoding them all up front is a real cost, and the one place the
         // browser can be told not to.
-        img.loading = 'lazy'
-        img.decoding = 'async'
+        const img = h('img', {
+          src, alt: '', ariaHidden: 'true', loading: 'lazy', decoding: 'async',
+        })
         shot.appendChild(img)
       } else {
         shot.classList.add('sp-gcard-bare')
@@ -1387,36 +1286,30 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
         // machines — the same reason ids are repaired from the id and never
         // from Math.random
         shot.style.setProperty('--h', String(hueOf(r.page.id)))
-        const mark = document.createElement('span')
-        mark.className = 'sp-gcard-mark'
+        const mark = h('span.sp-gcard-mark')
         pageMark(mark, r.page)
         shot.appendChild(mark)
       }
       cardEl.appendChild(shot)
 
-      const body = document.createElement('div')
-      body.className = 'sp-gcard-body'
-      const t1 = document.createElement(opts.editable === false ? 'span' : 'a')
-      t1.className = 'sp-issue-title'
+      const body = h('div.sp-gcard-body')
+      const t1 = h(opts.editable === false ? 'span' : 'a', {
+        className: 'sp-issue-title', textContent: r.page.title || t('Untitled'),
+      })
       if (t1 instanceof HTMLAnchorElement) t1.href = `#p/${r.page.id}`
-      t1.textContent = r.page.title || t('Untitled')
       body.appendChild(t1)
 
       // EVERY field the page carries, not the tracker's four. A gallery of
       // books whose cards showed Priority and Estimate and not the Author would
       // be the board wearing a different shape.
-      const meta = document.createElement('span')
-      meta.className = 'sp-issue-meta'
+      const meta = h('span.sp-issue-meta')
       for (const f of fieldsOf(doc)) {
         const v = r.values.get(f.key)
         if (v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length)) continue
-        const chip = document.createElement('span')
-        chip.className = 'sp-issue-chip'
+        const chip = h('span.sp-issue-chip')
         const o = optionOf(f, v)
         if (o?.color) {
-          const d = document.createElement('span')
-          d.className = 'sp-prop-dot'
-          d.style.background = o.color
+          const d = h('span.sp-prop-dot', { style: { background: o.color } })
           chip.appendChild(d)
         }
         chip.append(document.createTextNode(shownValue(f, v)))
@@ -1437,14 +1330,11 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   // the others lack should not be the reason everyone gets an empty column.
   if (layout === 'table') {
     const keys = fieldsOf(doc).map((f) => f.key).filter((k) => rows.some((r) => r.values.has(k)))
-    const wrap = document.createElement('div')
     // its own scroller: a wide table must not make the PAGE scroll sideways
-    wrap.className = 'sp-view-tablewrap'
-    const table = document.createElement('table')
-    table.className = 'sp-view-table'
-    const thead = document.createElement('thead')
-    const hr = document.createElement('tr')
-    const th0 = document.createElement('th')
+    const wrap = h('div.sp-view-tablewrap')
+    const table = h('table.sp-view-table')
+    const thead = h('thead')
+    const hr = h('tr')
     // THE PAGE COLUMN DOES NOT SORT, and it says so by being a plain heading
     // rather than a dead button. A view's `sort` names a FIELD: sortRows looks
     // each key up in the schema and skips what it cannot find, so ordering by
@@ -1453,10 +1343,9 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
     // itself. A pseudo-key like `title` is worse still: every build that ships
     // today would report it through unknownSortKeys as "newer than this build"
     // and then not apply it. Better a column that plainly does not sort.
-    th0.textContent = t('Page')
+    const th0 = h('th', { textContent: t('Page') })
     hr.appendChild(th0)
     for (const k of keys) {
-      const th = document.createElement('th')
       const label = fieldByKey(doc, k)?.label ?? k
       const dir = sortDirOf(sort, k)
       // The state lives on the TH as aria-sort, the attribute a screen reader
@@ -1464,21 +1353,23 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
       // renderings of ONE fact — the view's own `sort` — so there is no second
       // place the arrow could come from and no way for it to disagree with the
       // order the rows are actually in.
+      const th = h('th')
       th.setAttribute('aria-sort', dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : 'none')
       // A READER GETS THE HEADING, not the control — the rule the card chip and
       // every view button already follow: a printout and a locked space show
       // the view, never the things that change it.
       if (opts.editable) {
-        const sortB = document.createElement('button')
-        sortB.type = 'button'
-        sortB.className = 'sp-view-sort' + (dir ? ' sp-on' : '')
+        const sortB = h('button', {
+          className: 'sp-view-sort' + (dir ? ' sp-on' : ''),
+          type: 'button',
+          title: t('Sort by {field}', { field: label }),
+          ariaLabel: t('Sort by {field}', { field: label }),
+        })
         sortB.dataset.sortCol = k
-        sortB.title = t('Sort by {field}', { field: label })
-        sortB.setAttribute('aria-label', t('Sort by {field}', { field: label }))
-        const arrow = document.createElement('span')
-        arrow.className = 'sp-sortdir'
-        arrow.setAttribute('aria-hidden', 'true')
-        arrow.textContent = dir === 'asc' ? '\u2191' : dir === 'desc' ? '\u2193' : ''
+        const arrow = h('span.sp-sortdir', {
+          ariaHidden: 'true',
+          textContent: dir === 'asc' ? '↑' : dir === 'desc' ? '↓' : '',
+        })
         sortB.append(document.createTextNode(label), arrow)
         th.appendChild(sortB)
       } else {
@@ -1497,35 +1388,30 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
     const fill = (into: HTMLElement, f: FieldSpec | undefined, v: unknown): void => {
       const opt = optionOf(f, v)
       if (opt) {
-        const chip = document.createElement('span')
-        chip.className = 'sp-prop-chip'
-        const dot = document.createElement('span')
-        dot.className = 'sp-prop-dot'
-        if (opt.color) dot.style.background = opt.color
+        const chip = h('span.sp-prop-chip')
+        const dot = h('span.sp-prop-dot', { style: opt.color ? { background: opt.color } : undefined })
         chip.append(dot, document.createTextNode(opt.label))
         into.appendChild(chip)
       } else if (v !== undefined && v !== null && String(v) !== '') {
         into.appendChild(document.createTextNode(shownValue(f, v)))
       } else {
         into.classList.add('sp-view-empty')
-        into.appendChild(document.createTextNode('\u2014'))
+        into.appendChild(document.createTextNode('—'))
       }
     }
 
-    const tb = document.createElement('tbody')
+    const tb = h('tbody')
     for (const r of rows) {
-      const tr = document.createElement('tr')
-      const td0 = document.createElement('td')
+      const tr = h('tr')
+      const td0 = h('td')
       // the page itself, reached the same way a card reaches it
-      const a = document.createElement('a')
-      a.className = 'sp-view-cellink'
-      a.href = `#p/${r.page.id}`
-      a.dataset.page = r.page.id
-      a.textContent = r.page.title || t('Untitled')
+      const a = h('a.sp-view-cellink', {
+        href: `#p/${r.page.id}`, dataset: { page: r.page.id }, textContent: r.page.title || t('Untitled'),
+      })
       td0.appendChild(a)
       tr.appendChild(td0)
       for (const k of keys) {
-        const td = document.createElement('td')
+        const td = h('td')
         const f = fieldByKey(doc, k)
         const v = r.values.get(k)
         // A CELL IS A CONTROL where there is an editor — a real <button>, so it
@@ -1534,13 +1420,13 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
         // an empty cell is how the field gets ONTO that page, exactly as
         // dropping a card into a column is.
         if (opts.editable && f) {
-          const cell = document.createElement('button')
-          cell.type = 'button'
-          cell.className = 'sp-view-cell'
+          const cell = h('button.sp-view-cell', {
+            type: 'button',
+            title: t('Change {field}', { field: f.label }),
+            ariaLabel: t('Change {field}', { field: f.label }),
+          })
           cell.dataset.cellPage = r.page.id
           cell.dataset.cellField = k
-          cell.title = t('Change {field}', { field: f.label })
-          cell.setAttribute('aria-label', t('Change {field}', { field: f.label }))
           fill(cell, f, v)
           td.appendChild(cell)
         } else {
@@ -1557,10 +1443,9 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   }
 
   if (layout === 'list') {
-    const ul = document.createElement('ul')
-    ul.className = 'sp-view-list'
+    const ul = h('ul.sp-view-list')
     for (const r of rows) {
-      const li = document.createElement('li')
+      const li = h('li')
       li.appendChild(card(r.page, r.values))
       ul.appendChild(li)
     }
@@ -1571,25 +1456,17 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   // BOARD, in the schema's declared order — not alphabetical, and not the order
   // issues happen to be in. A status list has a direction, and a board that
   // does not follow it is a board you have to read rather than glance at.
-  const board = document.createElement('div')
-  board.className = 'sp-board'
+  const board = h('div.sp-board')
   const cols = field?.options ?? []
   const seen = new Set<string>()
   for (const opt of cols) {
     const mine = rows.filter((r) => String(r.values.get(groupKey) ?? '') === opt.id)
     mine.forEach((r) => seen.add(r.page.id))
-    const col = document.createElement('div')
-    col.className = 'sp-col'
-    col.dataset.group = opt.id
-    const ch = document.createElement('div')
-    ch.className = 'sp-col-head'
-    const dot = document.createElement('span')
-    dot.className = 'sp-prop-dot'
-    if (opt.color) dot.style.background = opt.color
+    const col = h('div.sp-col', { dataset: { group: opt.id } })
+    const ch = h('div.sp-col-head')
+    const dot = h('span.sp-prop-dot', { style: opt.color ? { background: opt.color } : undefined })
     ch.append(dot, document.createTextNode(opt.label))
-    const n = document.createElement('span')
-    n.className = 'sp-col-count'
-    n.textContent = String(mine.length)
+    const n = h('span.sp-col-count', { textContent: String(mine.length) })
     ch.appendChild(n)
     col.appendChild(ch)
     for (const r of mine) col.appendChild(card(r.page, r.values))
@@ -1604,11 +1481,8 @@ function renderView(host: HTMLElement, b: Block, doc: SpacesDoc, opts: RenderOpt
   // deliberately.
   const orphans = rows.filter((r) => !seen.has(r.page.id))
   if (orphans.length) {
-    const col = document.createElement('div')
-    col.className = 'sp-col'
-    const ch = document.createElement('div')
-    ch.className = 'sp-col-head'
-    ch.textContent = t('Other')
+    const col = h('div.sp-col')
+    const ch = h('div.sp-col-head', { textContent: t('Other') })
     col.appendChild(ch)
     for (const r of orphans) col.appendChild(card(r.page, r.values))
     board.appendChild(col)

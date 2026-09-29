@@ -32,6 +32,7 @@ import type { SyncSession } from './sync/session.ts'
 import { sharingOn, onlineTransport, joinFromDoc, stopSharing, rotateKeys } from '../../kernel/src/sync/online.ts'
 import { offlineEnabled } from '../../kernel/src/net.ts'
 import { canWrite, fingerprint, isOwner, isReaderCopy, type ShareKind } from './share.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 export interface Peerish {
   actor: string
@@ -51,12 +52,7 @@ export interface Peerish {
   role?: 'owner' | 'editor' | 'viewer'
 }
 
-const el = (tag: string, cls = '', text = ''): HTMLElement => {
-  const n = document.createElement(tag)
-  if (cls) n.className = cls
-  if (text) n.textContent = text
-  return n
-}
+const el = (tag: string, cls = '', text = ''): HTMLElement => h(tag, { className: cls, textContent: text })
 
 /** First letter of a name, for the dot. Grapheme-safe enough for one glyph. */
 export const initial = (name: string): string => [...(name || '?').trim()][0] ?? '?'
@@ -134,10 +130,10 @@ export class CollabUi {
 
   /** The topbar control. Its LOOK is the state; its label never lies. */
   button(): HTMLButtonElement {
-    const b = document.createElement('button')
-    b.type = 'button'
-    b.className = 'sp-live'
-    b.innerHTML = `<span class="sp-ico">${ICONS.people}</span><span class="sp-live-n"></span>`
+    const b = h('button.sp-live', {
+      type: 'button',
+      innerHTML: `<span class="sp-ico">${ICONS.people}</span><span class="sp-live-n"></span>`,
+    })
     b.addEventListener('click', () => this.openPanel(b))
     this.btn = b
     this.sync()
@@ -276,12 +272,12 @@ export class CollabUi {
       // screen, and the only field here that is about you rather than them.
       const row = el('label', 'sp-field')
       row.append(el('span', 'sp-field-lbl', t('Your name')))
-      const name = document.createElement('input')
-      name.type = 'text'
-      name.className = 'sp-input'
+      const name = h('input.sp-input', {
+        type: 'text',
+        placeholder: t('Guest'),
+        title: t('Shown next to your cursor and in the People list — stored only in this browser.'),
+      })
       try { name.value = localStorage.getItem('bento-author') || '' } catch { /* locked-down origin */ }
-      name.placeholder = t('Guest')
-      name.title = t('Shown next to your cursor and in the People list — stored only in this browser.')
       name.addEventListener('input', () => {
         try { localStorage.setItem('bento-author', name.value) } catch { /* no storage */ }
       })
@@ -310,9 +306,7 @@ export class CollabUi {
       if (peers.length) {
         const list = el('div', 'sp-plist')
         for (const p of peers) {
-          const item = document.createElement('button')
-          item.type = 'button'
-          item.className = 'sp-pitem'
+          const item = h('button.sp-pitem', { type: 'button' })
           const d = el('span', 'sp-dot', initial(p.name))
           d.style.background = p.color
           item.append(d, el('span', 'sp-pname', p.name))
@@ -436,12 +430,9 @@ export class CollabUi {
   }
 
   private action(label: string, hint: string, run: () => void): HTMLElement {
-    const b = document.createElement('button')
-    b.type = 'button'
-    b.className = 'sp-paction'
+    const b = h('button.sp-paction', { type: 'button', onclick: run })
     b.append(el('strong', '', label))
     if (hint) b.append(el('span', '', hint))
-    b.addEventListener('click', run)
     return b
   }
 

@@ -17,6 +17,7 @@
 
 import { THEME_CHOICES, setTheme, themeChoice, type ThemeChoice } from '../../kernel/src/theme.ts'
 import { t } from './i18n'
+import { h } from '../../kernel/src/dom.ts'
 
 const label = (c: ThemeChoice): string =>
   c === 'auto' ? t('Match my system') : c === 'light' ? t('Light') : t('Dark')
@@ -28,16 +29,11 @@ const label = (c: ThemeChoice): string =>
  * section sits — and so nothing here needs to know what a dialog is.
  */
 export function appearanceSection(): HTMLElement[] {
-  const h = document.createElement('h2')
-  h.className = 'sp-card-h'
-  h.textContent = t('Appearance')
+  const h2El = h('h2.sp-card-h', { textContent: t('Appearance') })
 
-  const sel = document.createElement('select')
-  sel.className = 'sp-select'
+  const sel = h('select.sp-select')
   for (const c of THEME_CHOICES) {
-    const o = document.createElement('option')
-    o.value = c
-    o.textContent = label(c)
+    const o = h('option', { value: c, textContent: label(c) })
     if (c === themeChoice()) o.selected = true
     sel.append(o)
   }
@@ -47,16 +43,14 @@ export function appearanceSection(): HTMLElement[] {
   // the two without losing your place.
   sel.addEventListener('change', () => setTheme(sel.value as ThemeChoice))
 
-  const row = document.createElement('div')
-  row.className = 'sp-row'
-  const lbl = document.createElement('span')
-  lbl.textContent = t('Interface theme')
+  const row = h('div.sp-row')
+  const lbl = h('span', { textContent: t('Interface theme') })
   row.append(lbl, sel)
 
-  const note = document.createElement('p')
-  note.className = 'sp-note'
   // the same rule as the language below it, and PLATFORM §8's
-  note.textContent = t('The theme follows whoever opens the file. It is never written into the document.')
+  const note = h('p.sp-note', {
+    textContent: t('The theme follows whoever opens the file. It is never written into the document.'),
+  })
 
-  return [h, row, note]
+  return [h2El, row, note]
 }

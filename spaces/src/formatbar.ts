@@ -46,6 +46,7 @@ import {
   offsetsOf, rangeAt, PALETTE, colourAttrs,
 } from './marks.ts'
 import { externalHref } from './sanitize'
+import { h } from '../../kernel/src/dom.ts'
 
 /** What the bar needs to know about the editor around it. */
 export interface FormatBarHost {
@@ -190,24 +191,25 @@ export class FormatBar {
   }
 
   private build(): HTMLElement {
-    const bar = document.createElement('div')
-    bar.className = this.sheet() ? 'sp-fmt sp-fmt-dock' : 'sp-fmt'
-    // The kernel's save clones the live document; anything of ours in the body
-    // has to say it is not part of it.
-    bar.setAttribute('data-bento-transient', '')
-    bar.setAttribute('role', 'toolbar')
-    bar.setAttribute('aria-label', t('Text formatting'))
-    // mousedown INSIDE the bar must not move the caret out of the block
-    bar.addEventListener('mousedown', (e) => e.preventDefault())
+    const bar = h('div', {
+      className: this.sheet() ? 'sp-fmt sp-fmt-dock' : 'sp-fmt',
+      role: 'toolbar',
+      ariaLabel: t('Text formatting'),
+      // The kernel's save clones the live document; anything of ours in the
+      // body has to say it is not part of it.
+      dataset: { bentoTransient: '' },
+      // mousedown INSIDE the bar must not move the caret out of the block
+      onmousedown: (e) => e.preventDefault(),
+    })
     this.buttons.clear()
     for (const item of this.items()) {
-      const b = document.createElement('button')
-      b.type = 'button'
-      b.className = 'sp-fmt-btn'
-      b.innerHTML = item.icon
-      b.title = item.hint
-      b.setAttribute('aria-label', item.label)
-      b.addEventListener('click', (e) => { e.preventDefault(); this.run(item.tag) })
+      const b = h('button.sp-fmt-btn', {
+        type: 'button',
+        innerHTML: item.icon,
+        title: item.hint,
+        ariaLabel: item.label,
+        onclick: (e) => { e.preventDefault(); this.run(item.tag) },
+      })
       if (item.tag === 'link') b.classList.add('sp-fmt-gap')
       this.buttons.set(item.tag, b)
       bar.append(b)
@@ -318,12 +320,12 @@ export class FormatBar {
     bar.classList.add('sp-fmt-linking')
     this.locked = true
 
-    const input = document.createElement('input')
-    input.className = 'sp-fmt-url'
-    input.type = 'url'
-    input.value = current
-    input.placeholder = t('Paste or type a link')
-    input.setAttribute('aria-label', t('Link address'))
+    const input = h('input.sp-fmt-url', {
+      type: 'url',
+      value: current,
+      placeholder: t('Paste or type a link'),
+      ariaLabel: t('Link address'),
+    })
     const restore = (): void => {
       this.locked = false
       bar.classList.remove('sp-fmt-linking')
@@ -346,20 +348,20 @@ export class FormatBar {
       if (e.key === 'Enter') { e.preventDefault(); apply() }
       if (e.key === 'Escape') { e.preventDefault(); restore() }
     })
-    const go = document.createElement('button')
-    go.type = 'button'
-    go.className = 'sp-fmt-btn sp-fmt-go'
-    go.textContent = t('Apply')
-    go.addEventListener('mousedown', (e) => e.preventDefault())
-    go.addEventListener('click', apply)
+    const go = h('button.sp-fmt-btn.sp-fmt-go', {
+      type: 'button',
+      textContent: t('Apply'),
+      onmousedown: (e) => e.preventDefault(),
+      onclick: apply,
+    })
     bar.append(input, go)
     if (current) {
-      const off = document.createElement('button')
-      off.type = 'button'
-      off.className = 'sp-fmt-btn'
-      off.textContent = t('Remove')
-      off.addEventListener('mousedown', (e) => e.preventDefault())
-      off.addEventListener('click', () => { input.value = ''; apply() })
+      const off = h('button.sp-fmt-btn', {
+        type: 'button',
+        textContent: t('Remove'),
+        onmousedown: (e) => e.preventDefault(),
+        onclick: () => { input.value = ''; apply() },
+      })
       bar.append(off)
     }
     if (!this.sheet()) this.place()
@@ -402,40 +404,38 @@ export class FormatBar {
       pink: t('Pink'), red: t('Red'),
     }
     const row = (role: 'fg' | 'bg', heading: string, tag: MarkTag): void => {
-      const h = document.createElement('div')
-      h.className = 'sp-fmt-pal-h'
-      h.textContent = heading
-      const strip = document.createElement('div')
-      strip.className = 'sp-fmt-sw-row'
+      const hEl = h('div.sp-fmt-pal-h', { textContent: heading })
+      const strip = h('div.sp-fmt-sw-row')
       for (const name of ['', ...PALETTE]) {
-        const sw = document.createElement('button')
-        sw.type = 'button'
-        sw.className = `sp-fmt-sw sp-${role}-${name || 'default'}`
-        sw.textContent = 'A'
         const label = `${heading} · ${names[name]}`
-        sw.title = label
-        sw.setAttribute('aria-label', label)
-        sw.addEventListener('mousedown', (e) => e.preventDefault())
-        sw.addEventListener('click', () => {
-          // "Default" is REMOVAL, not a colour named default: a paragraph
-          // nobody coloured and one coloured back to default must be the same
-          // bytes, or every diff carries the ghost of an undone decision.
-          this.write(tgt, applyMark(html, tgt.start, tgt.end, tag,
-            name ? { op: 'on', attrs: colourAttrs(role, name) } : { op: 'off' }))
-          restore()
+        const sw = h('button', {
+          type: 'button',
+          className: `sp-fmt-sw sp-${role}-${name || 'default'}`,
+          textContent: 'A',
+          title: label,
+          ariaLabel: label,
+          onmousedown: (e) => e.preventDefault(),
+          onclick: () => {
+            // "Default" is REMOVAL, not a colour named default: a paragraph
+            // nobody coloured and one coloured back to default must be the same
+            // bytes, or every diff carries the ghost of an undone decision.
+            this.write(tgt, applyMark(html, tgt.start, tgt.end, tag,
+              name ? { op: 'on', attrs: colourAttrs(role, name) } : { op: 'off' }))
+            restore()
+          },
         })
         strip.append(sw)
       }
-      bar.append(h, strip)
+      bar.append(hEl, strip)
     }
     row('fg', t('Text'), 'span')
     row('bg', t('Background'), 'mark')
-    const back = document.createElement('button')
-    back.type = 'button'
-    back.className = 'sp-fmt-btn sp-fmt-back'
-    back.textContent = t('Back')
-    back.addEventListener('mousedown', (e) => e.preventDefault())
-    back.addEventListener('click', restore)
+    const back = h('button.sp-fmt-btn.sp-fmt-back', {
+      type: 'button',
+      textContent: t('Back'),
+      onmousedown: (e) => e.preventDefault(),
+      onclick: restore,
+    })
     bar.append(back)
     if (!this.sheet()) this.place()
   }
