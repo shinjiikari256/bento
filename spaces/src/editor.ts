@@ -55,6 +55,7 @@ import { PropsPanel } from './props'
 import {
   internAsset, prepareImage, humanBytes, IMAGE_EMBED_BUDGET, MEDIA_EMBED_BUDGET, blobToDataUri,
 } from './assets'
+import { h } from '../../kernel/src/dom.ts'
 
 const CTRL = navigator.platform.toLowerCase().includes('mac') ? 'metaKey' : 'ctrlKey'
 
@@ -294,9 +295,7 @@ export class Editor {
     const pagesB = iconBtn('panelLeft', t('Pages — show or hide the page list'), () => this.toggleSidebar())
     pagesB.classList.add('sp-panel-toggle')
 
-    const title = document.createElement('input')
-    title.className = 'sp-doctitle'
-    title.value = this.store.doc.title
+    const title = h('input.sp-doctitle', { value: this.store.doc.title })
     title.setAttribute('aria-label', t('Space name'))
     title.addEventListener('input', () => {
       this.store.runEdit('__title', () => { this.store.doc.title = title.value })
@@ -484,9 +483,7 @@ export class Editor {
     // less-common ways of writing this document somewhere else
     const saveB = iconBtn('save', t('Save (⌘S)'), () => this.onSave?.())
     saveB.classList.add('sp-primary')
-    const saveLabel = document.createElement('span')
-    saveLabel.className = 'sp-savelabel'
-    saveLabel.textContent = t('Save')
+    const saveLabel = h('span.sp-savelabel', { textContent: t('Save') })
     saveB.append(saveLabel)
     // The unsaved dot lives ON Save, as in slides: the place you look to find
     // out whether you need to press it is the button itself.
@@ -894,12 +891,27 @@ export class Editor {
     const list = el('ul', 'sp-tree')
     for (const { page, depth } of s.tree()) {
       if (page.archived) continue
-      const li = document.createElement('li')
-      li.style.paddingInlineStart = `${depth * 14}px`
-      const a = document.createElement('a')
-      a.href = `#p/${page.id}`
+      const li = h('li', { style: { paddingInlineStart: `${depth * 14}px` } })
       const here = page.id === s.pageId
-      a.className = 'sp-treelink' + (here ? ' sp-here' : '')
+      const a = h('a', {
+        href: `#p/${page.id}`,
+        className: 'sp-treelink' + (here ? ' sp-here' : ''),
+        draggable: true,
+        onclick: (e) => { e.preventDefault(); s.goToPage(page.id); this.closeDrawer() },
+        ondragstart: (e) => e.dataTransfer?.setData('text/bento-page', page.id),
+        ondragover: (e) => {
+          // a sidebar row accepts PAGES; a card dragged over it lit up and
+          // promised a nesting it would never perform
+          if (!e.dataTransfer?.types.includes('text/bento-page')) return
+          e.preventDefault(); a.classList.add('sp-drop')
+        },
+        ondragleave: () => a.classList.remove('sp-drop'),
+        ondrop: (e) => {
+          e.preventDefault(); a.classList.remove('sp-drop')
+          const moved = e.dataTransfer?.getData('text/bento-page')
+          if (moved && moved !== page.id) this.reparentPage(moved, page.id)
+        },
+      })
       // WEIGHT IS NOT AN ANNOUNCEMENT. sp-here says "you are here" in 600
       // against 400, which a sighted reader gets for free and a screen reader
       // is told nothing about — the tree reads as a flat list of links with no
@@ -908,8 +920,7 @@ export class Editor {
       if (here) a.setAttribute('aria-current', 'page')
       const ico = el('span', 'sp-tree-ico')
       ico.innerHTML = pageIcon(page.icon)
-      const label = document.createElement('span')
-      label.textContent = this.pageLabel(page)
+      const label = h('span', { textContent: this.pageLabel(page) })
       a.append(ico, label)
       // who else is reading this page. A space is a TREE, so "where is
       // everyone" is a question about pages, not about carets — this is the
@@ -920,28 +931,12 @@ export class Editor {
       // place you can see that another page is waiting on you.
       const badge = commentBadge(unresolvedOn(page))
       if (badge) a.append(badge)
-      a.draggable = true
-      a.addEventListener('click', (e) => { e.preventDefault(); s.goToPage(page.id); this.closeDrawer() })
-      a.addEventListener('dragstart', (e) => e.dataTransfer?.setData('text/bento-page', page.id))
-      a.addEventListener('dragover', (e) => {
-        // a sidebar row accepts PAGES; a card dragged over it lit up and
-        // promised a nesting it would never perform
-        if (!e.dataTransfer?.types.includes('text/bento-page')) return
-        e.preventDefault(); a.classList.add('sp-drop')
+      const more = h('button.sp-rowmore[type=button]', {
+        innerHTML: ICONS.more,
+        title: t('Page options'),
+        ariaLabel: t('Page options'),
+        onclick: (e) => { e.preventDefault(); e.stopPropagation(); this.openPageMenu(page.id, more) },
       })
-      a.addEventListener('dragleave', () => a.classList.remove('sp-drop'))
-      a.addEventListener('drop', (e) => {
-        e.preventDefault(); a.classList.remove('sp-drop')
-        const moved = e.dataTransfer?.getData('text/bento-page')
-        if (moved && moved !== page.id) this.reparentPage(moved, page.id)
-      })
-      const more = document.createElement('button')
-      more.className = 'sp-rowmore'
-      more.type = 'button'
-      more.innerHTML = ICONS.more
-      more.title = t('Page options')
-      more.setAttribute('aria-label', t('Page options'))
-      more.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this.openPageMenu(page.id, more) })
       a.append(more)
 
       li.append(a)
@@ -955,34 +950,31 @@ export class Editor {
     // able to see what is going with it.
     const archived = s.doc.pages.filter((p) => p.archived)
     if (archived.length) {
-      const det = document.createElement('details')
-      det.className = 'sp-archived'
-      const sum = document.createElement('summary')
-      sum.textContent = t('Archived ({n})', { n: archived.length })
+      const det = h('details.sp-archived')
+      const sum = h('summary', { textContent: t('Archived ({n})', { n: archived.length }) })
       det.append(sum)
       const al = el('ul', 'sp-tree')
       for (const page of archived) {
-        const li = document.createElement('li')
-        const a = document.createElement('a')
-        a.href = `#p/${page.id}`
+        const li = h('li')
         const hereA = page.id === s.pageId
-        a.className = 'sp-treelink sp-arch-row' + (hereA ? ' sp-here' : '')
+        const a = h('a', {
+          href: `#p/${page.id}`,
+          className: 'sp-treelink sp-arch-row' + (hereA ? ' sp-here' : ''),
+          onclick: (e) => { e.preventDefault(); s.goToPage(page.id); this.closeDrawer() },
+        })
         if (hereA) a.setAttribute('aria-current', 'page')
         const ico = el('span', 'sp-tree-ico')
         ico.innerHTML = pageIcon(page.icon)
-        const label = document.createElement('span')
-        label.textContent = this.pageLabel(page)
+        const label = h('span', { textContent: this.pageLabel(page) })
         a.append(ico, label)
-        a.addEventListener('click', (e) => { e.preventDefault(); s.goToPage(page.id); this.closeDrawer() })
-        const un = document.createElement('button')
-        un.className = 'sp-rowmore'
-        un.type = 'button'
-        un.innerHTML = ICONS.unarchive
-        un.title = t('Restore to the page list')
-        un.setAttribute('aria-label', t('Restore to the page list'))
-        un.addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation()
-          s.commit(() => { const p = s.index.page.get(page.id); if (p) delete p.archived })
+        const un = h('button.sp-rowmore[type=button]', {
+          innerHTML: ICONS.unarchive,
+          title: t('Restore to the page list'),
+          ariaLabel: t('Restore to the page list'),
+          onclick: (e) => {
+            e.preventDefault(); e.stopPropagation()
+            s.commit(() => { const p = s.index.page.get(page.id); if (p) delete p.archived })
+          },
         })
         a.append(un)
         li.append(a)
@@ -1102,13 +1094,12 @@ export class Editor {
     // the icon lives beside the title, where changing it is discoverable
     const inner = view.querySelector('.sp-page-inner')
     if (inner && !s.readOnly && !this.reading) {
-      const pick = document.createElement('button')
-      pick.className = 'sp-pageicon'
-      pick.type = 'button'
-      pick.innerHTML = pageIcon(page.icon)
-      pick.title = t('Change this page\'s icon')
-      pick.setAttribute('aria-label', t('Change this page\'s icon'))
-      pick.addEventListener('click', () => this.openIconPicker(page.id, pick))
+      const pick = h('button.sp-pageicon[type=button]', {
+        innerHTML: pageIcon(page.icon),
+        title: t('Change this page\'s icon'),
+        ariaLabel: t('Change this page\'s icon'),
+        onclick: () => this.openIconPicker(page.id, pick),
+      })
       inner.prepend(pick)
     }
 
@@ -1121,21 +1112,13 @@ export class Editor {
       const iso = String(page.journal)
       const nav = el('div', 'sp-jnav')
       const step = (n: number, glyph: string, title: string) => {
-        const b = document.createElement('button')
-        b.type = 'button'
-        b.className = 'sp-jstep'
-        b.textContent = glyph
-        b.title = title
-        b.setAttribute('aria-label', title)
+        const b = h('button.sp-jstep', { type: 'button', textContent: glyph, title, ariaLabel: title })
         b.addEventListener('click', () => this.stepJournal(n))
         return b
       }
       nav.append(step(-1, '‹', t('The day before')), step(1, '›', t('The day after')))
       if (iso !== todayISO()) {
-        const today = document.createElement('button')
-        today.type = 'button'
-        today.className = 'sp-jstep sp-jtoday'
-        today.textContent = t('Today')
+        const today = h('button.sp-jstep.sp-jtoday', { type: 'button', textContent: t('Today') })
         today.addEventListener('click', () => this.openJournal())
         nav.append(today)
       }
@@ -1152,19 +1135,20 @@ export class Editor {
       // from the date they can read and appends to it — which is the rename
       // they were going to make anyway. The date itself lives in `journal` and
       // is untouched by any of it, so a renamed entry is still that day's.
-      const h = inner.querySelector<HTMLElement>('[data-page-title]')
-      if (h && page.title === iso) h.textContent = journalLabel(iso, locale())
+      const titleEl = inner.querySelector<HTMLElement>('[data-page-title]')
+      if (titleEl && page.title === iso) titleEl.textContent = journalLabel(iso, locale())
     }
 
     if (trail.length) {
       const crumb = el('nav', 'sp-crumb')
       crumb.setAttribute('aria-label', t('Breadcrumb'))
       trail.forEach((id, i) => {
-        if (i) crumb.append(Object.assign(document.createElement('span'), { textContent: '›' }))
-        const a = document.createElement('a')
-        a.href = `#p/${id}`
-        a.textContent = s.index.page.get(id)?.title || t('Untitled')
-        a.addEventListener('click', (e) => { e.preventDefault(); s.goToPage(id) })
+        if (i) crumb.append(h('span', { textContent: '›' }))
+        const a = h('a', {
+          href: `#p/${id}`,
+          textContent: s.index.page.get(id)?.title || t('Untitled'),
+          onclick: (e) => { e.preventDefault(); s.goToPage(id) },
+        })
         crumb.append(a)
       })
       view.querySelector('.sp-page-inner')?.prepend(crumb)
@@ -1190,24 +1174,22 @@ export class Editor {
    */
   private addGutter(node: HTMLElement, blockId: string): void {
     const g = el('div', 'sp-gutter')
-    const add = document.createElement('button')
     // Named, because a phone drops it: there is only room for ONE control in a
     // 44px margin, and "Add below" is the second item of the grip's own menu.
-    add.className = 'sp-ghost sp-ghost-add'
-    add.type = 'button'
-    add.innerHTML = ICONS.plus
-    add.title = t('Add a block below')
-    add.setAttribute('aria-label', t('Add a block below'))
-    add.addEventListener('click', () => this.insertAfter(blockId))
+    const add = h('button.sp-ghost.sp-ghost-add[type=button]', {
+      innerHTML: ICONS.plus,
+      title: t('Add a block below'),
+      ariaLabel: t('Add a block below'),
+      onclick: () => this.insertAfter(blockId),
+    })
 
-    const grip = document.createElement('button')
-    grip.className = 'sp-ghost'
-    grip.type = 'button'
-    grip.draggable = true
-    grip.innerHTML = ICONS.grip
-    grip.title = t('Drag to move, click for block options')
-    grip.setAttribute('aria-label', t('Block options'))
-    grip.addEventListener('click', () => this.openBlockMenu(blockId, grip))
+    const grip = h('button.sp-ghost[type=button]', {
+      draggable: true,
+      innerHTML: ICONS.grip,
+      title: t('Drag to move, click for block options'),
+      ariaLabel: t('Block options'),
+      onclick: () => this.openBlockMenu(blockId, grip),
+    })
     grip.addEventListener('dragstart', (e) => {
       e.dataTransfer?.setData('text/bento-block', blockId)
       node.classList.add('sp-dragging')
@@ -1443,18 +1425,18 @@ export class Editor {
     const pop = el('div', 'sp-pop')
     {
       // free text, a number or a date: one field, committed on Enter
-      const input = document.createElement('input')
-      input.className = 'sp-find'
-      input.type = f.vt === 'number' ? 'number' : f.vt === 'date' ? 'date' : 'text'
-      input.value = String(cur ?? '')
-      input.placeholder = f.label
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          const raw = input.value.trim()
-          this.closeOverlay()
-          write(f.vt === 'number' ? (raw === '' ? '' : Number(raw)) : raw)
-        }
+      const input = h('input.sp-find', {
+        type: f.vt === 'number' ? 'number' : f.vt === 'date' ? 'date' : 'text',
+        value: String(cur ?? ''),
+        placeholder: f.label,
+        onkeydown: (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            const raw = input.value.trim()
+            this.closeOverlay()
+            write(f.vt === 'number' ? (raw === '' ? '' : Number(raw)) : raw)
+          }
+        },
       })
       input.setAttribute('aria-label', f.label)
       pop.append(input)
@@ -2081,13 +2063,12 @@ export class Editor {
     // value already defined
     if (!v || /^\s*[\d.,_]+\s*$/.test(line)) return
 
-    const g = document.createElement('span')
-    g.className = 'sp-preview'
-    g.contentEditable = 'false'
-    g.setAttribute('aria-hidden', 'true')
-    g.textContent = `= ${format(v, locale())}`
-    const kbd = document.createElement('kbd')
-    kbd.textContent = 'Tab'
+    const g = h('span.sp-preview', {
+      contentEditable: 'false',
+      ariaHidden: 'true',
+      textContent: `= ${format(v, locale())}`,
+    })
+    const kbd = h('kbd', { textContent: 'Tab' })
     g.appendChild(kbd)
     holder.appendChild(g)
     this.ghostFor = id
@@ -2274,14 +2255,13 @@ export class Editor {
     if (!s.readOnly && !this.reading) {
       for (const node of view.querySelectorAll<HTMLElement>('.sp-b-code')) {
         const id = node.dataset.blockId!
-        const chip = document.createElement('button')
-        chip.className = 'sp-btn sp-langchip'
-        chip.type = 'button'
         // the RAW tag when this build cannot highlight it, so a `rust` block
         // says "rust" and its plain rendering reads as a gap, not a bug
-        chip.textContent = langLabel(s.block(id)?.lang) || t('Plain text')
-        chip.title = t('Language — what this block is highlighted as')
-        chip.setAttribute('aria-label', t('Language — what this block is highlighted as'))
+        const chip = h('button.sp-btn.sp-langchip[type=button]', {
+          textContent: langLabel(s.block(id)?.lang) || t('Plain text'),
+          title: t('Language — what this block is highlighted as'),
+          ariaLabel: t('Language — what this block is highlighted as'),
+        })
         chip.addEventListener('click', () => this.openLangPicker(id, chip))
         node.append(chip)
       }
@@ -2291,27 +2271,25 @@ export class Editor {
       const id = fig.dataset.blockId!
       const b = s.block(id)
       const tools = el('div', 'sp-imgtools')
-      const sizeBtn = document.createElement('button')
-      sizeBtn.className = 'sp-btn'
-      sizeBtn.type = 'button'
-      sizeBtn.textContent = `${b?.width ?? 100}%`
-      sizeBtn.title = t('Width in the text column')
-      sizeBtn.addEventListener('click', () => {
-        const steps = [100, 75, 50, 33]
-        const cur = Number(b?.width ?? 100)
-        const next = steps[(steps.indexOf(cur) + 1) % steps.length]
-        s.commit(() => { const bb = s.block(id); if (bb) bb.width = next })
-        this.paintPage()
+      const sizeBtn = h('button.sp-btn[type=button]', {
+        textContent: `${b?.width ?? 100}%`,
+        title: t('Width in the text column'),
+        onclick: () => {
+          const steps = [100, 75, 50, 33]
+          const cur = Number(b?.width ?? 100)
+          const next = steps[(steps.indexOf(cur) + 1) % steps.length]
+          s.commit(() => { const bb = s.block(id); if (bb) bb.width = next })
+          this.paintPage()
+        },
       })
       tools.append(sizeBtn)
       // a re-encoded image says so, and offers the untouched bytes back
       if (b && b.original === false) {
-        const badge = document.createElement('button')
-        badge.className = 'sp-btn sp-badge'
-        badge.type = 'button'
-        badge.textContent = t('Resized')
-        badge.title = t('This image was resized to keep the file small. Click to replace it with the original.')
-        badge.addEventListener('click', () => void this.pickImage(id))
+        const badge = h('button.sp-btn.sp-badge[type=button]', {
+          textContent: t('Resized'),
+          title: t('This image was resized to keep the file small. Click to replace it with the original.'),
+          onclick: () => void this.pickImage(id),
+        })
         tools.append(badge)
       }
       fig.append(tools)
@@ -2335,15 +2313,15 @@ export class Editor {
       const kind = String(b.kind ?? 'video') === 'audio' ? 'audio' : 'video'
       const tools = el('div', 'sp-mediatools')
       const flip = (label: string, title: string, on: boolean, set: (v: boolean) => void) => {
-        const btn = document.createElement('button')
-        btn.className = 'sp-btn' + (on ? ' sp-on' : '')
-        btn.type = 'button'
-        btn.textContent = label
-        btn.title = title
-        btn.setAttribute('aria-pressed', String(on))
-        btn.addEventListener('click', () => {
-          s.commit(() => { const bb = s.block(id); if (bb) set(!on) })
-          this.paintPage()
+        const btn = h('button[type=button]', {
+          className: 'sp-btn' + (on ? ' sp-on' : ''),
+          textContent: label,
+          title,
+          ariaPressed: String(on),
+          onclick: () => {
+            s.commit(() => { const bb = s.block(id); if (bb) set(!on) })
+            this.paintPage()
+          },
         })
         tools.append(btn)
       }
@@ -2352,26 +2330,25 @@ export class Editor {
       // browser's own height; a percentage of the measure would only make it
       // a shorter control bar.
       if (kind === 'video') {
-        const sizeBtn = document.createElement('button')
-        sizeBtn.className = 'sp-btn'
-        sizeBtn.type = 'button'
-        sizeBtn.textContent = `${b.width ?? 100}%`
-        sizeBtn.title = t('Width in the text column')
-        sizeBtn.addEventListener('click', () => {
-          const steps = [100, 75, 50, 33]
-          const cur = Number(b.width ?? 100)
-          const next = steps[(steps.indexOf(cur) + 1) % steps.length]
-          s.commit(() => { const bb = s.block(id); if (bb) bb.width = next })
-          this.paintPage()
+        const sizeBtn = h('button.sp-btn[type=button]', {
+          textContent: `${b.width ?? 100}%`,
+          title: t('Width in the text column'),
+          onclick: () => {
+            const steps = [100, 75, 50, 33]
+            const cur = Number(b.width ?? 100)
+            const next = steps[(steps.indexOf(cur) + 1) % steps.length]
+            s.commit(() => { const bb = s.block(id); if (bb) bb.width = next })
+            this.paintPage()
+          },
         })
         tools.append(sizeBtn)
 
-        const poster = document.createElement('button')
-        poster.className = 'sp-btn' + (b.poster ? ' sp-on' : '')
-        poster.type = 'button'
-        poster.textContent = t('Poster…')
-        poster.title = t('A still frame, shown before play — and what a printout or a file preview shows')
-        poster.addEventListener('click', () => void this.pickPoster(id))
+        const poster = h('button[type=button]', {
+          className: 'sp-btn' + (b.poster ? ' sp-on' : ''),
+          textContent: t('Poster…'),
+          title: t('A still frame, shown before play — and what a printout or a file preview shows'),
+          onclick: () => void this.pickPoster(id),
+        })
         tools.append(poster)
 
         flip(t('Muted'), t('Start silent'), b.muted === true,
@@ -2383,21 +2360,20 @@ export class Editor {
       flip(t('Controls'), t('Show playback controls to the reader'), b.controls !== false,
         (v) => { const bb = s.block(id); if (bb) { if (v) delete bb.controls; else bb.controls = false } })
 
-      const replace = document.createElement('button')
-      replace.className = 'sp-btn'
-      replace.type = 'button'
-      replace.textContent = t('Replace…')
-      replace.title = t('Choose a different file')
-      replace.addEventListener('click', () => void this.pickMedia(id))
+      const replace = h('button.sp-btn[type=button]', {
+        textContent: t('Replace…'),
+        title: t('Choose a different file'),
+        onclick: () => void this.pickMedia(id),
+      })
       tools.append(replace)
 
       // a linked clip says so, because it is the one that stops working on a
       // train — and the badge is the only place that fact is visible
       if (typeof b.src === 'string' && isRemote(b.src)) {
-        const badge = document.createElement('span')
-        badge.className = 'sp-btn sp-badge'
-        badge.textContent = t('Linked')
-        badge.title = t('Not in this file: it needs the network, and the site is told when someone opens the page')
+        const badge = h('span.sp-btn.sp-badge', {
+          textContent: t('Linked'),
+          title: t('Not in this file: it needs the network, and the site is told when someone opens the page'),
+        })
         tools.append(badge)
       }
       node.append(tools)
@@ -2617,11 +2593,7 @@ export class Editor {
       const shape = tableOf(b)
       const tools = el('div', 'sp-tb-tools')
       const btn = (label: string, title: string, run: () => void, on = false) => {
-        const x = document.createElement('button')
-        x.type = 'button'
-        x.className = 'sp-btn' + (on ? ' sp-on' : '')
-        x.textContent = label
-        x.title = title
+        const x = h('button.sp-btn', { className: on ? 'sp-on' : undefined, type: 'button', textContent: label, title })
         x.setAttribute('aria-label', title)
         // mousedown, not click: a click would first blur the cell, and `this.cell`
         // is read to decide WHICH row the button means. Blur still runs (the
@@ -2670,10 +2642,7 @@ export class Editor {
         })
       }
       for (let c = 0; c < shape.w - 1; c++) {
-        const grip = document.createElement('button')
-        grip.type = 'button'
-        grip.className = 'sp-tb-grip'
-        grip.tabIndex = -1
+        const grip = h('button.sp-tb-grip', { type: 'button', tabIndex: -1 })
         grip.setAttribute('aria-label', t('Drag to resize this column'))
         grip.addEventListener('mousedown', (down) => this.startColResize(down, id, c, node, place))
         grips.push(grip)
@@ -2834,11 +2803,12 @@ export class Editor {
       seen.add(r.pageId)
       const from = s.index.page.get(r.pageId)
       if (!from) continue
-      const li = document.createElement('li')
-      const a = document.createElement('a')
-      a.href = `#p/${from.id}`
-      a.textContent = from.title || t('Untitled')
-      a.addEventListener('click', (e) => { e.preventDefault(); s.goToPage(from.id) })
+      const li = h('li')
+      const a = h('a', {
+        href: `#p/${from.id}`,
+        textContent: from.title || t('Untitled'),
+        onclick: (e) => { e.preventDefault(); s.goToPage(from.id) },
+      })
       const snippet = textOf(s.index.block.get(r.blockId)?.block.html).slice(0, 120)
       li.append(a)
       if (snippet) li.append(el('span', 'sp-snippet', snippet))
@@ -3432,16 +3402,10 @@ export class Editor {
 
       caption(m, t('New property'))
       const form = el('div', 'sp-newprop')
-      const name = document.createElement('input')
-      name.type = 'text'
-      name.className = 'sp-input'
-      name.placeholder = t('Name')
-      const type = document.createElement('select')
-      type.className = 'sp-select'
+      const name = h('input.sp-input[type=text]', { placeholder: t('Name') })
+      const type = h('select.sp-select')
       for (const vt of FIELD_TYPES) {
-        const o = document.createElement('option')
-        o.value = vt
-        o.textContent = fieldTypeLabel(vt)
+        const o = h('option', { value: vt, textContent: fieldTypeLabel(vt) })
         type.append(o)
       }
       type.value = 'text'
@@ -3472,9 +3436,7 @@ export class Editor {
   openSearch(): void {
     const s = this.store
     this.openOverlay(t('Search this space'), (card, close) => {
-      const input = document.createElement('input')
-      input.className = 'sp-find'
-      input.placeholder = t('Search all pages…')
+      const input = h('input.sp-find', { placeholder: t('Search all pages…') })
       const results = el('ul', 'sp-results')
       const run = () => {
         const q = input.value.trim().toLowerCase()
@@ -3491,15 +3453,15 @@ export class Editor {
           }
           if (!hits.length) continue
           if (++n > 30) break
-          const li = document.createElement('li')
-          const a = document.createElement('button')
-          a.className = 'sp-result'
-          a.innerHTML =
-            `<span class="sp-result-ico">${ICONS.page}</span>` +
-            `<span class="sp-result-txt"><strong>${escapeHtml(p.title || t('Untitled'))}` +
-            (p.archived ? ` <em class="sp-arch">${t('archived')}</em>` : '') + `</strong>` +
-            `<span>${escapeHtml(hits.slice(0, 2).join(' · ').slice(0, 140))}</span></span>`
-          a.addEventListener('click', () => { close(); s.goToPage(p.id) })
+          const li = h('li')
+          const a = h('button.sp-result', {
+            innerHTML:
+              `<span class="sp-result-ico">${ICONS.page}</span>` +
+              `<span class="sp-result-txt"><strong>${escapeHtml(p.title || t('Untitled'))}` +
+              (p.archived ? ` <em class="sp-arch">${t('archived')}</em>` : '') + `</strong>` +
+              `<span>${escapeHtml(hits.slice(0, 2).join(' · ').slice(0, 140))}</span></span>`,
+            onclick: () => { close(); s.goToPage(p.id) },
+          })
           li.append(a)
           results.append(li)
         }
@@ -3543,9 +3505,7 @@ export class Editor {
     this.closeOverlay()
     const pop = el('div', 'sp-pop')
     pop.setAttribute('role', 'listbox')
-    const find = document.createElement('input')
-    find.className = 'sp-find'
-    find.placeholder = t('Filter blocks…')
+    const find = h('input.sp-find', { placeholder: t('Filter blocks…') })
     const list = el('ul', 'sp-results')
     pop.append(find, list)
 
@@ -3563,16 +3523,15 @@ export class Editor {
     const paint = () => {
       list.innerHTML = ''
       items.forEach((item, i) => {
-        const li = document.createElement('li')
-        const b = document.createElement('button')
-        b.className = 'sp-result' + (i === sel ? ' sp-sel' : '')
-        b.type = 'button'
-        b.setAttribute('role', 'option')
-        b.innerHTML =
-          `<span class="sp-result-ico">${ICONS[item.icon]}</span>` +
-          `<span class="sp-result-txt"><strong>${escapeHtml(t(item.label))}</strong>` +
-          `<span>${escapeHtml(t(item.hint))}</span></span>`
-        b.addEventListener('click', () => commit(item))
+        const li = h('li')
+        const b = h('button[role=option][type=button]', {
+          className: 'sp-result' + (i === sel ? ' sp-sel' : ''),
+          innerHTML:
+            `<span class="sp-result-ico">${ICONS[item.icon]}</span>` +
+            `<span class="sp-result-txt"><strong>${escapeHtml(t(item.label))}</strong>` +
+            `<span>${escapeHtml(t(item.hint))}</span></span>`,
+          onclick: () => commit(item),
+        })
         li.append(b)
         list.append(li)
       })
@@ -3654,19 +3613,19 @@ export class Editor {
 
     this.openOverlay(t('Link card'), (card, close) => {
 
-      const why = document.createElement('p')
-      why.className = 'sp-note'
-      why.textContent = t('Nothing is fetched. A card shows what you type here — opening this space never contacts the site.')
+      const why = h('p.sp-note', {
+        textContent: t('Nothing is fetched. A card shows what you type here — opening this space never contacts the site.'),
+      })
       card.append(why)
 
       const field = (key: string, label: string, hint?: string): HTMLInputElement => {
         const wrap = el('div', 'sp-field')
         wrap.append(el('label', 'sp-field-lbl', label))
-        const input = document.createElement('input')
-        input.className = 'sp-input'
-        input.value = draft[key]
-        if (hint) input.placeholder = hint
-        input.addEventListener('input', () => { draft[key] = input.value })
+        const input = h('input.sp-input', {
+          value: draft[key],
+          placeholder: hint,
+          oninput: () => { draft[key] = input.value },
+        })
         wrap.append(input)
         card.append(wrap)
         return input
@@ -3686,17 +3645,17 @@ export class Editor {
       // does — which is why a card can carry a picture at all without becoming
       // a request on open.
       const row = el('div', 'sp-actions')
-      const pick = document.createElement('button')
-      pick.className = 'sp-btn'
-      pick.type = 'button'
+      const pick = h('button.sp-btn[type=button]')
+      const drop = h('button.sp-btn[type=button]', {
+        textContent: t('Remove the picture'),
+        onclick: () => { draft.image = ''; paintPick() },
+      })
       const paintPick = () => {
         pick.textContent = draft.image ? t('Replace picture') : t('Add a picture')
         drop.hidden = !draft.image
       }
       pick.addEventListener('click', () => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = 'image/*'
+        const input = h('input[type=file]', { accept: 'image/*' })
         input.addEventListener('change', () => {
           const file = input.files?.[0]
           if (!file) return
@@ -3710,24 +3669,18 @@ export class Editor {
         })
         input.click()
       })
-      const drop = document.createElement('button')
-      drop.className = 'sp-btn'
-      drop.type = 'button'
-      drop.textContent = t('Remove the picture')
-      drop.addEventListener('click', () => { draft.image = ''; paintPick() })
       paintPick()
       row.append(pick, drop)
       card.append(row)
 
       const done = el('div', 'sp-actions')
-      const save = document.createElement('button')
-      save.className = 'sp-btn sp-primary'
-      save.type = 'button'
-      save.textContent = t('Save')
-      save.addEventListener('click', () => {
-        close()
-        s.commit(() => { const b = s.block(blockId); if (b) this.applyLinkCard(b, draft) })
-        this.paintPage()
+      const save = h('button.sp-btn.sp-primary[type=button]', {
+        textContent: t('Save'),
+        onclick: () => {
+          close()
+          s.commit(() => { const b = s.block(blockId); if (b) this.applyLinkCard(b, draft) })
+          this.paintPage()
+        },
       })
       done.append(save)
       card.append(done)
@@ -3739,9 +3692,7 @@ export class Editor {
   private openPagePicker(blockId: string, host: HTMLElement | null, then?: (pageId: string) => void): void {
     const s = this.store
     this.openOverlay(t('Link to page'), (card, close) => {
-      const input = document.createElement('input')
-      input.className = 'sp-find'
-      input.placeholder = t('Find or create a page…')
+      const input = h('input.sp-find', { placeholder: t('Find or create a page…') })
       const list = el('ul', 'sp-results')
       const choose = (pageId: string, title: string) => {
         close()
@@ -3759,30 +3710,28 @@ export class Editor {
         list.innerHTML = ''
         for (const p of s.doc.pages) {
           if (q && !p.title.toLowerCase().includes(q)) continue
-          const li = document.createElement('li')
-          const b = document.createElement('button')
-          b.className = 'sp-result'
-          b.type = 'button'
-          b.innerHTML =
-            `<span class="sp-result-ico">${ICONS.page}</span>` +
-            `<span class="sp-result-txt"><strong>${escapeHtml(p.title || t('Untitled'))}</strong></span>`
-          b.addEventListener('click', () => choose(p.id, p.title || t('Untitled')))
+          const li = h('li')
+          const b = h('button.sp-result[type=button]', {
+            innerHTML:
+              `<span class="sp-result-ico">${ICONS.page}</span>` +
+              `<span class="sp-result-txt"><strong>${escapeHtml(p.title || t('Untitled'))}</strong></span>`,
+            onclick: () => choose(p.id, p.title || t('Untitled')),
+          })
           li.append(b)
           list.append(li)
           if (list.childElementCount > 20) break
         }
         if (input.value.trim()) {
-          const li = document.createElement('li')
-          const b = document.createElement('button')
-          b.className = 'sp-result sp-new'
-          b.type = 'button'
-          b.innerHTML =
-            `<span class="sp-result-ico">${ICONS.plus}</span>` +
-            `<span class="sp-result-txt"><strong>${escapeHtml(t('Create “{name}”', { name: input.value.trim() }))}</strong></span>`
-          b.addEventListener('click', () => {
-            const page = newPage(input.value.trim())
-            s.commit(() => { s.doc.pages.push(page) })
-            choose(page.id, page.title)
+          const li = h('li')
+          const b = h('button.sp-result.sp-new[type=button]', {
+            innerHTML:
+              `<span class="sp-result-ico">${ICONS.plus}</span>` +
+              `<span class="sp-result-txt"><strong>${escapeHtml(t('Create “{name}”', { name: input.value.trim() }))}</strong></span>`,
+            onclick: () => {
+              const page = newPage(input.value.trim())
+              s.commit(() => { s.doc.pages.push(page) })
+              choose(page.id, page.title)
+            },
           })
           li.append(b)
           list.append(li)
@@ -3816,19 +3765,18 @@ export class Editor {
     this.closeOverlay()
     const pop = el('div', 'sp-pop sp-iconpop')
     for (const name of PAGE_ICONS) {
-      const b = document.createElement('button')
-      b.className = 'sp-iconopt'
-      b.type = 'button'
-      b.innerHTML = ICONS[name]
-      b.title = name
-      b.setAttribute('aria-label', name)
-      b.addEventListener('click', () => {
-        this.closeOverlay()
-        this.store.commit(() => {
-          const p = this.store.index.page.get(pageId)
-          if (p) p.icon = name
-        })
-        this.paintPage()
+      const b = h('button.sp-iconopt[type=button]', {
+        innerHTML: ICONS[name],
+        title: name,
+        ariaLabel: name,
+        onclick: () => {
+          this.closeOverlay()
+          this.store.commit(() => {
+            const p = this.store.index.page.get(pageId)
+            if (p) p.icon = name
+          })
+          this.paintPage()
+        },
       })
       pop.append(b)
     }
@@ -3864,11 +3812,11 @@ export class Editor {
       }
 
       const iconRow = el('label', 'sp-tonerow')
-      const icon = document.createElement('input')
-      icon.className = 'sp-find sp-toneicon'
-      icon.value = typeof b.icon === 'string' ? b.icon : ''
-      icon.maxLength = 16
-      icon.placeholder = t('Leave it empty to use the tone mark')
+      const icon = h('input.sp-find.sp-toneicon', {
+        value: typeof b.icon === 'string' ? b.icon : '',
+        maxLength: 16,
+        placeholder: t('Leave it empty to use the tone mark'),
+      })
       icon.setAttribute('aria-label', t('Callout icon'))
       // `change`, not `input`: one commit when the field is done with, rather
       // than one undo entry per keystroke of a pasted emoji
@@ -4018,12 +3966,12 @@ export class Editor {
   // ---- images --------------------------------------------------------------
   /** Choose a file and put it in the document. */
   async pickImage(blockId: string): Promise<void> {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.addEventListener('change', () => {
-      const file = input.files?.[0]
-      if (file) void this.placeImage(blockId, file)
+    const input = h('input[type=file]', {
+      accept: 'image/*',
+      onchange: () => {
+        const file = input.files?.[0]
+        if (file) void this.placeImage(blockId, file)
+      },
     })
     input.click()
   }
@@ -4122,9 +4070,7 @@ export class Editor {
    * .m4a that a phone wrote as video/mp4 plays either way.
    */
   async pickMedia(blockId: string): Promise<void> {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'video/*,audio/*'
+    const input = h('input', { type: 'file', accept: 'video/*,audio/*' })
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       if (file) void this.placeMedia(blockId, file)
@@ -4224,9 +4170,7 @@ export class Editor {
   /** A still frame for a video — the same pipeline an image goes through, so
    *  it is downscaled and content-addressed like any other picture. */
   private async pickPoster(blockId: string): Promise<void> {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
+    const input = h('input', { type: 'file', accept: 'image/*' })
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       if (!file) return
@@ -4256,9 +4200,7 @@ export class Editor {
    * with two answers to "how big is too big".
    */
   private async pickCover(pageId: string): Promise<void> {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
+    const input = h('input', { type: 'file', accept: 'image/*' })
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       if (!file) return
@@ -4323,25 +4265,18 @@ export class Editor {
   openImport(): void {
     this.openOverlay(t('Bring notes in'), (card, close) => {
 
-      const what = document.createElement('p')
-      what.className = 'sp-note'
-      what.textContent = t('Each .md file becomes a page, folders become the page tree, and [[wikilinks]] become real links. Pages are added — nothing here is replaced.')
+      const what = h('p.sp-note', { textContent: t('Each .md file becomes a page, folders become the page tree, and [[wikilinks]] become real links. Pages are added — nothing here is replaced.') })
       card.append(what)
 
       // WHERE the arriving pages land, and it governs BOTH ways in. An import
       // that can only append at the root is an import into a pile: the point of
       // a space is the tree, and "under the page I am reading" is what somebody
       // taking a second set of notes into a working space actually means.
-      const under = document.createElement('select')
-      under.className = 'sp-select'
-      const top = document.createElement('option')
-      top.value = ''
-      top.textContent = t('Top level')
+      const under = h('select.sp-select')
+      const top = h('option', { value: '', textContent: t('Top level') })
       under.append(top)
       for (const { page, depth } of this.store.tree()) {
-        const o = document.createElement('option')
-        o.value = page.id
-        o.textContent = `${'· '.repeat(depth)}${page.title || t('Untitled')}`
+        const o = h('option', { value: page.id, textContent: `${'· '.repeat(depth)}${page.title || t('Untitled')}` })
         if (page.id === this.store.pageId) o.selected = true
         under.append(o)
       }
@@ -4365,9 +4300,7 @@ export class Editor {
       card.append(zone)
 
       const pick = (folder: boolean) => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.multiple = true
+        const input = h('input', { type: 'file', multiple: true })
         if (folder) input.webkitdirectory = true
         else input.accept = '.md,.markdown,.mdown,.mkd,image/*'
         const at = where()
@@ -4382,9 +4315,7 @@ export class Editor {
       }
 
       const pickSpace = () => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = '.html,text/html,application/json'
+        const input = h('input', { type: 'file', accept: '.html,text/html,application/json' })
         const at = where()
         input.addEventListener('change', () => {
           close()
@@ -4402,16 +4333,12 @@ export class Editor {
       )
       card.append(acts)
 
-      const spaces = document.createElement('p')
-      spaces.className = 'sp-note'
-      spaces.textContent = t('Another bento/spaces file arrives as pages under the one you choose — its images come too, and the links inside it keep working.')
+      const spaces = h('p.sp-note', { textContent: t('Another bento/spaces file arrives as pages under the one you choose — its images come too, and the links inside it keep working.') })
       card.append(spaces)
 
-      const imgs = document.createElement('p')
-      imgs.className = 'sp-note'
       // said BEFORE the import, because it is the one thing a browser cannot
       // do for them: it has no way to open `../attachments/x.png` itself
-      imgs.textContent = t('Include the image files and they are embedded too. An image this browser cannot open is kept as its path rather than as a broken picture.')
+      const imgs = h('p.sp-note', { textContent: t('Include the image files and they are embedded too. An image this browser cannot open is kept as its path rather than as a broken picture.') })
       card.append(imgs)
     })
   }
@@ -4482,10 +4409,7 @@ export class Editor {
       if (plan.stats.assets) lines.push(t('{n} image(s) came too.', { n: plan.stats.assets }))
       lines.push(t('⌘Z removes the imported pages again.'))
       for (const line of lines) {
-        const p = document.createElement('p')
-        p.className = 'sp-note'
-        p.textContent = line
-        card.append(p)
+        card.append(h('p.sp-note', { textContent: line }))
       }
       card.append(plainBtn(t('Close'), close, true))
     })
@@ -4503,17 +4427,12 @@ export class Editor {
     const s = this.store
     this.openOverlay(t('Export a page as a space'), (card, close) => {
 
-      const what = document.createElement('p')
-      what.className = 'sp-note'
-      what.textContent = t('The page becomes a new file of its own: a whole space, with a new document id and none of this one’s sharing keys.')
+      const what = h('p.sp-note', { textContent: t('The page becomes a new file of its own: a whole space, with a new document id and none of this one’s sharing keys.') })
       card.append(what)
 
-      const pick = document.createElement('select')
-      pick.className = 'sp-select'
+      const pick = h('select.sp-select')
       for (const { page, depth } of s.tree()) {
-        const o = document.createElement('option')
-        o.value = page.id
-        o.textContent = `${'· '.repeat(depth)}${page.title || t('Untitled')}`
+        const o = h('option', { value: page.id, textContent: `${'· '.repeat(depth)}${page.title || t('Untitled')}` })
         if (page.id === s.pageId) o.selected = true
         pick.append(o)
       }
@@ -4521,15 +4440,12 @@ export class Editor {
       pageRow.append(el('span', '', t('Page')), pick)
       card.append(pageRow)
 
-      const kids = document.createElement('input')
-      kids.type = 'checkbox'
-      kids.checked = true
+      const kids = h('input', { type: 'checkbox', checked: true })
       const kidsRow = el('div', 'sp-row')
       kidsRow.append(el('span', '', t('Include the pages nested under it')), kids)
       card.append(kidsRow)
 
-      const summary = document.createElement('p')
-      summary.className = 'sp-note'
+      const summary = h('p.sp-note')
       const recount = () => {
         const r = extractSpace(s.doc, pick.value, { subtree: kids.checked, docId: 'preview', now: '' })
         const parts = [t('{pages} page(s) and {blocks} block(s) will travel.',
@@ -4720,10 +4636,7 @@ export class Editor {
       // re-inserts blocks pointing at those very keys.
       lines.push(t('⌘Z removes the imported pages again.'))
       for (const line of lines) {
-        const p = document.createElement('p')
-        p.className = 'sp-note'
-        p.textContent = line
-        card.append(p)
+        card.append(h('p.sp-note', { textContent: line }))
       }
       card.append(plainBtn(t('Close'), close, true))
     })
@@ -4745,24 +4658,13 @@ export class Editor {
     const bar = el('div', 'sp-findbar')
     bar.setAttribute('role', 'search')
 
-    const q = document.createElement('input')
-    q.className = 'sp-find'
-    q.placeholder = t('Find in this space…')
-    q.setAttribute('aria-label', t('Find'))
+    const q = h('input.sp-find', { placeholder: t('Find in this space…'), ariaLabel: t('Find') })
 
-    const rep = document.createElement('input')
-    rep.className = 'sp-find'
-    rep.placeholder = t('Replace with…')
-    rep.setAttribute('aria-label', t('Replace with'))
+    const rep = h('input.sp-find', { placeholder: t('Replace with…'), ariaLabel: t('Replace with') })
 
     const count = el('span', 'sp-findcount')
     const mk = (icon: IconName, label: string, fn: () => void) => {
-      const b = document.createElement('button')
-      b.className = 'sp-btn'
-      b.type = 'button'
-      b.innerHTML = ICONS[icon]
-      b.title = label
-      b.setAttribute('aria-label', label)
+      const b = h('button.sp-btn', { type: 'button', innerHTML: ICONS[icon], title: label, ariaLabel: label })
       b.addEventListener('click', fn)
       return b
     }
@@ -4899,14 +4801,14 @@ export class Editor {
     const s = this.store
     this.openOverlay(t('Print or save as PDF'), (card, close) => {
 
-      const scope = document.createElement('div')
-      scope.className = 'sp-choices'
+      const scope = h('div.sp-choices')
       let whole = true
       const choice = (label: string, hint: string, on: boolean, pick: () => void) => {
-        const b = document.createElement('button')
-        b.className = 'sp-choice' + (on ? ' sp-sel' : '')
-        b.type = 'button'
-        b.innerHTML = `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(hint)}</span>`
+        const b = h('button', {
+          className: 'sp-choice' + (on ? ' sp-sel' : ''),
+          type: 'button',
+          innerHTML: `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(hint)}</span>`,
+        })
         b.addEventListener('click', () => {
           pick()
           for (const o of scope.querySelectorAll('.sp-choice')) o.classList.remove('sp-sel')
@@ -4921,17 +4823,11 @@ export class Editor {
       )
       card.append(scope)
 
-      const opts = document.createElement('div')
-      opts.className = 'sp-optlist'
+      const opts = h('div.sp-optlist')
       const check = (label: string, hint: string, on: boolean) => {
-        const l = document.createElement('label')
-        l.className = 'sp-opt'
-        const i = document.createElement('input')
-        i.type = 'checkbox'
-        i.checked = on
-        l.append(i, Object.assign(document.createElement('span'), {
-          innerHTML: `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(hint)}</span>`,
-        }))
+        const l = h('label.sp-opt')
+        const i = h('input', { type: 'checkbox', checked: on })
+        l.append(i, h('span', { innerHTML: `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(hint)}</span>` }))
         opts.append(l)
         return i
       }
@@ -4939,14 +4835,10 @@ export class Editor {
       const wantContents = check(t('Contents page'), t('A list of every page, in order'), true)
       card.append(opts)
 
-      const note = document.createElement('p')
-      note.className = 'sp-note'
-      note.textContent = t('Collapsed toggles always print open. Your browser\'s print dialog has the "Save as PDF" option.')
+      const note = h('p.sp-note', { textContent: t('Collapsed toggles always print open. Your browser\'s print dialog has the "Save as PDF" option.') })
       card.append(note)
 
-      const go = document.createElement('button')
-      go.className = 'sp-btn sp-primary'
-      go.textContent = t('Print…')
+      const go = h('button.sp-btn.sp-primary', { textContent: t('Print…') })
       go.addEventListener('click', () => {
         close()
         this.printNow({ whole, archived: wantArchived.checked, contents: wantContents.checked })
@@ -4977,9 +4869,7 @@ export class Editor {
       const ul = el('ul', 'sp-toc-list')
       for (const { page, depth } of s.tree()) {
         if (!opts.archived && page.archived) continue
-        const li = document.createElement('li')
-        li.style.paddingInlineStart = `${depth * 16}px`
-        li.textContent = page.title || t('Untitled')
+        const li = h('li', { textContent: page.title || t('Untitled'), style: { paddingInlineStart: `${depth * 16}px` } })
         ul.append(li)
       }
       toc.append(ul)
@@ -5164,12 +5054,7 @@ function isTyping(): boolean {
 }
 
 function iconBtn(name: IconName, label: string, onClick: () => void): HTMLButtonElement {
-  const b = document.createElement('button')
-  b.className = 'sp-btn'
-  b.type = 'button'
-  b.innerHTML = ICONS[name]
-  b.title = label
-  b.setAttribute('aria-label', label)
+  const b = h('button.sp-btn', { type: 'button', innerHTML: ICONS[name], title: label, ariaLabel: label })
   b.addEventListener('click', onClick)
   return b
 }
@@ -5193,10 +5078,7 @@ function caretIndexIn(host: HTMLElement): number | null {
 }
 
 function plainBtn(label: string, onClick: () => void, primary = false): HTMLButtonElement {
-  const b = document.createElement('button')
-  b.className = 'sp-btn' + (primary ? ' sp-primary' : '')
-  b.type = 'button'
-  b.textContent = label
+  const b = h('button', { className: 'sp-btn' + (primary ? ' sp-primary' : ''), type: 'button', textContent: label })
   b.addEventListener('click', onClick)
   return b
 }

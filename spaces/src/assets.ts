@@ -7,6 +7,7 @@
 // the work: identical bytes are stored once, and a photo off a phone is
 // downscaled before it travels, visibly and reversibly.
 
+import { h } from '../../kernel/src/dom.ts'
 import { pageAssetKeys, type SpacesDoc } from './model.ts'
 
 /** Longest edge kept when downscaling. Above this, detail is invisible in a
@@ -150,21 +151,19 @@ export async function prepareImage(file: File | Blob): Promise<PreparedImage> {
   }
 
   const w = Math.round(bmp.width * scale)
-  const h = Math.round(bmp.height * scale)
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
+  const ht = Math.round(bmp.height * scale)
+  const canvas = h('canvas', { width: w, height: ht })
   const ctx = canvas.getContext('2d')
   if (!ctx) { bmp.close(); return { dataUri: raw, w: bmp.width, h: bmp.height, original: true, wasBytes } }
-  ctx.drawImage(bmp, 0, 0, w, h)
+  ctx.drawImage(bmp, 0, 0, w, ht)
   bmp.close()
 
   const encoded = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/webp', 0.82))
-  if (!encoded) return { dataUri: raw, w, h, original: true, wasBytes }
+  if (!encoded) return { dataUri: raw, w, h: ht, original: true, wasBytes }
   const smaller = await blobToDataUri(encoded)
   // never let "optimising" make it bigger
-  if (smaller.length >= raw.length) return { dataUri: raw, w, h, original: true, wasBytes }
-  return { dataUri: smaller, w, h, original: false, wasBytes }
+  if (smaller.length >= raw.length) return { dataUri: raw, w, h: ht, original: true, wasBytes }
+  return { dataUri: smaller, w, h: ht, original: false, wasBytes }
 }
 
 export function blobToDataUri(blob: Blob): Promise<string> {

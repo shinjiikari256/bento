@@ -27,6 +27,7 @@
 //     Nothing in this dialog tries to escape it, and nothing added later can
 //     be made to by raising its own z-index.
 
+import { h } from '../../kernel/src/dom.ts'
 import {
   checkForUpdates, applyUpdate, canUpdateInPlace,
   autoCheckEnabled, setAutoCheck, compareVersions,
@@ -129,66 +130,44 @@ export function openAbout(hooks: AboutHooks): void {
   // opener — and adds the scrim above every menu. No visible title, as in
   // slides: the suite's lockup below IS the heading, and the dialog is named
   // for a screen reader instead.
-  const card = document.createElement('div')
-  card.className = 'sp-about'
+  const card = h('div.sp-about')
   let dlg: Dialog | null = null
   const close = () => dlg?.close()
 
   // ---- small builders ----------------------------------------------------
-  const h = (text: string) => {
-    const n = document.createElement('h2')
-    n.className = 'sp-card-h'
-    n.textContent = text
-    return n
-  }
+  // NOTE: this local is named `headingEl`, not `h` — it would otherwise shadow
+  // the imported `h()` DOM builder used throughout this function's scope.
+  const headingEl = (text: string) => h('h2.sp-card-h', { textContent: text })
   /** A section with a real heading, not one more control in a flat stack. */
   const section = (title: string, ...kids: Array<Node | null>) => {
-    const s = document.createElement('section')
-    s.className = 'sp-ab-sec'
-    s.append(h(title))
+    const s = h('section.sp-ab-sec')
+    s.append(headingEl(title))
     for (const k of kids) if (k) s.append(k)
     card.append(s)
     return s
   }
-  const note = (text: string, cls = '') => {
-    const p = document.createElement('p')
-    p.className = 'sp-note' + (cls ? ' ' + cls : '')
-    p.textContent = text
-    return p
-  }
+  const note = (text: string, cls = '') =>
+    h('p', { className: 'sp-note' + (cls ? ' ' + cls : ''), textContent: text })
   const row = (label: string, node: HTMLElement) => {
-    const r = document.createElement('div')
-    r.className = 'sp-row'
-    const s = document.createElement('span')
-    s.textContent = label
+    const r = h('div.sp-row')
+    const s = h('span', { textContent: label })
     r.append(s, node)
     return r
   }
   const button = (label: string, fn: () => void, primary = false) => {
-    const b = document.createElement('button')
-    b.className = 'sp-btn' + (primary ? ' sp-primary' : '')
-    b.textContent = label
+    const b = h('button', { className: 'sp-btn' + (primary ? ' sp-primary' : ''), textContent: label })
     b.addEventListener('click', fn)
     return b
   }
   const actions = (...kids: HTMLElement[]) => {
-    const d = document.createElement('div')
-    d.className = 'sp-actions'
+    const d = h('div.sp-actions')
     d.append(...kids)
     return d
   }
-  const mono = (s: string) => {
-    const n = document.createElement('span')
-    n.className = 'sp-mono'
-    n.textContent = s
-    return n
-  }
+  const mono = (s: string) => h('span.sp-mono', { textContent: s })
   const check = (label: string, on: boolean, fn: (v: boolean) => void) => {
-    const l = document.createElement('label')
-    l.className = 'sp-ab-check'
-    const cb = document.createElement('input')
-    cb.type = 'checkbox'
-    cb.checked = on
+    const l = h('label.sp-ab-check')
+    const cb = h('input', { type: 'checkbox', checked: on })
     cb.addEventListener('change', () => fn(cb.checked))
     l.append(cb, document.createTextNode(' ' + label))
     return l
@@ -199,8 +178,7 @@ export function openAbout(hooks: AboutHooks): void {
   // The same head slides uses: the suite's mark, the app, the version, and a
   // gentle route back to the site. A dialog that opens with a section heading
   // does not tell you what you are looking at.
-  const head = document.createElement('div')
-  head.className = 'sp-about-head'
+  const head = h('div.sp-about-head')
   head.innerHTML =
     '<a class="sp-about-logo" href="https://bento.page" target="_blank" rel="noopener">' +
     '<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">' +
@@ -213,8 +191,7 @@ export function openAbout(hooks: AboutHooks): void {
   head.querySelector('a')?.setAttribute('title', t('Visit bento.page (opens in a new tab)'))
   card.append(head)
 
-  const promo = document.createElement('p')
-  promo.className = 'sp-ab-promo'
+  const promo = h('p.sp-ab-promo')
   // The one innerHTML with markup in it, and the markup is OURS: two anchors
   // built here and interpolated into a translated sentence. Nothing from the
   // document, the network or a catalog's placeholder value reaches it.
@@ -243,20 +220,16 @@ export function openAbout(hooks: AboutHooks): void {
   const assetCount = Object.keys(doc.assets ?? {}).length
   const docBytes = byteLength(doc)
 
-  const stats = document.createElement('div')
-  stats.className = 'sp-ab-stats'
+  const stats = h('div.sp-ab-stats')
   for (const [value, label] of [
     [String(pages), t('Pages')],
     [String(blocks), t('Blocks')],
     [String(words), t('Words')],
     [humanBytes(docBytes), t('Document')],
   ] as Array<[string, string]>) {
-    const s = document.createElement('div')
-    s.className = 'sp-ab-stat'
-    const b = document.createElement('b')
-    b.textContent = value
-    const l = document.createElement('span')
-    l.textContent = label
+    const s = h('div.sp-ab-stat')
+    const b = h('b', { textContent: value })
+    const l = h('span', { textContent: label })
     s.append(b, l)
     stats.append(s)
   }
@@ -282,11 +255,7 @@ export function openAbout(hooks: AboutHooks): void {
   // Its name is the one property of a space anybody edits here; the rest are
   // facts about it, shown because a file you cannot identify is a file you
   // cannot support.
-  const titleIn = document.createElement('input')
-  titleIn.type = 'text'
-  titleIn.className = 'sp-input'
-  titleIn.value = doc.title
-  titleIn.disabled = store.readOnly
+  const titleIn = h('input.sp-input', { type: 'text', value: doc.title, disabled: store.readOnly })
   titleIn.addEventListener('change', () => {
     const next = titleIn.value.trim() || 'Untitled'
     titleIn.value = next
@@ -294,10 +263,8 @@ export function openAbout(hooks: AboutHooks): void {
     onRepaint()
   })
   const props = section(t('Document properties'))
-  const titleRow = document.createElement('div')
-  titleRow.className = 'sp-ab-field'
-  const titleLbl = document.createElement('label')
-  titleLbl.textContent = t('Title')
+  const titleRow = h('div.sp-ab-field')
+  const titleLbl = h('label', { textContent: t('Title') })
   titleRow.append(titleLbl, titleIn)
   props.append(titleRow)
   props.append(row(t('Document id'), mono(doc.docId)))
@@ -305,10 +272,8 @@ export function openAbout(hooks: AboutHooks): void {
 
   // ---- updates -----------------------------------------------------------
   const upSec = section(t('Updates'))
-  const upStatus = document.createElement('div')
-  upStatus.className = 'sp-ab-status'
-  const upLine = document.createElement('p')
-  upLine.className = 'sp-note'
+  const upStatus = h('div.sp-ab-status')
+  const upLine = h('p.sp-note')
   upStatus.append(upLine)
   upLine.textContent =
     lastAutoCheck?.status === 'current'
@@ -351,11 +316,8 @@ export function openAbout(hooks: AboutHooks): void {
    * five-bullet changelog read as one line plus two scrollbars.
    */
   function updateCard(rel: ReleaseInfo): HTMLElement {
-    const box = document.createElement('div')
-    box.className = 'sp-ab-update'
-    const line = document.createElement('div')
-    line.className = 'sp-ab-new'
-    line.textContent = t('Version {v} is available.', { v: rel.version })
+    const box = h('div.sp-ab-update')
+    const line = h('div.sp-ab-new', { textContent: t('Version {v} is available.', { v: rel.version }) })
     box.append(line)
 
     // Per-version notes filtered to what THIS file actually skipped: a reader
@@ -375,13 +337,13 @@ export function openAbout(hooks: AboutHooks): void {
       box.append(releaseNotes(rel.notes))
     }
 
-    const link = document.createElement('a')
-    link.className = 'sp-btn sp-ab-link'
-    link.href = `https://github.com/nyblnet/bento/releases/tag/v${encodeURIComponent(rel.version)}`
-    link.target = '_blank'
-    link.rel = 'noopener'
-    link.textContent = t('What’s new →')
-    link.title = t('Read the release notes for v{v} (opens in a new tab)', { v: rel.version })
+    const link = h('a.sp-btn.sp-ab-link', {
+      href: `https://github.com/nyblnet/bento/releases/tag/v${encodeURIComponent(rel.version)}`,
+      target: '_blank',
+      rel: 'noopener',
+      textContent: t('What’s new →'),
+      title: t('Read the release notes for v{v} (opens in a new tab)', { v: rel.version }),
+    })
 
     const inPlace = button(canUpdateInPlace() ? t('Update this file') : t('Update this file…'), () => {
       void (async () => {
@@ -430,11 +392,8 @@ export function openAbout(hooks: AboutHooks): void {
   }
 
   function updatedCard(rel: ReleaseInfo, backup: 'beside' | 'downloaded' | 'none'): HTMLElement {
-    const done = document.createElement('div')
-    done.className = 'sp-ab-update'
-    const ok = document.createElement('div')
-    ok.className = 'sp-ab-new'
-    ok.textContent = t('Updated to v{v} on disk.', { v: rel.version })
+    const done = h('div.sp-ab-update')
+    const ok = h('div.sp-ab-new', { textContent: t('Updated to v{v} on disk.', { v: rel.version }) })
     done.append(ok)
     // Say where the rollback went. A backup nobody can find is not a backup.
     done.append(note(
@@ -460,12 +419,9 @@ export function openAbout(hooks: AboutHooks): void {
   card.append(...appearanceSection())
 
   // ---- language ----------------------------------------------------------
-  const sel = document.createElement('select')
-  sel.className = 'sp-select'
+  const sel = h('select.sp-select')
   for (const c of localeChoices()) {
-    const o = document.createElement('option')
-    o.value = c.code
-    o.textContent = c.label
+    const o = h('option', { value: c.code, textContent: c.label })
     if (c.code === locale()) o.selected = true
     sel.append(o)
   }
@@ -548,8 +504,7 @@ export function openAbout(hooks: AboutHooks): void {
   // hold up the dialog opening, and a space with no versions yet is the common
   // case on a first run — it says so rather than showing an empty box.
   const histSec = section(t('History'))
-  const histBody = document.createElement('div')
-  histBody.className = 'sp-ab-versions'
+  const histBody = h('div.sp-ab-versions')
   histSec.append(histBody)
   histSec.append(note(t('Versions are kept in this browser only — never in the file, never online. Restoring is undoable.')))
 
@@ -565,18 +520,10 @@ export function openAbout(hooks: AboutHooks): void {
       const when = new Date(v.at).toLocaleString([], {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
       })
-      const b = document.createElement('button')
-      b.type = 'button'
-      b.className = 'sp-ab-version'
-      const left = document.createElement('span')
-      left.className = 'sp-ab-when'
-      left.textContent = when
-      const tag = document.createElement('span')
-      tag.className = 'sp-ab-vtag'
-      tag.textContent = i === 0 ? t('most recent') : ''
-      const doIt = document.createElement('span')
-      doIt.className = 'sp-ab-vdo'
-      doIt.textContent = t('Restore')
+      const b = h('button.sp-ab-version', { type: 'button' })
+      const left = h('span.sp-ab-when', { textContent: when })
+      const tag = h('span.sp-ab-vtag', { textContent: i === 0 ? t('most recent') : '' })
+      const doIt = h('span.sp-ab-vdo', { textContent: t('Restore') })
       b.append(left, tag, doIt)
       b.addEventListener('click', () => {
         // FOREIGN INPUT, gated as the recovery banner gates it (restoregate.ts):
@@ -654,11 +601,8 @@ export function openAbout(hooks: AboutHooks): void {
    * of the list that pushes the rest down, and the card scrolls to it.
    */
   function replaceForm(host: HTMLElement, dismiss: () => void): HTMLElement {
-    const wrap = document.createElement('div')
-    const ta = document.createElement('textarea')
-    ta.className = 'sp-ab-json'
-    ta.rows = 7
-    ta.placeholder = t('Paste document JSON here…')
+    const wrap = h('div')
+    const ta = h('textarea.sp-ab-json', { rows: 7, placeholder: t('Paste document JSON here…') })
     const apply = button(t('Replace'), () => {
       const res = parseDoc(ta.value)
       if (!res.ok) {
@@ -706,10 +650,8 @@ export function openAbout(hooks: AboutHooks): void {
     let open: HTMLElement | null = null
     const b = button(label, () => {
       if (open) { open.remove(); open = null; b.setAttribute('aria-expanded', 'false'); return }
-      const panel = document.createElement('div')
-      panel.className = 'sp-ab-confirm'
-      const what = document.createElement('strong')
-      what.textContent = opts.what
+      const panel = h('div.sp-ab-confirm')
+      const what = h('strong', { textContent: opts.what })
       panel.append(what, note(opts.why))
       const dismiss = () => { panel.remove(); open = null; b.setAttribute('aria-expanded', 'false'); b.focus() }
       if (opts.form) opts.form(panel, dismiss)
@@ -729,13 +671,12 @@ export function openAbout(hooks: AboutHooks): void {
   }
 
   // ---- fine print ---------------------------------------------------------
-  const fine = document.createElement('p')
-  fine.className = 'sp-ab-fine'
-  fine.textContent = t('bento/spaces is MIT-licensed and carries no third-party runtime — the full notices travel in this file’s source.')
+  const fine = h('p.sp-ab-fine', {
+    textContent: t('bento/spaces is MIT-licensed and carries no third-party runtime — the full notices travel in this file’s source.'),
+  })
   card.append(fine)
 
-  const foot = document.createElement('div')
-  foot.className = 'sp-ab-foot'
+  const foot = h('div.sp-ab-foot')
   foot.append(button(t('Close'), close, true))
   card.append(foot)
 
@@ -759,15 +700,15 @@ export function openAbout(hooks: AboutHooks): void {
  * says who wrote a string, not that it is safe to run.
  */
 function releaseNotes(notes: string): HTMLElement {
-  const box = document.createElement('div')
-  box.className = 'sp-ab-release'
+  const box = h('div.sp-ab-release')
   for (const raw of notes.split('\n')) {
     const text = raw.trim()
     if (!text) continue
     const bullet = /^[•*-]\s+/.test(text)
-    const item = document.createElement('div')
-    item.className = bullet ? 'sp-ab-note' : 'sp-ab-more'
-    item.textContent = bullet ? text.replace(/^[•*-]\s+/, '') : text
+    const item = h('div', {
+      className: bullet ? 'sp-ab-note' : 'sp-ab-more',
+      textContent: bullet ? text.replace(/^[•*-]\s+/, '') : text,
+    })
     box.append(item)
   }
   return box
@@ -910,9 +851,10 @@ export function toMarkdown(store: Store): string {
 
 export function downloadMarkdown(store: Store): void {
   const blob = new Blob([toMarkdown(store)], { type: 'text/markdown' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `${(store.doc.title || 'space').replace(/[^\w.-]+/g, '-')}.md`
+  const a = h('a', {
+    href: URL.createObjectURL(blob),
+    download: `${(store.doc.title || 'space').replace(/[^\w.-]+/g, '-')}.md`,
+  })
   a.click()
   URL.revokeObjectURL(a.href)
 }

@@ -7,6 +7,7 @@
 import { SaveQueue } from '../../kernel/src/savequeue.ts'
 import { saveRevision } from './saving'
 import './styles.css'
+import { h } from '../../kernel/src/dom.ts'
 import { configureApp, appConfig } from '../../kernel/src/app.ts'
 import { startTheme } from '../../kernel/src/theme.ts'
 import {
@@ -101,21 +102,13 @@ if (envelope) {
  */
 async function passwordGate(): Promise<void> {
   document.getElementById('bento-splash')?.remove()
-  const wrap = document.createElement('div')
-  wrap.className = 'sp-gate'
-  const card = document.createElement('div')
-  card.className = 'sp-gate-card'
+  const wrap = h('div.sp-gate')
+  const card = h('div.sp-gate-card')
   card.innerHTML = `<h1>${t('This space is locked')}</h1>` +
     `<p>${t('Enter the password to open it.')}</p>`
-  const input = document.createElement('input')
-  input.type = 'password'
-  input.className = 'sp-find'
-  input.autocomplete = 'current-password'
-  const go = document.createElement('button')
-  go.className = 'sp-btn sp-primary'
-  go.textContent = t('Unlock')
-  const err = document.createElement('p')
-  err.className = 'sp-note'
+  const input = h('input.sp-find', { type: 'password', autocomplete: 'current-password' })
+  const go = h('button.sp-btn.sp-primary', { textContent: t('Unlock') })
+  const err = h('p.sp-note')
   card.append(input, go, err)
   wrap.append(card)
   document.body.append(wrap)
@@ -160,35 +153,30 @@ function refuse(res: Extract<ParseResult, { ok: false }>): void {
       // the bytes as they are, NOT a re-serialization: we did not understand
       // this document, so we must not rewrite it
       const html = `<!DOCTYPE html>\n${document.documentElement.outerHTML}`
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-      a.download = 'untouched-copy.bento.html'
+      const a = h('a', {
+        href: URL.createObjectURL(new Blob([html], { type: 'text/html' })),
+        download: 'untouched-copy.bento.html',
+      })
       a.click()
     }],
     [t('Copy the document JSON'), () => { void navigator.clipboard?.writeText(embedded ?? '') }],
   ])
 
-  const pre = document.createElement('pre')
-  pre.className = 'sp-gate-raw'
-  pre.textContent = (embedded ?? '').slice(0, 400)
+  const pre = h('pre.sp-gate-raw', { textContent: (embedded ?? '').slice(0, 400) })
   document.querySelector('.sp-gate-card')?.append(pre)
 }
 
 function gate(title: string, body: string, actions: Array<[string, () => void]>): void {
   document.getElementById('bento-splash')?.remove()
-  const wrap = document.createElement('div')
-  wrap.className = 'sp-gate'
-  const card = document.createElement('div')
-  card.className = 'sp-gate-card'
-  const h = document.createElement('h1')
-  h.textContent = title
-  const p = document.createElement('p')
-  p.textContent = body
-  card.append(h, p)
+  const wrap = h('div.sp-gate')
+  const card = h('div.sp-gate-card')
+  // NOTE: named `h1El`, not `h` — it would otherwise shadow the imported
+  // `h()` DOM builder used by the rest of this function.
+  const h1El = h('h1', { textContent: title })
+  const p = h('p', { textContent: body })
+  card.append(h1El, p)
   for (const [label, fn] of actions) {
-    const b = document.createElement('button')
-    b.className = 'sp-btn sp-primary'
-    b.textContent = label
+    const b = h('button.sp-btn.sp-primary', { textContent: label })
     b.addEventListener('click', fn)
     card.append(b)
   }
@@ -612,21 +600,15 @@ function boot(doc: SpacesDoc, repaired: string[], frozen?: 'policy' | 'version')
 }
 
 function banner(text: string, actions: Array<[string, () => void]> = []): void {
-  const bar = document.createElement('div')
-  bar.className = 'sp-banner'
-  const span = document.createElement('span')
-  span.textContent = text
+  const bar = h('div.sp-banner')
+  const span = h('span', { textContent: text })
   bar.append(span)
   for (const [label, fn] of actions) {
-    const b = document.createElement('button')
-    b.className = 'sp-btn'
-    b.textContent = label
+    const b = h('button.sp-btn', { textContent: label })
     b.addEventListener('click', () => { fn(); bar.remove() })
     bar.append(b)
   }
-  const close = document.createElement('button')
-  close.className = 'sp-btn'
-  close.textContent = '✕'
+  const close = h('button.sp-btn', { textContent: '✕' })
   close.setAttribute('aria-label', t('Dismiss'))
   close.addEventListener('click', () => bar.remove())
   bar.append(close)

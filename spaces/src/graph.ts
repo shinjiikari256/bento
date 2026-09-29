@@ -43,6 +43,7 @@
 import type { SpacesDoc, SpaceIndex } from './model.ts'
 import { ICONS } from './icons.ts'
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 // ————— the graph itself ————————————————————————————————————————————————————
 
@@ -384,21 +385,13 @@ const CSS = `
 
 function css(): void {
   if (document.getElementById('sp-graph-css')) return
-  const s = document.createElement('style')
-  s.id = 'sp-graph-css'
-  s.setAttribute('data-bento-transient', '')
-  s.textContent = CSS
+  const s = h('style#sp-graph-css', { dataset: { bentoTransient: '' }, textContent: CSS })
   document.head.append(s)
 }
 
 const mk = <K extends keyof HTMLElementTagNameMap>(
   tag: K, cls: string, text?: string,
-): HTMLElementTagNameMap[K] => {
-  const e = document.createElement(tag)
-  if (cls) e.className = cls
-  if (text !== undefined) e.textContent = text
-  return e
-}
+): HTMLElementTagNameMap[K] => h(tag as string, { className: cls, textContent: text }) as unknown as HTMLElementTagNameMap[K]
 
 /**
  * The theme, read out of the CSS tokens.

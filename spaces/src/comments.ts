@@ -31,6 +31,7 @@ import { uid, commentsOn, type Comment, type CommentAt } from './model.ts'
 import type { Store } from './store.ts'
 import { t } from './i18n.ts'
 import { lsGet, lsSet } from '../../kernel/src/storage.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 /** Hooks the editor provides, so this module stays out of editor internals. */
 export interface CommentsHost {
@@ -112,8 +113,7 @@ export class CommentsUi {
         node?.append(mark)
       } else {
         if (!row) {
-          row = document.createElement('div')
-          row.className = 'sp-cm-row'
+          row = h('div.sp-cm-row')
           const title = main.querySelector('[data-page-title]')
           if (title) title.after(row)
           else main.querySelector('.sp-page-inner')?.prepend(row)
@@ -125,12 +125,13 @@ export class CommentsUi {
 
   private marker(at: CommentAt): HTMLButtonElement {
     const c = at.comment
-    const b = document.createElement('button')
-    b.type = 'button'
-    b.className = 'sp-cm-mark' + (c.resolved ? ' sp-cm-done' : '') + (c.id === this.fresh ? ' sp-cm-new' : '')
+    const b = h('button', {
+      type: 'button',
+      className: 'sp-cm-mark' + (c.resolved ? ' sp-cm-done' : '') + (c.id === this.fresh ? ' sp-cm-new' : ''),
+      textContent: String(1 + (Array.isArray(c.replies) ? c.replies.length : 0)),
+      title: `${c.author}: ${String(c.text).slice(0, 80)}`,
+    })
     if (c.id === this.fresh) setTimeout(() => { this.fresh = null }, 1200)
-    b.textContent = String(1 + (Array.isArray(c.replies) ? c.replies.length : 0))
-    b.title = `${c.author}: ${String(c.text).slice(0, 80)}`
     b.setAttribute('aria-label', t('Comment'))
     b.addEventListener('click', (e) => { e.stopPropagation(); this.open(at.comment.id, b) })
     return b
@@ -194,17 +195,16 @@ export class CommentsUi {
     this.host.popover(anchor, (pop, close) => {
       pop.classList.add('sp-cm-pop')
 
-      const head = document.createElement('div')
-      head.className = 'sp-cm-head'
-      head.append(Object.assign(document.createElement('span'), {
+      const head = h('div.sp-cm-head')
+      head.append(h('span', {
         textContent: at.blockId ? t('Comment · block') : t('Comment · page'),
       }))
       if (!readOnly) {
-        const me = document.createElement('button')
-        me.type = 'button'
-        me.className = 'sp-cm-me'
-        me.textContent = t('you: {name} ✎', { name: lsGet('bento-author') ?? '—' })
-        me.title = t('Change the name used for your new comments and replies')
+        const me = h('button.sp-cm-me', {
+          type: 'button',
+          textContent: t('you: {name} ✎', { name: lsGet('bento-author') ?? '—' }),
+          title: t('Change the name used for your new comments and replies'),
+        })
         me.addEventListener('click', () => {
           const next = changeCommentAuthor()
           if (next) me.textContent = t('you: {name} ✎', { name: next })
@@ -213,20 +213,14 @@ export class CommentsUi {
       }
       pop.append(head)
 
-      const entries = document.createElement('div')
-      entries.className = 'sp-cm-entries'
+      const entries = h('div.sp-cm-entries')
       // textContent, ALWAYS: comment text is plain text and this is the only
       // place it reaches a screen. See model.ts CommentEntry.text.
       const entry = (author: string, iso: string, text: string) => {
-        const e = document.createElement('div')
-        e.className = 'sp-cm-entry'
-        const who = document.createElement('b')
-        who.textContent = String(author ?? '')
-        const when = document.createElement('span')
-        when.className = 'sp-cm-time'
-        when.textContent = relTime(String(iso ?? ''))
-        const body = document.createElement('p')
-        body.textContent = String(text ?? '')
+        const e = h('div.sp-cm-entry')
+        const who = h('b', { textContent: String(author ?? '') })
+        const when = h('span.sp-cm-time', { textContent: relTime(String(iso ?? '')) })
+        const body = h('p', { textContent: String(text ?? '') })
         e.append(who, when, body)
         entries.append(e)
       }
@@ -236,19 +230,12 @@ export class CommentsUi {
 
       if (readOnly) return
 
-      const reply = document.createElement('textarea')
-      reply.className = 'sp-cm-reply'
-      reply.rows = 2
-      reply.placeholder = t('Reply…')
+      const reply = h('textarea.sp-cm-reply', { rows: 2, placeholder: t('Reply…') })
       pop.append(reply)
 
-      const foot = document.createElement('div')
-      foot.className = 'sp-cm-foot'
+      const foot = h('div.sp-cm-foot')
       const btn = (label: string, run: () => void) => {
-        const b = document.createElement('button')
-        b.type = 'button'
-        b.className = 'sp-btn'
-        b.textContent = label
+        const b = h('button.sp-btn', { type: 'button', textContent: label })
         b.addEventListener('click', run)
         foot.append(b)
       }
@@ -284,9 +271,8 @@ export class CommentsUi {
 /** The badge for one page in the tree, or null when nothing is open there. */
 export function commentBadge(count: number): HTMLElement | null {
   if (!count) return null
-  const b = document.createElement('span')
-  b.className = 'sp-cm-badge'
-  b.textContent = String(count)
-  b.title = t('{n} unresolved comment(s)', { n: count })
-  return b
+  return h('span.sp-cm-badge', {
+    textContent: String(count),
+    title: t('{n} unresolved comment(s)', { n: count }),
+  })
 }

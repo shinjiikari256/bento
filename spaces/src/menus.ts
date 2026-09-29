@@ -37,6 +37,7 @@
 // the row the kernel returns. Each is composition over the kernel's API, not a
 // copy of it.
 
+import { h } from '../../kernel/src/dom.ts'
 import { createMenu, type Menu } from '../../kernel/src/ui/menu.ts'
 import '../../kernel/src/ui/menu.css'
 
@@ -66,20 +67,14 @@ export function row(m: Menu, r: Row): HTMLButtonElement {
     icon: r.icon, hint: r.hint, off: r.off, selected: r.selected, keepOpen: r.keepOpen,
   })
   if (r.kbd) {
-    const k = document.createElement('kbd')
-    k.className = 'sp-mkbd'
-    k.textContent = r.kbd
-    b.append(k)
+    b.append(h('kbd.sp-mkbd', { textContent: r.kbd }))
   }
   return b
 }
 
 /** A caption over a group of rows. Not a row: arrow keys never land on it. */
 export function caption(m: Menu, text: string): HTMLElement {
-  const c = document.createElement('div')
-  c.className = 'sp-menu-label'
-  c.setAttribute('role', 'presentation')
-  c.textContent = text
+  const c = h('div.sp-menu-label[role=presentation]', { textContent: text })
   m.menu.append(c)
   return c
 }
