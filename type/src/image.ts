@@ -18,6 +18,7 @@ import { registerTool } from './features.ts';
 import { ICONS } from './icons.ts';
 import { IMAGE_EMBED_BUDGET, SAFE_IMG } from './model.ts';
 import { t } from './i18n.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 /** Read a picked file as a data URI. Rejects anything that is not an image. */
 export function readImage(file: File): Promise<{ src: string; alt: string }> {
@@ -47,10 +48,7 @@ registerTool({
   group: 'insert',
   order: 20,
   run(ctx) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.style.display = 'none';
+    const input = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
     document.body.appendChild(input);
     input.addEventListener('change', async () => {
       const file = input.files?.[0];

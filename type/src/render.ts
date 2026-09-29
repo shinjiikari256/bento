@@ -16,6 +16,7 @@ import { activeStyleId, ensureStyleSheet } from './docstyles.ts';
 import { citeInject, isCiteAtom, mergeInject, paintCitations, readCiteAtoms } from './cite.ts';
 import { displayMathHtml, inlineMathHtml, isMathMark } from './math.ts';
 import { renderEmbed } from './embed.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 export const TAG: Record<Block['kind'], string> = {
   para: 'p', h1: 'h1', h2: 'h2', h3: 'h3', quote: 'blockquote',
@@ -168,17 +169,11 @@ export function blockHtml(b: Block): string {
  * block, which is why it lives in the model rather than only in the markup.
  */
 export function renderImage(b: Block): HTMLElement {
-  const fig = document.createElement('figure');
-  fig.className = 't-figure';
-  fig.dataset.id = b.id;
-  fig.dataset.kind = b.kind;
-  fig.dataset.atomic = '1';
+  const fig = h('figure.t-figure', { dataset: { id: b.id, kind: b.kind, atomic: '1' } });
   const im = b.image;
   if (!im) return fig;
   if (im.align) fig.dataset.align = im.align;
-  const img = document.createElement('img');
-  img.src = im.src;
-  img.alt = im.alt ?? '';
+  const img = h('img', { src: im.src, alt: im.alt ?? '' });
   if (im.w) img.style.width = `${Math.round(im.w * 100)}%`;
   // PAGINATION MUST RE-RUN WHEN THE PICTURE ARRIVES. An image decodes
   // asynchronously, so the pass that runs immediately after render measures it
@@ -219,18 +214,11 @@ export function renderBlock(b: Block, doc: TypeDoc | undefined = lastDoc): HTMLE
     // A display formula is atomic: it has height and, once typeset, may hold no
     // text node pagination can measure — so it carries data-atomic like a
     // picture, and gets the same one-box treatment.
-    const el = document.createElement('div');
-    el.className = 't-mathblock';
-    el.dataset.id = b.id;
-    el.dataset.kind = b.kind;
-    el.dataset.atomic = '1';
-    el.dataset.tex = b.text;
+    const el = h('div.t-mathblock', { dataset: { id: b.id, kind: b.kind, atomic: '1', tex: b.text } });
     el.innerHTML = displayMathHtml(b.text);
     return el;
   }
-  const el = document.createElement(TAG[b.kind]);
-  el.dataset.id = b.id;
-  el.dataset.kind = b.kind;
+  const el = h(TAG[b.kind], { dataset: { id: b.id, kind: b.kind } });
   // A named style's typography arrives through a STYLESHEET keyed by this
   // attribute (docstyles.ts ensureStyleSheet/styleSheetCss), never through
   // this element's `style` attribute — that one belongs to layout.ts's
@@ -262,17 +250,16 @@ export function renderBlock(b: Block, doc: TypeDoc | undefined = lastDoc): HTMLE
  * the model may disagree with itself, but the rendered grid never should.
  */
 export function renderTable(rows: Block[][], head: boolean): HTMLElement {
-  const table = document.createElement('table');
-  table.className = 't-table';
+  const table = h('table.t-table');
   const cols = rows[0]?.length ?? 1;
-  const thead = head ? document.createElement('thead') : null;
-  const tbody = document.createElement('tbody');
+  const thead = head ? h('thead') : null;
+  const tbody = h('tbody');
   rows.forEach((row, r) => {
     const isHead = head && r === 0;
-    const tr = document.createElement('tr');
+    const tr = h('tr');
     for (let c = 0; c < cols; c++) {
       const b = row[c];
-      const cell = document.createElement(isHead ? 'th' : 'td');
+      const cell = h(isHead ? 'th' : 'td');
       if (b) {
         cell.dataset.id = b.id;
         cell.dataset.kind = b.kind;
@@ -297,7 +284,7 @@ export function renderBody(doc: TypeDoc, host: HTMLElement): void {
   let cursor: Node = frag;
   for (const tok of groupBlocks(doc.body)) {
     if (tok.t === 'open') {
-      const list = document.createElement(tok.kind);
+      const list = h(tok.kind);
       cursor.appendChild(list);
       cursor = list;
     } else if (tok.t === 'close') {

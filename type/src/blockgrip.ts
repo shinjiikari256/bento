@@ -30,6 +30,7 @@ import { t } from './i18n.ts';
 import { registerKey, registerPaginated, tools, type FeatureContext } from './features.ts';
 import { moveUnit, moveUnitTo, units, canMove, boundaries } from './move.ts';
 import type { Block } from './model.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 const PLUS_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none"'
@@ -126,11 +127,9 @@ document.addEventListener('click', closeMenu);
  */
 function plusMenu(ctx: FeatureContext, blockId: string, at: HTMLElement): void {
   closeMenu();
-  const menu = document.createElement('div');
-  menu.className = 't-menu t-grip-menu';
+  const menu = h('div.t-menu.t-grip-menu');
   for (const spec of tools('insert')) {
-    const b = document.createElement('button');
-    b.type = 'button';
+    const b = h('button', { type: 'button' });
     const label = typeof spec.label === 'function' ? spec.label()
       : (spec.label ?? (typeof spec.title === 'function' ? spec.title() : spec.title));
     b.innerHTML = spec.icon + `<span>${label}</span>`;
@@ -153,17 +152,13 @@ function plusMenu(ctx: FeatureContext, blockId: string, at: HTMLElement): void {
 
 function gripMenu(ctx: FeatureContext, id: string, at: HTMLElement): void {
   closeMenu();
-  const menu = document.createElement('div');
-  menu.className = 't-menu t-grip-menu';
+  const menu = h('div.t-menu.t-grip-menu');
   const items: Array<[string, () => void, boolean]> = [
     [t('Move up'), () => move(ctx, id, -1), canMove(ctx.store.doc.body, id, -1)],
     [t('Move down'), () => move(ctx, id, 1), canMove(ctx.store.doc.body, id, 1)],
   ];
   for (const [label, run, enabled] of items) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = label;
-    b.disabled = !enabled;
+    const b = h('button', { type: 'button', textContent: label, disabled: !enabled });
     b.addEventListener('click', e => { e.stopPropagation(); closeMenu(); run(); });
     menu.appendChild(b);
   }
@@ -253,8 +248,7 @@ function startDrag(e: PointerEvent, ctx: FeatureContext, grip: HTMLElement,
       dragging = { id, from: 0 };
       grip.classList.add('t-grip-dragging');
       document.body.classList.add('t-dragging');
-      line = document.createElement('div');
-      line.className = 't-droptip';
+      line = h('div.t-droptip');
       layer?.appendChild(line);
     }
     const at = dropAt(ctx, paper, ev.clientY);
@@ -314,10 +308,8 @@ function paintGrips(ctx: FeatureContext, _metrics: unknown, paper: HTMLElement):
   if (!deco) return;
   let layer = deco.querySelector<HTMLElement>('.t-grip-layer');
   if (!layer) {
-    layer = document.createElement('div');
-    layer.className = 't-grip-layer';
     // stripped from the save clone by kernel save.ts — see the note at the top
-    layer.setAttribute('data-bento-transient', '');
+    layer = h('div.t-grip-layer[data-bento-transient]');
     deco.appendChild(layer);
   }
   layer.replaceChildren();
@@ -349,9 +341,7 @@ function paintGrips(ctx: FeatureContext, _metrics: unknown, paper: HTMLElement):
     const r = node.getBoundingClientRect();
     if (!r.height) continue;
 
-    const g = document.createElement('button');
-    g.type = 'button';
-    g.className = 't-grip';
+    const g = h('button.t-grip', { type: 'button' });
     g.innerHTML = GRIP_ICON;
     g.title = t('Drag to move, click for options') + ' · '
       + (isMac() ? t('⌃⇧↑ / ⌃⇧↓') : t('Alt+Shift+↑ / ↓'));
@@ -365,9 +355,7 @@ function paintGrips(ctx: FeatureContext, _metrics: unknown, paper: HTMLElement):
     g.addEventListener('mousedown', e => e.preventDefault());
     g.addEventListener('pointerdown', e => startDrag(e, ctx, g, first.id, paper));
 
-    const plus = document.createElement('button');
-    plus.type = 'button';
-    plus.className = 't-grip t-plus';
+    const plus = h('button.t-grip.t-plus', { type: 'button' });
     plus.innerHTML = PLUS_ICON;
     plus.title = t('Insert below');
     plus.setAttribute('aria-label', t('Insert a block below this one'));

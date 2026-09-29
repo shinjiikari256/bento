@@ -19,6 +19,7 @@
 import { checkForUpdates, applyUpdate, APP_VERSION, type ReleaseInfo } from '../../kernel/src/update.ts';
 import { canWriteInPlace, openedFileName } from '../../kernel/src/save.ts';
 import { setTheme, themeChoice, type ThemeChoice } from '../../kernel/src/theme.ts';
+import { h } from '../../kernel/src/dom.ts';
 import type { Store } from './store.ts';
 import { wordCount, docForExport } from './model.ts';
 import { t } from './i18n.ts';
@@ -43,58 +44,43 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHooks): void {
-  const back = document.createElement('div');
-  back.className = 't-overlay';
-  const card = document.createElement('div');
-  card.className = 't-dlg t-about';
-  card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', t('About this document'));
+  const back = h('div.t-overlay');
+  const card = h('div.t-dlg.t-about', { role: 'dialog', ariaLabel: t('About this document') });
   const close = () => back.remove();
 
-  const h = (text: string) => {
-    const n = document.createElement('h2');
-    n.className = 't-dlg-h';
-    n.textContent = text;
-    return n;
-  };
-  const p = (text: string, cls = 't-about-blurb') => {
-    const n = document.createElement('p');
-    n.className = cls;
-    n.textContent = text;
-    return n;
-  };
+  // Named `sectionHead`, not `h`, so it does not shadow the imported h() —
+  // every other creation in this dialog is built with h() and needs the
+  // real one in scope.
+  const sectionHead = (text: string) => h('h2.t-dlg-h', { textContent: text });
+  const p = (text: string, cls = 't-about-blurb') => h('p', { className: cls, textContent: text });
   const row = (label: string, node: HTMLElement) => {
-    const r = document.createElement('div');
-    r.className = 't-row';
-    const s = document.createElement('span');
-    s.textContent = label;
+    const r = h('div.t-row');
+    const s = h('span', { textContent: label });
     r.append(s, node);
     return r;
   };
   const button = (label: string, fn: () => void, primary = false) => {
-    const b = document.createElement('button');
-    b.className = 't-btn' + (primary ? ' t-primary' : '');
-    b.textContent = label;
+    const b = h('button.t-btn', { className: primary ? 't-primary' : '', textContent: label });
     b.addEventListener('click', fn);
     return b;
   };
 
   // ---- what this is -------------------------------------------------------
-  const head = document.createElement('div');
-  head.className = 't-about-head';
-  head.innerHTML =
-    '<a class="t-about-logo" href="https://bento.page" target="_blank" rel="noopener" ' +
-    `title="${t('Visit bento.page (opens in a new tab)')}">` +
-    '<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">' +
-    '<rect width="32" height="32" rx="7" fill="#16273E"/>' +
-    '<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>' +
-    '<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>' +
-    '<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>' +
-    '</svg><div><b>bento<span style="color:#FF9E8A">/</span>type</b>' +
-    `<span>${esc(t('v{app} · format v{fmt}', { app: APP_VERSION, fmt: String(store.doc.version ?? 1) }))}</span></div></a>`;
+  const head = h('div.t-about-head', {
+    innerHTML:
+      '<a class="t-about-logo" href="https://bento.page" target="_blank" rel="noopener" ' +
+      `title="${t('Visit bento.page (opens in a new tab)')}">` +
+      '<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">' +
+      '<rect width="32" height="32" rx="7" fill="#16273E"/>' +
+      '<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>' +
+      '<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>' +
+      '<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>' +
+      '</svg><div><b>bento<span style="color:#FF9E8A">/</span>type</b>' +
+      `<span>${esc(t('v{app} · format v{fmt}', { app: APP_VERSION, fmt: String(store.doc.version ?? 1) }))}</span></div></a>`,
+  });
   card.append(head);
 
-  card.append(h(t('This file')));
+  card.append(sectionHead(t('This file')));
   const notes = Object.keys(store.doc.footnotes ?? {}).length;
   card.append(p(t(
     '{pages} page(s) · {words} words · {blocks} blocks · {notes} footnote(s). ' +
@@ -111,10 +97,9 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
   }
 
   // ---- updates ------------------------------------------------------------
-  card.append(h(t('Updates')));
+  card.append(sectionHead(t('Updates')));
   const upStatus = p('', 't-about-val');
-  const upRow = document.createElement('div');
-  upRow.className = 't-row';
+  const upRow = h('div.t-row');
   let found: ReleaseInfo | null = null;
   const checkBtn = button(t('Check for updates'), async () => {
     upStatus.textContent = t('Checking…');
@@ -143,13 +128,10 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
     'before it is applied.'), 't-note'));
 
   // ---- appearance ---------------------------------------------------------
-  card.append(h(t('Appearance')));
-  const themeSel = document.createElement('select');
-  themeSel.className = 't-select';
+  card.append(sectionHead(t('Appearance')));
+  const themeSel = h('select.t-select');
   for (const [val, label] of [['auto', t('Follow the system')], ['light', t('Light')], ['dark', t('Dark')]] as const) {
-    const o = document.createElement('option');
-    o.value = val; o.textContent = label;
-    o.selected = themeChoice() === val;
+    const o = h('option', { value: val, textContent: label, selected: themeChoice() === val });
     themeSel.append(o);
   }
   themeSel.addEventListener('change', () => setTheme(themeSel.value as ThemeChoice));
@@ -169,13 +151,13 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
   // change; authorName()'s prompt stays as the fallback for someone who never
   // opened About before commenting or turning on tracking (both read/write the
   // same 'bento-author' key, so whichever runs first is what the other sees).
-  card.append(h(t('You')));
-  const nameInput = document.createElement('input');
-  nameInput.type = 'text';
-  nameInput.className = 't-input t-about-name-input';
-  nameInput.placeholder = t('Your name');
-  nameInput.value = knownAuthor();
-  nameInput.autocomplete = 'off';
+  card.append(sectionHead(t('You')));
+  const nameInput = h('input.t-input.t-about-name-input', {
+    type: 'text',
+    placeholder: t('Your name'),
+    value: knownAuthor(),
+    autocomplete: 'off',
+  });
   // applied on blur/Enter, not on every keystroke: a comment or tracked
   // change made mid-edit must attribute to the name as it stood at that
   // moment, not flicker with whatever is half-typed into this field right now
@@ -191,10 +173,9 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
     't-note'));
 
   // ---- the document, for tools --------------------------------------------
-  card.append(h(t('Document')));
+  card.append(sectionHead(t('Document')));
   card.append(row(t('Document id'), p(String(store.doc.docId ?? ''), 't-about-val t-mono')));
-  const jsonRow = document.createElement('div');
-  jsonRow.className = 't-row';
+  const jsonRow = h('div.t-row');
   jsonRow.append(
     button(t('Copy document JSON'), async () => {
       // docForExport, never store.doc — see model.ts. This text can be pasted
@@ -221,8 +202,7 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
   // chose, and keeps its own identity; a snapshot is foreign input from a store
   // any local page can write, and must not bring its own docId, room or mode.
   // So it has its own hook, which goes through restoregate.ts.
-  const historyRow = document.createElement('div');
-  historyRow.className = 't-row';
+  const historyRow = h('div.t-row');
   historyRow.append(button(t('Version history…'), () => openVersionHistory({ store, onRestoreDoc, close })));
   card.append(historyRow);
   card.append(p(t(
@@ -230,14 +210,13 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
     'and never uploaded. Restoring is undoable with ⌘Z.'), 't-note'));
 
   // ---- credits ------------------------------------------------------------
-  card.append(h(t('Credits')));
+  card.append(sectionHead(t('Credits')));
   card.append(p(t(
     'bento/type is MIT-licensed. Line breaking uses the Knuth–Plass algorithm ' +
     'via tex-linebreak; hyphenation patterns are Liang’s. Everything runs in ' +
     'this file — nothing is fetched, and nothing is sent anywhere.'), 't-note'));
 
-  const foot = document.createElement('div');
-  foot.className = 't-dlg-foot';
+  const foot = h('div.t-dlg-foot');
   foot.append(button(t('Close'), close, true));
   card.append(foot);
 
@@ -260,37 +239,26 @@ async function openVersionHistory(
 ): Promise<void> {
   const versions = await listVersions(store.doc.docId);
 
-  const back = document.createElement('div');
-  back.className = 't-overlay';
-  const card = document.createElement('div');
-  card.className = 't-dlg';
-  card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', t('Version history'));
+  const back = h('div.t-overlay');
+  const card = h('div.t-dlg', { role: 'dialog', ariaLabel: t('Version history') });
   const close = () => back.remove();
 
-  const h = document.createElement('h2');
-  h.className = 't-dlg-h';
-  h.textContent = t('Version history');
-  card.append(h);
+  // Named `headEl`, not `h`, so it does not shadow the imported h() used
+  // throughout this function.
+  const headEl = h('h2.t-dlg-h', { textContent: t('Version history') });
+  card.append(headEl);
 
   if (!versions.length) {
-    const empty = document.createElement('p');
-    empty.className = 't-note';
-    empty.textContent = t('No saved versions yet — they accumulate as you edit.');
+    const empty = h('p.t-note', { textContent: t('No saved versions yet — they accumulate as you edit.') });
     card.append(empty);
   } else {
-    const list = document.createElement('div');
+    const list = h('div');
     versions.forEach((v: Snapshot, i: number) => {
-      const rowEl = document.createElement('button');
-      rowEl.type = 'button';
-      rowEl.className = 't-btn';
+      const rowEl = h('button.t-btn', { type: 'button' });
       rowEl.style.cssText = 'display:flex;width:100%;justify-content:space-between;gap:10px;margin:4px 0;';
       const when = new Date(v.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      const label = document.createElement('span');
-      label.textContent = i === 0 ? t('{when} (most recent)', { when }) : when;
-      const doIt = document.createElement('span');
-      doIt.className = 't-note';
-      doIt.textContent = t('Restore');
+      const label = h('span', { textContent: i === 0 ? t('{when} (most recent)', { when }) : when });
+      const doIt = h('span.t-note', { textContent: t('Restore') });
       rowEl.append(label, doIt);
       rowEl.addEventListener('click', () => {
         onRestoreDoc(v.json);
@@ -302,17 +270,11 @@ async function openVersionHistory(
     card.append(list);
   }
 
-  const fine = document.createElement('p');
-  fine.className = 't-note';
-  fine.textContent = t('Stored only in this browser, never in the file or online.');
+  const fine = h('p.t-note', { textContent: t('Stored only in this browser, never in the file or online.') });
   card.append(fine);
 
-  const foot = document.createElement('div');
-  foot.className = 't-dlg-foot';
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 't-btn t-primary';
-  closeBtn.type = 'button';
-  closeBtn.textContent = t('Close');
+  const foot = h('div.t-dlg-foot');
+  const closeBtn = h('button.t-btn.t-primary', { type: 'button', textContent: t('Close') });
   closeBtn.addEventListener('click', close);
   foot.append(closeBtn);
   card.append(foot);

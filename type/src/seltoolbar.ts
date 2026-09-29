@@ -20,6 +20,7 @@ import { t } from './i18n.ts';
 import { registerReady, tools, type FeatureContext } from './features.ts';
 import { MARK_TOOLS } from './marks.ts';
 import type { MarkType } from './inline.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 /** Registered tools that act on a SELECTION. Find does not; it acts on the document. */
 const SELECTION_TOOLS = ['link', 'comment'];
@@ -58,23 +59,19 @@ function hide(): void {
 }
 
 function build(ctx: FeatureContext): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 't-selbar';
   // never captured by a save — kernel save.ts strips marked nodes from the clone
-  el.setAttribute('data-bento-transient', '');
-  el.setAttribute('role', 'toolbar');
-  el.setAttribute('aria-label', t('Formatting'));
+  const el = h('div.t-selbar[data-bento-transient][role=toolbar]', { ariaLabel: t('Formatting') });
 
   const active = ctx.editor.activeMarks() as Set<string>;
   for (const m of MARK_TOOLS) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 't-selbtn';
-    b.innerHTML = m.icon;
-    b.title = m.title();
-    b.setAttribute('aria-label', m.title());
-    b.setAttribute('aria-pressed', String(active.has(m.t)));
-    b.classList.toggle('on', active.has(m.t));
+    const b = h('button.t-selbtn', {
+      type: 'button',
+      className: active.has(m.t) ? 'on' : '',
+      innerHTML: m.icon,
+      title: m.title(),
+      ariaLabel: m.title(),
+      ariaPressed: String(active.has(m.t)),
+    });
     // mousedown, NOT click: a focus change collapses the selection, and the
     // bar would then format nothing.
     b.addEventListener('mousedown', e => e.preventDefault());
@@ -96,17 +93,11 @@ function build(ctx: FeatureContext): HTMLElement {
 
   const rest = [...tools('format'), ...tools('review')].filter(s => SELECTION_TOOLS.includes(s.id));
   if (rest.length) {
-    const sep = document.createElement('span');
-    sep.className = 't-selsep';
+    const sep = h('span.t-selsep');
     el.appendChild(sep);
     for (const spec of rest) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 't-selbtn';
-      b.innerHTML = spec.icon;
       const title = typeof spec.title === 'function' ? spec.title() : spec.title;
-      b.title = title;
-      b.setAttribute('aria-label', title);
+      const b = h('button.t-selbtn', { type: 'button', innerHTML: spec.icon, title, ariaLabel: title });
       b.addEventListener('mousedown', e => e.preventDefault());
       b.addEventListener('click', e => { e.stopPropagation(); hide(); spec.run(ctx); });
       el.appendChild(b);

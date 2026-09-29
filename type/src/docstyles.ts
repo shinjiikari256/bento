@@ -42,6 +42,7 @@ import type { Block, BlockKind, DocStyle, TypeDoc } from './model.ts';
 import { docEffective, propsOf, type ParaLayout } from './layout.ts';
 import { t } from './i18n.ts';
 import type { FeatureContext } from './features.ts';
+import { h } from '../../kernel/src/dom.ts';
 // NOT `import './docstyles.css'` here: render.ts imports this module for
 // docStyleCss, and render.ts is reachable from model.ts (via comments.ts) —
 // which the node test rigs (scripts/test-type-*.ts) load directly with no
@@ -257,9 +258,7 @@ export function ensureStyleSheet(doc: TypeDoc): void {
   if (typeof document === 'undefined') return;
   let tag = document.getElementById(STYLE_TAG_ID) as HTMLStyleElement | null;
   if (!tag) {
-    tag = document.createElement('style');
-    tag.id = STYLE_TAG_ID;
-    tag.setAttribute('data-bento-transient', '');
+    tag = h(`style#${STYLE_TAG_ID}[data-bento-transient]`) as HTMLStyleElement;
     document.head.appendChild(tag);
   }
   const css = styleSheetCss(doc);

@@ -170,6 +170,7 @@ import {
   cleanField, readBibliography, readCiteRef, readStyle, validKey,
   type BibEntry, type Bibliography, type CiteRef, type CiteStyle,
 } from './cite/types.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 export { parseBibtex, decodeTex } from './cite/bibtex.ts';
 export * from './cite/format.ts';
@@ -374,12 +375,8 @@ const ICON =
   '<path d="M4 5h11"/><path d="M4 10h11"/><path d="M4 15h7"/>' +
   '<path d="M17.5 14.5 19 19l-1.5-1-1.5 1z"/><path d="M17.5 14.5V9"/></svg>';
 
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] => {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text) n.textContent = text;
-  return n;
-};
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] =>
+  (h(tag as string, { ...(cls ? { className: cls } : {}), ...(text ? { textContent: text } : {}) }) as unknown) as HTMLElementTagNameMap[K];
 
 const btn = (label: string, onClick: () => void, cls = 't-cite-mini'): HTMLButtonElement => {
   const b = el('button', cls, label);

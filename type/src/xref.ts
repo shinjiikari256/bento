@@ -161,6 +161,7 @@ import { blockHtml, TAG } from './render.ts';
 import { registerKey, registerPanel, registerTool,
          type FeatureContext } from './features.ts';
 import { t } from './i18n.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // ───────────────────────────────────────────────────────────────────── model
 
@@ -603,46 +604,38 @@ export function openPicker(ctx: FeatureContext): void {
   const entries = captionEntries(ctx.store.doc.body, docLang(ctx.store.doc));
   if (!entries.length) { ctx.toast(t('Nothing to refer to yet — caption a table first')); return; }
 
-  const back = document.createElement('div');
-  back.className = 't-overlay';
-  const box = document.createElement('div');
-  box.className = 't-dlg t-xref-pick';
-  box.innerHTML = `<h3>${t('Insert a cross-reference')}</h3>`;
+  const back = h('div.t-overlay');
+  const box = h('div.t-dlg.t-xref-pick', { innerHTML: `<h3>${t('Insert a cross-reference')}</h3>` });
 
-  const styleRow = document.createElement('div');
-  styleRow.className = 't-xref-style';
-  const sel = document.createElement('select');
+  const styleRow = h('div.t-xref-style');
+  const sel = h('select');
   for (const [value, label] of [['label', t('Label — “Table 2”')],
                                 ['page', t('Page — “page 7”')],
                                 ['both', t('Both — “Table 2 (page 7)”')]] as const) {
-    const o = document.createElement('option');
-    o.value = value; o.textContent = label;
+    const o = h('option', { value, textContent: label });
     sel.appendChild(o);
   }
   styleRow.append(sel);
   box.appendChild(styleRow);
 
-  const list = document.createElement('div');
-  list.className = 't-xref-list';
+  const list = h('div.t-xref-list');
   for (const e of entries) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.innerHTML = `<b>${esc(e.label)}</b><span>${esc(e.text || t('(untitled)'))}</span>`;
-    b.addEventListener('click', () => {
-      close();
-      insertRef(ctx, e.id, sel.value as RefStyle);
+    const b = h('button', {
+      type: 'button',
+      innerHTML: `<b>${esc(e.label)}</b><span>${esc(e.text || t('(untitled)'))}</span>`,
+      onclick: () => {
+        close();
+        insertRef(ctx, e.id, sel.value as RefStyle);
+      },
     });
     list.appendChild(b);
   }
   box.appendChild(list);
 
-  const foot = document.createElement('div');
-  foot.className = 't-xref-foot';
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.className = 't-btn';
-  cancel.textContent = t('Cancel');
-  cancel.addEventListener('click', () => close());
+  const foot = h('div.t-xref-foot');
+  const cancel = h('button.t-btn', {
+    type: 'button', textContent: t('Cancel'), onclick: () => close(),
+  });
   foot.appendChild(cancel);
   box.appendChild(foot);
 
@@ -670,37 +663,38 @@ function paintPanel(host: HTMLElement, ctx: FeatureContext): void {
   host.replaceChildren();
 
   if (!entries.length) {
-    const p = document.createElement('p');
-    p.className = 't-hint';
-    p.textContent = t('No captions yet. Put the caret in a table and press the caption button; numbering and every reference to it follow automatically.');
+    const p = h('p.t-hint', {
+      textContent: t('No captions yet. Put the caret in a table and press the caption button; numbering and every reference to it follow automatically.'),
+    });
     host.appendChild(p);
   }
   for (const e of entries) {
-    const a = document.createElement('a');
-    a.href = '#';
-    a.className = 't-xref-item';
-    a.innerHTML = `<b>${esc(e.label)}</b> ${esc(e.text || t('(untitled)'))}`;
-    a.addEventListener('click', ev => {
-      ev.preventDefault();
-      ctx.editor.setCaret({ id: e.id, at: 0 });
-      document.querySelector(`[data-id="${CSS.escape(e.id)}"]`)?.scrollIntoView({ block: 'center' });
+    const a = h('a.t-xref-item', {
+      href: '#',
+      innerHTML: `<b>${esc(e.label)}</b> ${esc(e.text || t('(untitled)'))}`,
+      onclick: ev => {
+        ev.preventDefault();
+        ctx.editor.setCaret({ id: e.id, at: 0 });
+        document.querySelector(`[data-id="${CSS.escape(e.id)}"]`)?.scrollIntoView({ block: 'center' });
+      },
     });
     host.appendChild(a);
   }
   if (broken.length) {
-    const h = document.createElement('p');
-    h.className = 't-xref-broken-head';
-    h.textContent = t('{n} broken reference(s)').replace('{n}', String(broken.length));
-    host.appendChild(h);
+    // local name avoids shadowing the imported `h()` builder
+    const headEl = h('p.t-xref-broken-head', {
+      textContent: t('{n} broken reference(s)').replace('{n}', String(broken.length)),
+    });
+    host.appendChild(headEl);
     for (const { block } of broken) {
-      const a = document.createElement('a');
-      a.href = '#';
-      a.className = 't-xref-item t-xref-broken';
-      a.textContent = block.text.slice(0, 60) || t('(empty paragraph)');
-      a.addEventListener('click', ev => {
-        ev.preventDefault();
-        ctx.editor.setCaret({ id: block.id, at: 0 });
-        document.querySelector(`[data-id="${CSS.escape(block.id)}"]`)?.scrollIntoView({ block: 'center' });
+      const a = h('a.t-xref-item.t-xref-broken', {
+        href: '#',
+        textContent: block.text.slice(0, 60) || t('(empty paragraph)'),
+        onclick: ev => {
+          ev.preventDefault();
+          ctx.editor.setCaret({ id: block.id, at: 0 });
+          document.querySelector(`[data-id="${CSS.escape(block.id)}"]`)?.scrollIntoView({ block: 'center' });
+        },
       });
       host.appendChild(a);
     }

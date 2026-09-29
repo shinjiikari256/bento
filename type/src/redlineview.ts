@@ -29,11 +29,10 @@ import { registerPanel, type FeatureContext } from './features.ts';
 import { redline, apply as applyRedline, describe, type ChangeSet } from './redline.ts';
 import type { Block } from './model.ts';
 import { uid } from './model.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 const esc = (s: string) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
-const el = (tag: string, cls?: string): HTMLElement => {
-  const n = document.createElement(tag); if (cls) n.className = cls; return n;
-};
+const el = (tag: string, cls?: string): HTMLElement => h(tag, cls ? { className: cls } : {});
 
 // Module state: the in-progress redline session. `null` until the reviewer
 // takes a Snapshot and runs Review — same lifecycle the old main.ts globals

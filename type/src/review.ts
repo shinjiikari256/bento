@@ -36,6 +36,7 @@ import {
   changes, resolve, resolveAll, changeAt, stepChange, parseTrackView,
   type Change, type TrackView,
 } from './track.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // ═══════════════════════════════════════════════════════ display mode
 
@@ -155,14 +156,9 @@ const CROSS_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
   + '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
 function iconBtn(icon: string, title: string, run: () => void): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 't-trk-icon';
-  b.innerHTML = icon;
-  b.title = title;
-  b.setAttribute('aria-label', title);
-  b.addEventListener('click', run);
-  return b;
+  return h('button.t-trk-icon', {
+    type: 'button', innerHTML: icon, title, ariaLabel: title, onclick: run,
+  });
 }
 
 let repaintSurface: (() => void) | null = null;
@@ -173,11 +169,11 @@ function paintSurface(host: HTMLElement, ctx: FeatureContext): void {
   const list = changes(doc);
 
   if (!list.length) {
-    const hint = document.createElement('p');
-    hint.className = 't-hint';
-    hint.textContent = doc.track
-      ? t('Tracking is on. Edits you make from now on are recorded here.')
-      : t('Turn on "Track changes" in the properties panel, or take a Snapshot from ⋯ and use Review changes.');
+    const hint = h('p.t-hint', {
+      textContent: doc.track
+        ? t('Tracking is on. Edits you make from now on are recorded here.')
+        : t('Turn on "Track changes" in the properties panel, or take a Snapshot from ⋯ and use Review changes.'),
+    });
     host.appendChild(hint);
     return;
   }
@@ -186,29 +182,27 @@ function paintSurface(host: HTMLElement, ctx: FeatureContext): void {
   const idx = currentIndex(list, doc, caret);
 
   // ---- the compact surface: current position, step, resolve
-  const bar = document.createElement('div');
-  bar.className = 't-trk-nav';
+  const bar = h('div.t-trk-nav');
   bar.appendChild(iconBtn(PREV_ICON, t('Previous change (⌘⌥P)'), () => step(ctx, -1)));
-  const count = document.createElement('span');
-  count.className = 't-trk-count';
-  count.textContent = idx !== null
-    ? t('{n} of {m}', { n: String(idx + 1), m: String(list.length) })
-    : (list.length === 1 ? t('1 change') : t('{m} changes', { m: String(list.length) }));
+  const count = h('span.t-trk-count', {
+    textContent: idx !== null
+      ? t('{n} of {m}', { n: String(idx + 1), m: String(list.length) })
+      : (list.length === 1 ? t('1 change') : t('{m} changes', { m: String(list.length) })),
+  });
   bar.appendChild(count);
   bar.appendChild(iconBtn(NEXT_ICON, t('Next change (⌘⌥N)'), () => step(ctx, 1)));
   bar.appendChild(iconBtn(CHECK_ICON, t('Accept (⌘⌥A)'), () => resolveCurrent(ctx, true)));
   bar.appendChild(iconBtn(CROSS_ICON, t('Reject (⌘⌥D)'), () => resolveCurrent(ctx, false)));
   host.appendChild(bar);
 
-  const all = document.createElement('div');
-  all.className = 't-trk-row';
+  const all = h('div.t-trk-row');
   for (const [label, accept] of [[t('Accept all'), true], [t('Reject all'), false]] as const) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = label;
-    b.addEventListener('click', () => {
-      ctx.store.commit(d => resolveAll(d, accept));
-      ctx.refresh();
+    const b = h('button', {
+      type: 'button', textContent: label,
+      onclick: () => {
+        ctx.store.commit(d => resolveAll(d, accept));
+        ctx.refresh();
+      },
     });
     all.appendChild(b);
   }
@@ -216,30 +210,28 @@ function paintSurface(host: HTMLElement, ctx: FeatureContext): void {
 
   for (let i = 0; i < list.length; i++) {
     const ch = list[i];
-    const card = document.createElement('div');
-    card.className = 't-card' + (i === idx ? ' on' : '');
-    const who = document.createElement('div');
-    who.className = 'who';
-    who.textContent = `${ch.mark.by ?? t('Someone')} · ${ch.mark.t === 'ins' ? t('inserted') : t('deleted')}`;
-    const what = document.createElement('div');
-    what.className = 'what';
+    const card = h('div', { className: 't-card' + (i === idx ? ' on' : '') });
+    const who = h('div.who', {
+      textContent: `${ch.mark.by ?? t('Someone')} · ${ch.mark.t === 'ins' ? t('inserted') : t('deleted')}`,
+    });
     // the CHANGED TEXT ONLY, in the same ins/del styling the page uses, so the
     // card and the paragraph it points at read as the same thing
-    what.innerHTML = ch.mark.t === 'ins' ? `<ins>${esc(ch.text)}</ins>` : `<del>${esc(ch.text)}</del>`;
+    const what = h('div.what', {
+      innerHTML: ch.mark.t === 'ins' ? `<ins>${esc(ch.text)}</ins>` : `<del>${esc(ch.text)}</del>`,
+    });
     card.append(who, what);
-    const row = document.createElement('div');
-    row.className = 't-trk-row';
+    const row = h('div.t-trk-row');
     for (const [label, accept] of [[t('Accept'), true], [t('Reject'), false]] as const) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = label;
-      b.addEventListener('click', e => {
-        e.stopPropagation();
-        ctx.store.commit(d => {
-          const bi = d.body.findIndex(x => x.id === ch.block);
-          if (bi >= 0) d.body[bi] = resolve(d.body[bi], ch.mark, accept);
-        });
-        ctx.refresh();
+      const b = h('button', {
+        type: 'button', textContent: label,
+        onclick: e => {
+          e.stopPropagation();
+          ctx.store.commit(d => {
+            const bi = d.body.findIndex(x => x.id === ch.block);
+            if (bi >= 0) d.body[bi] = resolve(d.body[bi], ch.mark, accept);
+          });
+          ctx.refresh();
+        },
       });
       row.appendChild(b);
     }
@@ -281,27 +273,20 @@ registerSelection(() => repaintSurface?.());
 
 function buildViewPanel(host: HTMLElement, ctx: FeatureContext): void {
   host.replaceChildren();
-  const head = document.createElement('div');
-  head.className = 't-section';
-  head.textContent = t('Review');
-  const body = document.createElement('div');
-  body.className = 't-sec-body';
+  const head = h('div.t-section', { textContent: t('Review') });
+  const body = h('div.t-sec-body');
   host.append(head, body);
 
-  const row = document.createElement('div');
-  row.className = 't-row';
-  const label = document.createElement('span');
-  label.textContent = t('Display');
-  const sel = document.createElement('select');
+  const row = h('div.t-row');
+  const label = h('span', { textContent: t('Display') });
+  const sel = h('select');
   const OPTIONS: Array<[TrackView, string]> = [
     ['all', t('All markup')],
     ['final', t('No markup')],
     ['original', t('Original')],
   ];
   for (const [value, text] of OPTIONS) {
-    const o = document.createElement('option');
-    o.value = value;
-    o.textContent = text;
+    const o = h('option', { value, textContent: text });
     if (value === trackView()) o.selected = true;
     sel.appendChild(o);
   }
@@ -314,9 +299,9 @@ function buildViewPanel(host: HTMLElement, ctx: FeatureContext): void {
   row.append(label, sel);
   body.appendChild(row);
 
-  const note = document.createElement('p');
-  note.className = 't-note';
-  note.textContent = t('How you view a document, not a change to it — nothing here is saved into the file.');
+  const note = h('p.t-note', {
+    textContent: t('How you view a document, not a change to it — nothing here is saved into the file.'),
+  });
   body.appendChild(note);
 }
 

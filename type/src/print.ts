@@ -29,6 +29,7 @@ import { captionIndex, docLang, fillXrefsHtml } from './xref.ts';
 import { blockStyle } from './layout.ts';
 import { docStyleCss } from './docstyles.ts';
 import { embedHtml } from './embed.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 export interface PrintOptions {
   /** running head text; omitted = the document title */
@@ -253,8 +254,7 @@ export function buildPrintDocument(doc: TypeDoc, metrics: Metrics, opts: PrintOp
  */
 export function printDocument(doc: TypeDoc, metrics: Metrics, opts: PrintOptions = {}): void {
   const html = buildPrintDocument(doc, metrics, opts);
-  const frame = document.createElement('iframe');
-  frame.setAttribute('data-bento-transient', '');
+  const frame = h('iframe', { dataset: { bentoTransient: '' } });
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0';
   document.body.appendChild(frame);
   const win = frame.contentWindow!;
