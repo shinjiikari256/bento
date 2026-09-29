@@ -64,6 +64,7 @@
 // `scripts/test-dash-find.ts` is the guard.
 
 import './find.css'
+import { h } from '../../kernel/src/dom.ts'
 import { formatValue } from './format.ts'
 import { readCell, type Patch, type Store } from './store.ts'
 import type { CellOverride, Column, ColumnType, DashDoc, TableSheet } from './model.ts'
@@ -533,10 +534,7 @@ class FindBar implements FindUI {
     this.store = host.store
     this.grid = host.grid
     this.coerce = host.coerce
-    this.root = document.createElement('div')
-    this.root.className = 'dx-find'
-    this.root.hidden = true
-    this.root.setAttribute('role', 'search')
+    this.root = h('div.dx-find[role=search]', { hidden: true })
     this.root.innerHTML = this.markup()
     host.el.appendChild(this.root)
 

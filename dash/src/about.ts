@@ -58,6 +58,7 @@ import { addVersion, listVersions } from '../../kernel/src/autosave.ts'
 import { offerUndoRestore, restoredWorkbook } from './recovery.ts'
 import { t } from './i18n.ts'
 import { docBudget, docBytes, parseDoc, rowCount, type DashDoc, type DocMeta , docForExport } from './model.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 // The update check and the theme moved to settings.ts with the surface that
 // shows them. They are re-exported because main.ts calls `checkAtLaunch` from
@@ -238,12 +239,10 @@ export function openAbout(hooks: AboutHooks): void {
 
   // --- what this is ---------------------------------------------------------
   const stats = workbookStats(store.doc)
-  const lede = document.createElement('p')
-  lede.className = 'dx-about-lede'
-  lede.textContent = t(
+  const lede = h('p.dx-about-lede', { textContent: t(
     'bento/dash {version} · {sheets} sheet(s), {rows} row(s), {columns} column(s). The workbook, the grid and the formula engine are all in this one file.',
     { version: APP_VERSION, sheets: stats.sheets, rows: stats.rows, columns: stats.columns },
-  )
+  ) })
   card.append(d.h(t('This file')), lede)
 
   const opened = openedFileName()
@@ -286,10 +285,10 @@ export function openAbout(hooks: AboutHooks): void {
     ['keywords', t('Keywords')],
   ]
   for (const [key, label] of META) {
-    const input = document.createElement('input')
-    input.className = 'dx-about-in'
-    input.value = String(store.doc.meta?.[key] ?? '')
-    input.disabled = store.readOnly
+    const input = h('input.dx-about-in', {
+      value: String(store.doc.meta?.[key] ?? ''),
+      disabled: store.readOnly,
+    })
     input.addEventListener('change', () => setMeta(key, input.value.trim()))
     card.append(d.row(label, input))
   }
@@ -300,8 +299,7 @@ export function openAbout(hooks: AboutHooks): void {
 
   // --- version history ------------------------------------------------------
   card.append(d.h(t('Version history')))
-  const versions = document.createElement('div')
-  versions.className = 'dx-about-vers'
+  const versions = h('div.dx-about-vers')
   card.append(versions)
   card.append(note(t('Versions are kept in this browser only — never in the file, never online. Restoring replaces the whole workbook, and offers one undo.')))
   void listVersions(store.doc.docId).then((list) => {
@@ -310,16 +308,12 @@ export function openAbout(hooks: AboutHooks): void {
       return
     }
     versions.replaceChildren(...list.map((snap, i) => {
-      const b = document.createElement('button')
-      b.className = 'dx-about-ver'
-      b.disabled = store.readOnly
+      const b = h('button.dx-about-ver', { disabled: store.readOnly })
       const stamp = new Date(snap.at).toLocaleString([], {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
       })
-      const when = document.createElement('span')
-      when.textContent = stamp + (i === 0 ? ` · ${t('most recent')}` : '')
-      const doIt = document.createElement('span')
-      doIt.textContent = t('Restore')
+      const when = h('span', { textContent: stamp + (i === 0 ? ` · ${t('most recent')}` : '') })
+      const doIt = h('span', { textContent: t('Restore') })
       b.append(when, doIt)
       b.addEventListener('click', () => {
         // A snapshot is this app's own JSON, but it is still parsed rather than
@@ -383,10 +377,10 @@ export function openAbout(hooks: AboutHooks): void {
   function openPaste(): void {
     if (store.readOnly) { outNote.textContent = t('This workbook is open read-only.'); return }
     if (card.querySelector('.dx-about-paste')) return
-    const ta = document.createElement('textarea')
-    ta.className = 'dx-about-paste'
-    ta.spellcheck = false
-    ta.placeholder = t('Paste bento/dash document JSON here')
+    const ta = h('textarea.dx-about-paste', {
+      spellcheck: false,
+      placeholder: t('Paste bento/dash document JSON here'),
+    })
     const go = d.button(t('Replace workbook'), () => {
       if (!ta.value.trim()) { ta.focus(); return }
       const res = parseDoc(ta.value)

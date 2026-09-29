@@ -32,6 +32,7 @@
 // the same box would be one more thing to keep in step.
 
 import './about.css'
+import { h } from '../../kernel/src/dom.ts'
 
 export interface Dialog {
   /** the backdrop; removing it closes everything */
@@ -63,59 +64,38 @@ export interface Dialog {
 export function openDialog(label: string): Dialog {
   document.querySelector('.dx-about-back')?.remove()
 
-  const back = document.createElement('div')
-  back.className = 'dx-about-back'
-  const card = document.createElement('div')
-  card.className = 'dx-about'
+  const back = h('div.dx-about-back')
+  const card = h('div.dx-about')
   card.setAttribute('role', 'dialog')
   card.setAttribute('aria-modal', 'true')
   card.setAttribute('aria-label', label)
   const close = () => back.remove()
 
-  const h = (text: string) => {
-    const n = document.createElement('h2')
-    n.textContent = text
-    return n
-  }
-  const note = (text: string) => {
-    const n = document.createElement('p')
-    n.className = 'dx-about-note'
-    n.textContent = text
-    return n
-  }
-  const value = (text: string) => {
-    const n = document.createElement('span')
-    n.className = 'dx-about-val'
-    n.textContent = text
-    return n
-  }
+  // NOTE: named `headEl`, not `h` — this scope already imports the shared
+  // `h()` DOM builder, and shadowing it here would break every other
+  // factory below that relies on it.
+  const headEl = (text: string) => h('h2', { textContent: text })
+  const note = (text: string) => h('p.dx-about-note', { textContent: text })
+  const value = (text: string) => h('span.dx-about-val', { textContent: text })
   const row = (rowLabel: string, node: HTMLElement) => {
-    const r = document.createElement('div')
-    r.className = 'dx-about-row'
-    const s = document.createElement('span')
-    s.textContent = rowLabel
+    const r = h('div.dx-about-row')
+    const s = h('span', { textContent: rowLabel })
     r.append(s, node)
     return r
   }
   const button = (text: string, fn: () => void) => {
-    const b = document.createElement('button')
-    b.className = 'dx-btn'
-    b.textContent = text
+    const b = h('button.dx-btn', { textContent: text })
     b.addEventListener('click', fn)
     return b
   }
   const actions = (...nodes: HTMLElement[]) => {
-    const wrap = document.createElement('div')
-    wrap.className = 'dx-about-actions'
+    const wrap = h('div.dx-about-actions')
     wrap.append(...nodes)
     return wrap
   }
   const check = (text: string, on: boolean, onChange: (v: boolean) => void) => {
-    const l = document.createElement('label')
-    l.className = 'dx-about-check'
-    const box = document.createElement('input')
-    box.type = 'checkbox'
-    box.checked = on
+    const l = h('label.dx-about-check')
+    const box = h('input', { type: 'checkbox', checked: on })
     box.addEventListener('change', () => onChange(box.checked))
     l.append(box, document.createTextNode(' ' + text))
     return l
@@ -136,5 +116,5 @@ export function openDialog(label: string): Dialog {
     card.querySelector('button')?.focus()
   }
 
-  return { back, card, close, h, note, value, row, button, actions, check, mount }
+  return { back, card, close, h: headEl, note, value, row, button, actions, check, mount }
 }

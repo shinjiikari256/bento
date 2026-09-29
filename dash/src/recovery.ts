@@ -47,6 +47,7 @@
 // callers, so they cannot drift apart again.
 
 import './recovery.css'
+import { h } from '../../kernel/src/dom.ts'
 import { getRecovery, clearRecovery, type Snapshot } from '../../kernel/src/autosave.ts'
 import { isEncryptionActive } from '../../kernel/src/save.ts'
 import { planReplace } from './about.ts'
@@ -278,16 +279,14 @@ export async function mountRecovery(host: WorkbookHost): Promise<NoOfferReason |
 
 function showBanner(host: WorkbookHost, recovered: DashDoc, at: number): void {
   document.querySelector('.dxr-bar')?.remove()
-  const bar = document.createElement('div')
-  bar.className = 'dxr-bar'
-  bar.setAttribute('role', 'status')
+  const bar = h('div.dxr-bar', { role: 'status' })
 
   const when = new Date(at).toLocaleString([], {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
-  const msg = document.createElement('span')
-  msg.className = 'dxr-msg'
-  msg.textContent = t('Unsaved changes from {when} were found in this browser.', { when })
+  const msg = h('span.dxr-msg', {
+    textContent: t('Unsaved changes from {when} were found in this browser.', { when }),
+  })
 
   const restore = btn(t('Restore'), 'dxr-primary')
   const discard = btn(t('Discard'))
@@ -370,13 +369,9 @@ function closeBtn(bar: HTMLElement, title: string): HTMLElement {
  */
 export function offerUndoRestore(host: WorkbookHost, before: DashDoc, message: string): void {
   document.querySelector('.dxr-bar')?.remove()
-  const bar = document.createElement('div')
-  bar.className = 'dxr-bar'
-  bar.setAttribute('role', 'status')
+  const bar = h('div.dxr-bar', { role: 'status' })
 
-  const msg = document.createElement('span')
-  msg.className = 'dxr-msg'
-  msg.textContent = message
+  const msg = h('span.dxr-msg', { textContent: message })
 
   const undo = btn(t('Undo restore'))
   undo.addEventListener('click', () => {
@@ -392,9 +387,5 @@ export function offerUndoRestore(host: WorkbookHost, before: DashDoc, message: s
 }
 
 function btn(label: string, cls = ''): HTMLButtonElement {
-  const b = document.createElement('button')
-  b.type = 'button'
-  b.className = `dx-btn dxr-btn${cls ? ` ${cls}` : ''}`
-  b.textContent = label
-  return b
+  return h('button.dx-btn.dxr-btn', { type: 'button', className: cls, textContent: label })
 }

@@ -59,6 +59,7 @@
 // meant to call in, and a module the grid imports must not import it back.
 
 import './cellprops.css'
+import { h } from '../../kernel/src/dom.ts'
 import { t } from './i18n.ts'
 import { APPEARANCE_FIELDS, type AppearanceField } from './model.ts'
 import type { CellOverride, Column, TableSheet } from './model.ts'
@@ -509,22 +510,22 @@ export function colourControl(
   value: string, fallback: string, readOnly: boolean,
   onChange: (v: string | null) => void, clearTitle: string,
 ): HTMLElement {
-  const wrap = document.createElement('span')
-  wrap.className = 'dc-colour'
-  const input = document.createElement('input')
-  input.type = 'color'
-  input.value = /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
-  input.disabled = readOnly
+  const wrap = h('span.dc-colour')
   if (!value) wrap.classList.add('dc-colour-off')
+  const input = h('input', {
+    type: 'color',
+    value: /^#[0-9a-f]{6}$/i.test(value) ? value : fallback,
+    disabled: readOnly,
+  })
   // `change`, never `input`: a drag through the OS colour wheel fires input on
   // every pixel, and every one of those would be an undo step.
   input.addEventListener('change', () => onChange(input.value))
-  const clear = document.createElement('button')
-  clear.type = 'button'
-  clear.className = 'dc-clear'
-  clear.textContent = '×'
-  clear.title = clearTitle
-  clear.disabled = readOnly || !value
+  const clear = h('button.dc-clear', {
+    type: 'button',
+    textContent: '×',
+    title: clearTitle,
+    disabled: readOnly || !value,
+  })
   clear.addEventListener('click', () => onChange(null))
   wrap.append(input, clear)
   return wrap

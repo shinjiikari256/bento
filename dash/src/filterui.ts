@@ -478,6 +478,10 @@ export function openColumnMenu(o: ColumnMenuOpts): HTMLElement | null {
 
   const root = o.root ?? document.body
   root.querySelector('.dx-pop')?.remove()
+  // Literal `createElement` + `className = 'dx-pop ...'`, not h(): the
+  // .dx-pop wiring inventory (scripts/test-dash-menu.ts) source-scans for this
+  // exact assignment shape alongside `dismissable(` to prove every .dx-pop is
+  // wired, not just styled.
   const el = document.createElement('div')
   el.className = 'dx-pop dfx'
   // `innerWidth` is undefined outside a browser; the rig mounts this menu and

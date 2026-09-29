@@ -22,6 +22,7 @@
 
 import './styles.css'
 import { configureApp, appConfig } from '../../kernel/src/app.ts'
+import { h } from '../../kernel/src/dom.ts'
 import {
   capturePristine, readEmbeddedDoc, serializeFile, serializeAuto, saveFile,
   parseEnvelope, decryptEnvelope, setEncryptionPassword, isEncryptionActive,
@@ -266,14 +267,14 @@ function refuse(res: Extract<ParseResult, { ok: false }>): void {
   const shown = stripped.text
   document.getElementById('dx-raw')!.textContent = shown.slice(0, 4000) || t('(the document block is empty)')
   if (raw && !stripped.safe && raw.includes('"collab"')) {
-    const warn = document.createElement('p')
-    warn.className = 'dx-gate-warn'
-    warn.textContent = t('This block is not readable as JSON, so its collaboration keys could not be removed from what is shown or copied. Use “Save an untouched copy” to keep the file, and take care where you paste this.')
+    const warn = h('p.dx-gate-warn', {
+      textContent: t('This block is not readable as JSON, so its collaboration keys could not be removed from what is shown or copied. Use “Save an untouched copy” to keep the file, and take care where you paste this.'),
+    })
     document.getElementById('dx-raw')!.after(warn)
   } else if (shown !== raw) {
-    const said = document.createElement('p')
-    said.className = 'dx-gate-note'
-    said.textContent = t('The collaboration keys have been left out of what is shown and copied. “Save an untouched copy” keeps the file exactly as it arrived.')
+    const said = h('p.dx-gate-note', {
+      textContent: t('The collaboration keys have been left out of what is shown and copied. “Save an untouched copy” keeps the file exactly as it arrived.'),
+    })
     document.getElementById('dx-raw')!.after(said)
   }
   document.getElementById('dx-copy')!.addEventListener('click', () => {
@@ -1347,7 +1348,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
   // a container of its own. Handing it `app` erased the entire application on
   // boot — grid, panels, everything — and left only the panel markup behind,
   // with nothing in the console because nothing threw.
-  const peopleEl = document.createElement('div')
+  const peopleEl = h('div')
   // INSIDE the right-hand group, not after it. The bar's end group is what the
   // responsive ladder measures and collapses; anything appended after it sits
   // outside that arithmetic and pushes the whole toolbar — Save included —
@@ -2095,9 +2096,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
 // --- import -----------------------------------------------------------------
 
 async function pickCsv(store: Store, host: HTMLElement, grid: Grid): Promise<void> {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.csv,.tsv,.txt,text/csv,text/plain'
+  const input = h('input', { type: 'file', accept: '.csv,.tsv,.txt,text/csv,text/plain' })
   input.addEventListener('change', () => {
     const f = input.files?.[0]
     if (!f) return
@@ -2207,9 +2206,10 @@ function exportCsv(store: Store, sheet: TableSheet): void {
     }).join(','))
   }
   const blob = new Blob([lines.join('\r\n')], { type: 'text/csv' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `${suggestedFileName(store.doc).replace(/\.bento\.html$/, '')}.csv`
+  const a = h('a', {
+    href: URL.createObjectURL(blob),
+    download: `${suggestedFileName(store.doc).replace(/\.bento\.html$/, '')}.csv`,
+  })
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
@@ -2368,56 +2368,39 @@ function askForm(opts: {
 }): Promise<Record<string, string> | null> {
   return new Promise((resolve) => {
     document.querySelector('.dx-ask-back')?.remove()
-    const back = document.createElement('div')
-    back.className = 'dx-ask-back'
-    const card = document.createElement('div')
-    card.className = 'dx-ask'
-    card.setAttribute('role', 'dialog')
-    card.setAttribute('aria-modal', 'true')
+    const back = h('div.dx-ask-back')
+    const card = h('div.dx-ask[role=dialog][aria-modal=true]')
 
-    const h = document.createElement('h2')
-    h.className = 'dx-ask-title'
-    h.textContent = opts.title
-    card.append(h)
+    // named h2El: `h` is the imported DOM-builder here, and a local `h` would shadow it
+    const h2El = h('h2.dx-ask-title', { textContent: opts.title })
+    card.append(h2El)
 
     const inputs: Record<string, HTMLInputElement> = {}
     for (const f of opts.fields) {
-      const row = document.createElement('label')
-      row.className = 'dx-ask-row'
-      const lab = document.createElement('span')
-      lab.textContent = f.label
-      const inp = document.createElement('input')
-      inp.className = `dx-ask-in${f.mono ? ' dx-ask-mono' : ''}`
-      inp.value = f.value ?? ''
-      if (f.placeholder) inp.placeholder = f.placeholder
-      inp.spellcheck = false
+      const row = h('label.dx-ask-row')
+      const lab = h('span', { textContent: f.label })
+      const inp = h('input.dx-ask-in', {
+        className: f.mono ? 'dx-ask-mono' : undefined,
+        value: f.value ?? '',
+        placeholder: f.placeholder,
+        spellcheck: false,
+      })
       row.append(lab, inp)
       card.append(row)
       inputs[f.key] = inp
     }
 
     if (opts.hint) {
-      const hint = document.createElement('p')
-      hint.className = 'dx-ask-hint'
-      hint.textContent = opts.hint
+      const hint = h('p.dx-ask-hint', { textContent: opts.hint })
       card.append(hint)
     }
 
-    const err = document.createElement('p')
-    err.className = 'dx-ask-err'
-    err.hidden = true
+    const err = h('p.dx-ask-err', { hidden: true })
     card.append(err)
 
-    const foot = document.createElement('div')
-    foot.className = 'dx-ask-foot'
-    const cancel = document.createElement('button')
-    cancel.type = 'button'
-    cancel.className = 'dx-btn'
-    cancel.textContent = t('Cancel')
-    const ok = document.createElement('button')
-    ok.type = 'button'
-    ok.className = 'dx-btn dx-ask-go'
-    ok.textContent = opts.submit ?? t('OK')
+    const foot = h('div.dx-ask-foot')
+    const cancel = h('button.dx-btn', { type: 'button', textContent: t('Cancel') })
+    const ok = h('button.dx-btn.dx-ask-go', { type: 'button', textContent: opts.submit ?? t('OK') })
     foot.append(cancel, ok)
     card.append(foot)
 
@@ -2467,9 +2450,9 @@ function askForm(opts: {
 
 /** Open a .xlsx. Every worksheet arrives as its own dash sheet. */
 async function pickXlsx(store: Store, host: HTMLElement, grid: Grid): Promise<void> {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  const input = h('input', {
+    type: 'file', accept: '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
   input.addEventListener('change', () => {
     const f = input.files?.[0]
     if (!f) return
@@ -2522,11 +2505,12 @@ async function saveXlsx(
     at: new Date(),
     computed: shown ? { [shown.id]: shown.computed } : {},
   })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([r.bytes as BlobPart], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  }))
-  a.download = xlsxFileName(store.doc.title)
+  const a = h('a', {
+    href: URL.createObjectURL(new Blob([r.bytes as BlobPart], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })),
+    download: xlsxFileName(store.doc.title),
+  })
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
   showFindings(host, [

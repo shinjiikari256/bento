@@ -55,6 +55,7 @@ import { swapWorkbook, type WorkbookHost } from './recovery.ts'
 import { adoptFileHandle, hasFileHandle, isEncryptionActive } from '../../kernel/src/save.ts'
 import { toast, forkTemplate, applyDocLock } from './saveui.ts'
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 // --- routing (pure) ----------------------------------------------------------
 
@@ -141,14 +142,10 @@ export function mountDropOpen(host: DropHost): () => void {
 
   const show = () => {
     if (overlay) return
-    overlay = document.createElement('div')
-    overlay.className = 'dxr-drop'
-    const card = document.createElement('div')
-    card.className = 'dxr-drop-card'
-    const head = document.createElement('strong')
-    head.textContent = t('Drop to open')
-    const sub = document.createElement('span')
-    sub.textContent = t('A .bento.html workbook opens here; a .csv, .tsv or .xlsx is imported as new sheets.')
+    overlay = h('div.dxr-drop')
+    const card = h('div.dxr-drop-card')
+    const head = h('strong', { textContent: t('Drop to open') })
+    const sub = h('span', { textContent: t('A .bento.html workbook opens here; a .csv, .tsv or .xlsx is imported as new sheets.') })
     card.append(head, sub)
     overlay.append(card)
     document.body.append(overlay)

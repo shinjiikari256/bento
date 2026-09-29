@@ -51,6 +51,7 @@
 // nobody honours is worse than no tier at all.
 
 import './saveui.css'
+import { h } from '../../kernel/src/dom.ts'
 import {
   saveFile, serializeAuto, writeUpdatedFileAs, canWriteInPlace, adoptFileHandle,
   isEncryptionActive, setEncryptionPassword,
@@ -85,9 +86,7 @@ let toastTimer: number | undefined
 
 export function toast(message: string): void {
   document.querySelector('.dxs-toast')?.remove()
-  const el = document.createElement('div')
-  el.className = 'dxs-toast'
-  el.textContent = message
+  const el = h('div.dxs-toast', { textContent: message })
   document.body.appendChild(el)
   clearTimeout(toastTimer)
   toastTimer = window.setTimeout(() => el.remove(), 3600)
@@ -171,20 +170,17 @@ export function applyDocLock(doc: DashDoc, store: Store): void {
 export function installSaveMenu(host: SaveMenuHost): void {
   const { button, store } = host
 
-  const wrap = document.createElement('span')
-  wrap.className = 'dxs-wrap'
+  const wrap = h('span.dxs-wrap')
   button.replaceWith(wrap)
   wrap.appendChild(button)
 
-  const caret = document.createElement('button')
-  caret.className = 'dx-btn dxs-caret'
-  caret.type = 'button'
-  caret.textContent = '▾'
-  caret.title = t('Save as… — copy, new workbook, template, read-only, password')
-  caret.setAttribute('aria-label', caret.title)
+  const caretTitle = t('Save as… — copy, new workbook, template, read-only, password')
+  const caret = h('button.dx-btn.dxs-caret', {
+    type: 'button', textContent: '▾', title: caretTitle,
+  })
+  caret.setAttribute('aria-label', caretTitle)
 
-  const menu = document.createElement('div')
-  menu.className = 'dxs-menu'
+  const menu = h('div.dxs-menu')
   wrap.append(caret, menu)
 
   const close = () => wrap.classList.remove('dxs-open')
@@ -203,11 +199,9 @@ export function installSaveMenu(host: SaveMenuHost): void {
   })
 
   const item = (label: string, why: string, run: () => void | Promise<void>) => {
-    const b = document.createElement('button')
-    b.className = 'dxs-item'
-    b.type = 'button'
-    b.appendChild(Object.assign(document.createElement('span'), { textContent: label }))
-    b.appendChild(Object.assign(document.createElement('small'), { textContent: why }))
+    const b = h('button.dxs-item', { type: 'button' })
+    b.appendChild(h('span', { textContent: label }))
+    b.appendChild(h('small', { textContent: why }))
     if (store.readOnly) {
       b.disabled = true
       b.title = t('This workbook is open read-only, so this build will not write it.')
@@ -262,7 +256,7 @@ export function installSaveMenu(host: SaveMenuHost): void {
         }
       })
 
-    menu.appendChild(Object.assign(document.createElement('div'), { className: 'dxs-sep' }))
+    menu.appendChild(h('div.dxs-sep'))
 
     item(t('Save as template…'), t('A starting point: every open of it becomes a fresh workbook of its own.'),
       async () => {
@@ -288,7 +282,7 @@ export function installSaveMenu(host: SaveMenuHost): void {
           t('Read-only copy saved — it opens locked'))
       })
 
-    menu.appendChild(Object.assign(document.createElement('div'), { className: 'dxs-sep' }))
+    menu.appendChild(h('div.dxs-sep'))
 
     // The password. Nothing is written here — it sets the standing instruction
     // that every path above then honours through `serializeAuto`.

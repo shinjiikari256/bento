@@ -103,6 +103,7 @@
 import './comments.css'
 import { t } from './i18n.ts'
 import { lsGet, lsSet } from '../../kernel/src/storage.ts'
+import { h } from '../../kernel/src/dom.ts'
 import { colToLetters } from './a1.ts'
 import { formatValue } from './format.ts'
 import { hiddenSet } from './rowcol.ts'
@@ -520,8 +521,7 @@ export class CommentsUI {
     this.grid = host.grid
     this.el = host.el
 
-    this.pill = document.createElement('button')
-    this.pill.className = 'dxc-pill'
+    this.pill = h('button.dxc-pill')
     this.pill.addEventListener('click', (e) => {
       e.stopPropagation()
       const r = this.pill.getBoundingClientRect()
@@ -684,16 +684,17 @@ export class CommentsUI {
 
   /** The corner triangle. Excel's placement, and it covers no digit at 7px. */
   private marker(threads: Comment[], cls: string): HTMLElement {
-    const b = document.createElement('button')
     const open = threads.filter((c) => !c.resolved)
     const show = open[0] ?? threads[0]
-    b.className = `${cls}${open.length ? '' : ' dxc-done'}`
+    const b = h('button', {
+      className: `${cls}${open.length ? '' : ' dxc-done'}`,
+      title: `${show.author}: ${show.text.slice(0, 120)}` +
+        (threads.length > 1 ? `  (+${threads.length - 1})` : ''),
+    })
     if (threads.some((c) => c.id === this.fresh)) {
       b.classList.add('dxc-fresh')
       setTimeout(() => { this.fresh = null }, 1400)
     }
-    b.title = `${show.author}: ${show.text.slice(0, 120)}` +
-      (threads.length > 1 ? `  (+${threads.length - 1})` : '')
     b.setAttribute('aria-label', t('Comment'))
     // A marker is a CLICK TARGET INSIDE A CELL, so it must not reach the cell's
     // own mousedown — which starts a selection drag. Selection is unchanged by
@@ -754,14 +755,10 @@ export class CommentsUI {
     if (v) this.note(pop, t('reads {value}').replace('{value}', v))
 
     const who = this.authorRow(pop)
-    const ta = document.createElement('textarea')
-    ta.className = 'dxc-text'
-    ta.rows = 3
-    ta.placeholder = t('What is wrong with this number?')
+    const ta = h('textarea.dxc-text', { rows: 3, placeholder: t('What is wrong with this number?') })
     pop.appendChild(ta)
 
-    const foot = document.createElement('div')
-    foot.className = 'dxc-foot'
+    const foot = h('div.dxc-foot')
     const add = this.btn(t('Comment'), () => {
       const text = ta.value.trim()
       const author = setCommentAuthor(who.value) || t('Anonymous')
@@ -817,21 +814,14 @@ export class CommentsUI {
         : t('reads {value}').replace('{value}', now || '—'))
     }
 
-    const entries = document.createElement('div')
-    entries.className = 'dxc-entries'
+    const entries = h('div.dxc-entries')
     const entry = (author: string, at: string, text: string): void => {
-      const e = document.createElement('div')
-      e.className = 'dxc-entry'
-      const b = document.createElement('b')
-      b.textContent = author
-      const when = document.createElement('span')
-      when.className = 'dxc-when'
-      when.textContent = relTime(at)
-      when.title = at
-      const p = document.createElement('p')
+      const e = h('div.dxc-entry')
+      const b = h('b', { textContent: author })
+      const when = h('span.dxc-when', { textContent: relTime(at), title: at })
       // textContent, never innerHTML: a comment is user text and the popover is
       // in the editor's own document.
-      p.textContent = text
+      const p = h('p', { textContent: text })
       e.append(b, when, p)
       entries.appendChild(e)
     }
@@ -840,14 +830,10 @@ export class CommentsUI {
     pop.appendChild(entries)
 
     const who = this.authorRow(pop)
-    const ta = document.createElement('textarea')
-    ta.className = 'dxc-text'
-    ta.rows = 2
-    ta.placeholder = t('Reply…')
+    const ta = h('textarea.dxc-text', { rows: 2, placeholder: t('Reply…') })
     pop.appendChild(ta)
 
-    const foot = document.createElement('div')
-    foot.className = 'dxc-foot'
+    const foot = h('div.dxc-foot')
     const commit = (p: Patch | null): void => {
       if (p) this.store.commit(p)
       pop.remove()
@@ -907,20 +893,17 @@ export class CommentsUI {
       const g = rank(c)
       if (g !== group) {
         group = g
-        const h = document.createElement('div')
-        h.className = 'dxc-group'
-        h.textContent = g === 0 ? t('Open') : g === 1 ? t('Orphaned') : t('Resolved')
-        pop.appendChild(h)
+        // `groupHead`, not `h` — that name is already the imported DOM builder
+        // in this scope.
+        const groupHead = h('div.dxc-group', {
+          textContent: g === 0 ? t('Open') : g === 1 ? t('Orphaned') : t('Resolved'),
+        })
+        pop.appendChild(groupHead)
       }
       const r = resolveAnchor(sheet, c.anchor)
-      const item = document.createElement('button')
-      item.className = `dxc-item${c.resolved ? ' dxc-done' : ''}`
-      const where = document.createElement('span')
-      where.className = 'dxc-where'
-      where.textContent = anchorLabel(sheet, r, c.was)
-      const line = document.createElement('span')
-      line.className = 'dxc-line'
-      line.textContent = `${c.author}: ${c.text}`
+      const item = h('button', { className: `dxc-item${c.resolved ? ' dxc-done' : ''}` })
+      const where = h('span.dxc-where', { textContent: anchorLabel(sheet, r, c.was) })
+      const line = h('span.dxc-line', { textContent: `${c.author}: ${c.text}` })
       item.append(where, line)
       item.addEventListener('click', (e) => {
         e.stopPropagation()
@@ -932,8 +915,7 @@ export class CommentsUI {
     }
 
     if (!this.store.readOnly) {
-      const foot = document.createElement('div')
-      foot.className = 'dxc-foot'
+      const foot = h('div.dxc-foot')
       foot.append(this.btn(t('＋ Comment on the selected cell'), () => {
         pop.remove()
         this.commentOnSelection()
@@ -990,10 +972,13 @@ export class CommentsUI {
 
   private pop(x: number, y: number, extra = ''): HTMLElement {
     document.querySelector('.dx-pop')?.remove()
-    const el = document.createElement('div')
-    el.className = `dx-pop dxc-pop ${extra}`.trim()
-    el.style.left = `${Math.max(8, Math.min(x, window.innerWidth - 320))}px`
-    el.style.top = `${Math.max(8, Math.min(y, window.innerHeight - 260))}px`
+    const el = h('div', {
+      className: `dx-pop dxc-pop ${extra}`.trim(),
+      style: {
+        left: `${Math.max(8, Math.min(x, window.innerWidth - 320))}px`,
+        top: `${Math.max(8, Math.min(y, window.innerHeight - 260))}px`,
+      },
+    })
     document.body.appendChild(el)
     // Keystrokes inside the popover are the popover's. Without this, typing a
     // comment reaches main.ts's document handler, which hands any bare
@@ -1016,24 +1001,20 @@ export class CommentsUI {
   }
 
   private head(pop: HTMLElement, label: string, badge?: string): void {
-    const h = document.createElement('div')
-    h.className = 'dxc-head'
-    const s = document.createElement('span')
-    s.textContent = label
-    h.appendChild(s)
+    // `headEl`, not `h` — that name is already the imported DOM builder in
+    // this scope.
+    const headEl = h('div.dxc-head')
+    const s = h('span', { textContent: label })
+    headEl.appendChild(s)
     if (badge) {
-      const b = document.createElement('span')
-      b.className = 'dxc-badge'
-      b.textContent = badge
-      h.appendChild(b)
+      const b = h('span.dxc-badge', { textContent: badge })
+      headEl.appendChild(b)
     }
-    pop.appendChild(h)
+    pop.appendChild(headEl)
   }
 
   private note(pop: HTMLElement, text: string): void {
-    const p = document.createElement('p')
-    p.className = 'dxc-note'
-    p.textContent = text
+    const p = h('p.dxc-note', { textContent: text })
     pop.appendChild(p)
   }
 
@@ -1041,25 +1022,21 @@ export class CommentsUI {
    *  dash already refused `window.prompt` for the type picker, for the same
    *  reason: a dialog that asks you to type an answer is not a control. */
   private authorRow(pop: HTMLElement): HTMLInputElement {
-    const row = document.createElement('label')
-    row.className = 'dxc-who'
-    const span = document.createElement('span')
-    span.textContent = t('as')
-    const input = document.createElement('input')
-    input.className = 'dx-pop-in'
-    input.type = 'text'
-    input.spellcheck = false
-    input.value = commentAuthor()
-    input.placeholder = t('your name')
+    const row = h('label.dxc-who')
+    const span = h('span', { textContent: t('as') })
+    const input = h('input.dx-pop-in', {
+      type: 'text',
+      spellcheck: false,
+      value: commentAuthor(),
+      placeholder: t('your name'),
+    })
     row.append(span, input)
     pop.appendChild(row)
     return input
   }
 
   private btn(label: string, onClick: () => void, cls = ''): HTMLElement {
-    const b = document.createElement('button')
-    b.className = `dxc-btn ${cls}`.trim()
-    b.textContent = label
+    const b = h('button', { className: `dxc-btn ${cls}`.trim(), textContent: label })
     b.addEventListener('click', (e) => { e.stopPropagation(); onClick() })
     return b
   }

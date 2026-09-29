@@ -86,6 +86,7 @@
 
 import './cellprops.css'
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 import { alignFor, formatValue } from './format.ts'
 import { formatRef } from './a1.ts'
 import { isFormula } from './cellformula.ts'
@@ -709,11 +710,11 @@ export function buildCellProps(ctx: CellPropsHost): void {
   // What the pattern DOES, against this cell's own value. The one control that
   // answers "why does my number look like that" without a save and a reload.
   const shownVal = cell?.v === undefined || cell.v === '' ? SAMPLE : cell.v
-  const prev = document.createElement('div')
-  prev.className = 'dc-preview'
-  prev.textContent = formatValue(shownVal, { type: valueType(shownVal), format: fmt })
+  const prev = h('div.dc-preview', {
+    textContent: formatValue(shownVal, { type: valueType(shownVal), format: fmt }),
+    style: { textAlign: (cell?.align as string | undefined) ?? alignFor(valueType(shownVal)) },
+  })
   if (cell?.v === undefined || cell.v === '') prev.classList.add('dc-preview-sample')
-  prev.style.textAlign = (cell?.align as string | undefined) ?? alignFor(valueType(shownVal))
   kit.row(host, t('Shows as'), prev)
 
   if (isTextFormat(fmt)) {

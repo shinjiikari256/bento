@@ -46,6 +46,7 @@ import type { TableSheet } from './model.ts'
 import { isErr } from './formula.ts'
 import { readCell } from './store.ts'
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 export interface ChartBinding {
   /** category axis — usually a text column */
@@ -271,20 +272,15 @@ export interface ChartHostOpts extends ChartViewOpts {
 /** A line of chrome above or below the plot. Text only — never innerHTML: a
  *  sheet name is user data and a column id can be anything. */
 function noteBar(text: string, action?: { label: string; run: () => void }): HTMLElement {
-  const bar = document.createElement('div')
-  bar.className = 'dx-chart-note'
-  bar.style.cssText = 'flex:0 0 auto;display:flex;align-items:center;gap:8px;' +
-    'padding:6px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)'
-  const span = document.createElement('span')
-  span.style.cssText = 'flex:1 1 auto;min-width:0'
-  span.textContent = text
+  const bar = h('div.dx-chart-note', { style: { cssText: 'flex:0 0 auto;display:flex;align-items:center;gap:8px;' +
+    'padding:6px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)' } })
+  const span = h('span', { style: { cssText: 'flex:1 1 auto;min-width:0' }, textContent: text })
   bar.append(span)
   if (action) {
-    const b = document.createElement('button')
-    b.type = 'button'
-    b.className = 'dx-btn'
-    b.style.cssText = 'flex:0 0 auto;padding:3px 8px;font-size:12px'
-    b.textContent = action.label
+    const b = h('button.dx-btn[type=button]', {
+      style: { cssText: 'flex:0 0 auto;padding:3px 8px;font-size:12px' },
+      textContent: action.label,
+    })
     b.addEventListener('click', action.run)
     bar.append(b)
   }
@@ -343,14 +339,12 @@ export function renderChart(
   if (!drawable) {
     // No plot at all. An axis with no bars is not a lesser version of a chart,
     // it is a different and false claim.
-    const pad = document.createElement('div')
-    pad.style.cssText = 'flex:1 1 auto;min-height:0'
+    const pad = h('div', { style: { cssText: 'flex:1 1 auto;min-height:0' } })
     host.append(pad)
     return () => { host.innerHTML = '' }
   }
 
-  const plot = document.createElement('div')
-  plot.style.cssText = 'flex:1 1 auto;min-height:0;position:relative'
+  const plot = h('div', { style: { cssText: 'flex:1 1 auto;min-height:0;position:relative' } })
   host.append(plot)
 
   const all = sheet.rids.reduce((a, [, c]) => a + c, 0)
@@ -359,11 +353,10 @@ export function renderChart(
   // unfiltered chart is read as decoration and then not read at all — the same
   // argument the footer's `dg-part` marker makes in grid.ts.
   if (shown < all) {
-    const cap = document.createElement('div')
-    cap.className = 'dx-chart-rows'
-    cap.style.cssText = 'flex:0 0 auto;padding:4px 8px 2px;font-size:11px;color:var(--muted);text-align:right'
-    cap.textContent = t('{n} of {all} rows — a filter is hiding the rest.',
-      { n: shown, all })
+    const cap = h('div.dx-chart-rows', {
+      style: { cssText: 'flex:0 0 auto;padding:4px 8px 2px;font-size:11px;color:var(--muted);text-align:right' },
+      textContent: t('{n} of {all} rows — a filter is hiding the rest.', { n: shown, all }),
+    })
     host.append(cap)
   }
 

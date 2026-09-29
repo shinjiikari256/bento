@@ -42,6 +42,7 @@
 // argument at length.
 
 import './condfmt.css'
+import { h } from '../../kernel/src/dom.ts'
 import { t } from './i18n.ts'
 import { colourControl } from './cellfmt.ts'
 import { dependencies, FUNCTIONS } from './formula.ts'
@@ -228,12 +229,12 @@ export function buildCondFmtSection(ctx: CondFmtCtx): void {
   // one: a single rule needs no navigation, and a list of one reads as though
   // something is missing.
   if (rules.length > 1) {
-    const list = document.createElement('div')
-    list.className = 'dp-cf-list'
+    const list = h('div.dp-cf-list')
     rules.forEach((r, i) => {
-      const b = document.createElement('button')
-      b.className = `dp-btn dp-block${i === at ? ' dp-cf-on' : ''}`
-      b.textContent = `${i + 1}. ${describeCondFmtRule(r)}`
+      const b = h('button', {
+        className: `dp-btn dp-block${i === at ? ' dp-cf-on' : ''}`,
+        textContent: `${i + 1}. ${describeCondFmtRule(r)}`,
+      })
       b.addEventListener('click', () => { openRule(ctx.sheetId, ctx.colId, i); ctx.rerender() })
       list.appendChild(b)
     })
@@ -394,10 +395,10 @@ export function buildCondFmtSection(ctx: CondFmtCtx): void {
     kit.note(host, t('This rule came from a later build of dash. It is kept in the file and written back out unchanged, and this build paints nothing for it.'))
   }
 
-  const add = document.createElement('button')
-  add.className = 'dp-btn dp-block'
-  add.textContent = t('Add another rule')
-  add.disabled = readOnly
+  const add = h('button.dp-btn.dp-block', {
+    textContent: t('Add another rule'),
+    disabled: readOnly,
+  })
   add.addEventListener('click', () => {
     const next: Rule[] = [...rules, blankCondFmtRule('cellValue')]
     openRule(ctx.sheetId, ctx.colId, next.length - 1)

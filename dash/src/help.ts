@@ -29,6 +29,7 @@
 import './help.css'
 import { describeBindings, keyToAction, type BindingRow, type KeyChord } from './select.ts'
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 // --- naming the actions ------------------------------------------------------
 
@@ -201,68 +202,49 @@ export function helpOpen(): boolean { return card !== null }
 
 export function openHelp(): void {
   closeHelp()
-  const back = document.createElement('div')
-  back.className = 'dx-help-back'
-  const box = document.createElement('div')
-  box.className = 'dx-help'
-  box.setAttribute('role', 'dialog')
-  box.setAttribute('aria-modal', 'true')
+  const back = h('div.dx-help-back')
+  const box = h('div.dx-help[role=dialog][aria-modal=true]')
 
-  const h = document.createElement('h2')
-  h.textContent = t('Keyboard shortcuts')
-  box.append(h)
+  // named h2El: `h` is the imported DOM-builder here, and a local `h` would shadow it
+  const h2El = h('h2', { textContent: t('Keyboard shortcuts') })
+  box.append(h2El)
 
-  const cols = document.createElement('div')
-  cols.className = 'dx-help-cols'
+  const cols = h('div.dx-help-cols')
   box.append(cols)
 
   const rows = helpRows()
   for (const section of SECTIONS) {
     const mine = rows.filter((r) => r.section === section)
     if (!mine.length) continue
-    const sec = document.createElement('section')
-    sec.className = 'dx-help-sec'
-    const st = document.createElement('h3')
-    st.textContent = t(SECTION_TITLE[section])
+    const sec = h('section.dx-help-sec')
+    const st = h('h3', { textContent: t(SECTION_TITLE[section]) })
     sec.append(st)
     for (const r of mine) {
-      const line = document.createElement('div')
-      line.className = 'dx-help-row'
-      const keys = document.createElement('span')
-      keys.className = 'dx-help-keys'
+      const line = h('div.dx-help-row')
+      const keys = h('span.dx-help-keys')
       for (const chip of chips(r.chords)) {
-        const kbd = document.createElement('kbd')
-        kbd.textContent = chip
+        const kbd = h('kbd', { textContent: chip })
         keys.append(kbd)
       }
-      const what = document.createElement('span')
-      what.className = 'dx-help-what'
-      what.textContent = t(r.label)
+      const what = h('span.dx-help-what', { textContent: t(r.label) })
       line.append(keys, what)
       sec.append(line)
     }
     cols.append(sec)
   }
 
-  const tips = document.createElement('section')
-  tips.className = 'dx-help-sec dx-help-tipsec'
-  const tt = document.createElement('h3')
-  tt.textContent = t('Good to know')
+  const tips = h('section.dx-help-sec.dx-help-tipsec')
+  const tt = h('h3', { textContent: t('Good to know') })
   tips.append(tt)
-  const ul = document.createElement('ul')
-  ul.className = 'dx-help-tips'
+  const ul = h('ul.dx-help-tips')
   for (const tip of TIPS) {
-    const li = document.createElement('li')
-    li.textContent = t(tip)
+    const li = h('li', { textContent: t(tip) })
     ul.append(li)
   }
   tips.append(ul)
   cols.append(tips)
 
-  const close = document.createElement('button')
-  close.className = 'dx-btn dx-help-close'
-  close.type = 'button'
-  close.textContent = t('Close')
+  const close = h('button.dx-btn.dx-help-close', { type: 'button', textContent: t('Close') })
   close.addEventListener('click', closeHelp)
   box.append(close)
 
@@ -308,13 +290,16 @@ export function toggleHelp(): void { helpOpen() ? closeHelp() : openHelp() }
 export function mountHelp(app: HTMLElement): void {
   const bar = app.querySelector<HTMLElement>('.dx-bar-end') ?? app.querySelector<HTMLElement>('.dx-bar')
   if (bar) {
-    const b = document.createElement('button')
-    b.className = 'dx-btn dx-help-btn'
-    b.type = 'button'
+    const b = h('button.dx-btn.dx-help-btn', {
+      type: 'button',
+      title: t('Keyboard shortcuts (?)'),
+      textContent: '?',
+    })
+    // Literal `dataset.act = 'help'` assignment, not h()'s dataset prop: the
+    // bar-actions inventory (scripts/test-dash-actions.ts) source-scans for
+    // exactly this assignment shape to prove the bar's actions are wired.
     b.dataset.act = 'help'
-    b.title = t('Keyboard shortcuts (?)')
     b.setAttribute('aria-label', t('Keyboard shortcuts'))
-    b.textContent = '?'
     b.addEventListener('click', toggleHelp)
     // Before the version chip, so the card's door survives the responsive
     // ladder that hides the chip first; insertBefore(x, null) appends.
