@@ -243,12 +243,32 @@ comment, `$schema` and the URL; a model that DRIVES the app gets `schema()`,
 ## Repo layout
 
 ```
+kernel/           shared code every app imports from
 slides/           Bento Slides app (src/, single-file build)
+dash/             Bento Dash app (spreadsheet)
+spaces/           Bento Spaces app (notes)
+type/             Bento Type app (documents)
+plugins/          browser extension(s)
 server/           Cloudflare workers: sync relay, guestbook daemon
 scripts/          build, release, signing, guestbook, site tooling
 site-src/         authored landing/guestbook/404 pages (site/ is generated)
 docs/             architecture, platform spec, releasing, collab design
 ```
 
-New apps will live beside `slides/` (working names `spaces/`, `dash/`); the
-shared kernel extraction is tracked in `docs/DECISIONS.md`.
+**Before writing DOM/UI code in ANY app, check `kernel/src/dom.ts` and
+`kernel/src/ui/*` first.** Four apps independently reimplementing the same
+control is the recurring failure mode this repo has already paid for once
+(`docs/DECISIONS.md` has the receipts) — do not add a fifth copy of
+something `kernel/` already has:
+- `kernel/src/dom.ts` — `h(abbr, props)`, a CSS-selector-shaped element
+  builder (`h('input.foo[type=url]', { value, onchange })`) that replaces
+  `document.createElement` + one property assignment per line.
+- `kernel/src/ui/menu.ts` / `panel.ts` / `dialog.ts` / `toggle.ts` /
+  `tooltip.ts` — dropdown menus, resizable side panels, modal dialogs, on/off
+  switches, hover tooltips.
+
+If a new shared primitive is worth extracting, it follows the same
+discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`
+if it needs styling) landing with its own `scripts/test-*.ts`, and an entry
+in `docs/DECISIONS.md` saying what each app contributed. The kernel
+extraction as a whole is tracked in `docs/DECISIONS.md`.

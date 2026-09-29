@@ -97,6 +97,68 @@ opened, the same choice Android makes.
 
 ---
 
+## 2026-09-29 — `h()`, a shared DOM builder — kernel AND every app's adoption in one pass
+
+**Decision.** `kernel/src/dom.ts` exports `h(abbr, props)`, a CSS-selector-
+shaped builder (`tag.class#id[attr=val]`, props set element properties
+directly, falling back to `setAttribute`) that collapses the
+`createElement` + one-property-per-line boilerplate every app's editor
+writes by hand. Originated in `slides/src/editor/h.ts` (272 call sites
+there); promoted once dash/spaces/type turned out to duplicate the same
+problem at a larger scale — 695 raw `createElement` sites between them,
+none with an equivalent helper.
+
+**Unlike the five `kernel/src/ui/*` primitives above, this entry covers
+BOTH the kernel half AND all four apps' adoption**, not kernel-only with
+adoption left to each app's own zone. `h()` is a leaf utility with no
+chrome/theming decisions to defer (unlike menu/panel/dialog/toggle/
+tooltip, which each had a real four-way behavioural difference to
+reconcile) — there was nothing app-specific to decide, only a mechanical
+conversion, so splitting it into five serialized PRs would have added
+process without buying independence.
+
+**Numbers**: `type` 166/167 converted, `dash` 180/186, `slides` 138+80
+(panels.ts+editor.ts, both files), `spaces` 336/343. The unconverted
+remainder in each app is one of: a dynamic/generic tag parameter (`h()`'s
+abbreviation is a TypeScript template-literal string, so it can't accept
+a runtime-computed tag name — `el<K>(tag: K, …)`-style helpers stay
+`createElement`, or bridge via `h(tag as string, …) as unknown as
+HTMLElementTagNameMap[K]` when the call site itself needs converting), a
+local variable literally named `h` shadowing the import in its own scope
+(left alone unless multiple sibling sites in that scope made a rename of
+just that one local variable worth it), a genuinely conditional-branch
+property set that `props` can't express without passing `undefined` (kept
+as a statement after construction), or — found in `spaces` — a handful of
+sites where the conversion was behaviorally identical but changed the
+literal source shape a `scripts/test-*.ts` file pins by regex as a proxy
+for a real invariant (a table cell's `data-cell` vs `data-edit`
+distinction, `aria-sort` reaching a screen reader, media `preload`/`src`
+assignment, `paintCode` never touching `innerHTML`) — reverted to plain
+`createElement` at those specific sites rather than adjusting the test to
+match the refactor.
+
+**Two correctness gaps found in review, both now guarded in `h()`
+itself**: a malformed abbreviation (a typo past the last recognized
+`.class`/`#id`/`[attr]` piece) used to drop its unparsed tail silently;
+now the parser throws. A prop key colliding with a DOM method name
+(`{ click: fn }` instead of `{ onclick: fn }`) used to silently replace
+the method, since methods are ordinary writable properties and `k in el`
+doesn't distinguish them; now assigning over a function-valued property
+throws instead.
+
+**Kebab-case ARIA keys don't type-check** against `h()`'s `HProps<E>`
+(`'aria-label'` isn't a real IDL property; `ariaLabel` is) — every app hit
+this independently during conversion. Fixed by using the reflected
+camelCase property (`ariaLabel`/`ariaHidden`/`ariaExpanded`/`ariaSort`/
+`ariaChecked`/`ariaPressed`, …), same runtime attribute, not by widening
+`h()`'s types to accept the kebab-case string form.
+
+Pointers: `kernel/src/dom.ts`, `working/PLAN-1-shared-infra.md` (item 1;
+the source of the broader kernel-consolidation plan this entry is part
+of — context only, never referenced from a commit message).
+
+---
+
 ## 2026-08-19 — Cross-app embedding: static render + source, never a second renderer
 
 **Decision.** One block/element shape, `bento/embed`, shared by every app in both
