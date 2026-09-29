@@ -50,6 +50,8 @@ import {
   internAsset, prepareImage, humanBytes, IMAGE_EMBED_BUDGET, MEDIA_EMBED_BUDGET, blobToDataUri,
 } from './assets'
 import { h } from '../../kernel/src/dom.ts'
+import '../../kernel/src/ui/field.css'
+import { fieldize } from '../../kernel/src/ui/field.ts'
 
 const CTRL = navigator.platform.toLowerCase().includes('mac') ? 'metaKey' : 'ctrlKey'
 
@@ -3489,7 +3491,7 @@ export class Editor {
       pop.append(el('div', 'sp-pop-title', t('New property')))
       const form = el('div', 'sp-newprop')
       const name = h('input.sp-input[type=text]', { placeholder: t('Name') })
-      const type = h('select.sp-select')
+      const type = h('select.sp-select.bk-field')
       for (const vt of FIELD_TYPES) {
         const o = h('option', { value: vt, textContent: fieldTypeLabel(vt) })
         type.append(o)
@@ -4396,7 +4398,7 @@ export class Editor {
       // that can only append at the root is an import into a pile: the point of
       // a space is the tree, and "under the page I am reading" is what somebody
       // taking a second set of notes into a working space actually means.
-      const under = h('select.sp-select')
+      const under = h('select.sp-select.bk-field')
       const top = h('option', { value: '', textContent: t('Top level') })
       under.append(top)
       for (const { page, depth } of this.store.tree()) {
@@ -4556,7 +4558,7 @@ export class Editor {
       const what = h('p.sp-note', { textContent: t('The page becomes a new file of its own: a whole space, with a new document id and none of this one’s sharing keys.') })
       card.append(what)
 
-      const pick = h('select.sp-select')
+      const pick = h('select.sp-select.bk-field')
       for (const { page, depth } of s.tree()) {
         const o = h('option', { value: page.id, textContent: `${'· '.repeat(depth)}${page.title || t('Untitled')}` })
         if (page.id === s.pageId) o.selected = true
@@ -4955,6 +4957,7 @@ export class Editor {
       const check = (label: string, hint: string, on: boolean) => {
         const l = h('label.sp-opt')
         const i = h('input', { type: 'checkbox', checked: on })
+        fieldize(i)
         l.append(i, h('span', { innerHTML: `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(hint)}</span>` }))
         opts.append(l)
         return i

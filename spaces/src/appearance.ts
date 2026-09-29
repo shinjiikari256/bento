@@ -18,6 +18,7 @@
 import { THEME_CHOICES, setTheme, themeChoice, type ThemeChoice } from '../../kernel/src/theme.ts'
 import { t } from './i18n'
 import { h } from '../../kernel/src/dom.ts'
+import '../../kernel/src/ui/field.css'
 
 const label = (c: ThemeChoice): string =>
   c === 'auto' ? t('Match my system') : c === 'light' ? t('Light') : t('Dark')
@@ -31,7 +32,7 @@ const label = (c: ThemeChoice): string =>
 export function appearanceSection(): HTMLElement[] {
   const h2El = h('h2.sp-card-h', { textContent: t('Appearance') })
 
-  const sel = h('select.sp-select')
+  const sel = h('select.sp-select.bk-field')
   for (const c of THEME_CHOICES) {
     const o = h('option', { value: c, textContent: label(c) })
     if (c === themeChoice()) o.selected = true

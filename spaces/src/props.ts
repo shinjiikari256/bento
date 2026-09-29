@@ -30,6 +30,8 @@ import { toneLabel } from './render'
 import { CODE_LANGS, normLang } from './highlight'
 import { t } from './i18n'
 import { h } from '../../kernel/src/dom.ts'
+import '../../kernel/src/ui/field.css'
+import { fieldize } from '../../kernel/src/ui/field.ts'
 
 /**
  * What the panel needs from the editor.
@@ -404,6 +406,7 @@ export class PropsPanel {
 
   private row(label: string, control: HTMLElement): void {
     const r = mk('label', 'sp-insp-row')
+    fieldize(control)
     r.append(mk('span', 'sp-insp-lbl', label), control)
     if (this.app.locked()) for (const c of r.querySelectorAll('input,select,button')) {
       (c as HTMLInputElement).disabled = true
@@ -420,7 +423,7 @@ export class PropsPanel {
   }
 
   private select(opts: Array<[string, string]>, value: string, on: (v: string) => void): HTMLElement {
-    const sel = h('select.sp-select')
+    const sel = h('select.sp-select.bk-field')
     for (const [v, label] of opts) {
       sel.append(h('option', { value: v, textContent: label, selected: v === value }))
     }

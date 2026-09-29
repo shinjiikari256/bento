@@ -27,6 +27,7 @@
 //     and nothing added later can be made to by raising its own z-index.
 
 import { h } from '../../kernel/src/dom.ts'
+import '../../kernel/src/ui/field.css'
 import {
   checkForUpdates, applyUpdate, canUpdateInPlace,
   autoCheckEnabled, setAutoCheck, compareVersions,
@@ -424,7 +425,7 @@ export function openAbout(hooks: AboutHooks): void {
   card.append(...appearanceSection())
 
   // ---- language ----------------------------------------------------------
-  const sel = h('select.sp-select')
+  const sel = h('select.sp-select.bk-field')
   for (const c of localeChoices()) {
     const o = h('option', { value: c.code, textContent: c.label })
     if (c.code === locale()) o.selected = true

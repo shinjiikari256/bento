@@ -630,7 +630,7 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
    full-width line underneath, or the folded content sits beside the heading */
 .sp-b-toggle { flex-wrap: wrap; }
 .sp-b-todo > .sp-text, .sp-b-toggle > .sp-text { flex: 1 1 auto; }
-.sp-check { flex: 0 0 auto; margin: 6px 0 0; accent-color: var(--ink); }
+.sp-check { flex: 0 0 auto; margin: 6px 0 0; accent-color: var(--blue); }
 
 .sp-text { display: block; min-width: 1px; }
 .sp-text:focus { outline: none; }
@@ -1016,7 +1016,6 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
    sticky footer inside a scroll container is one more thing to clip. */
 .sp-ab-foot { display: flex; justify-content: flex-end; padding: 10px 4px 2px; }
 .sp-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px; font-size: 14px; }
-.sp-select { font: inherit; font-size: 13px; padding: 6px 8px; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 8px; }
 .sp-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px; }
 .sp-mono { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
 
@@ -1178,7 +1177,11 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 .sp-choice span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 .sp-optlist { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
 .sp-opt { display: flex; align-items: flex-start; gap: 9px; padding: 6px 4px; cursor: pointer; }
-.sp-opt input { margin-top: 3px; accent-color: var(--ink); }
+/* Colour comes from `.bk-check` now; the top margin overrides its shared
+   symmetric one — this box aligns to the TITLE's cap-height, not to a
+   sibling field's centre, since the label beside it can wrap to a second
+   line of description text. */
+.sp-opt input { margin-top: 3px; margin-bottom: 0; }
 .sp-opt strong { display: block; font-size: 13.5px; font-weight: 500; }
 .sp-opt span span { display: block; color: var(--muted); font-size: 12px; }
 
@@ -1678,7 +1681,15 @@ body.sp-col-resizing { cursor: col-resize; user-select: none; }
 }
 .sp-insp-num { width: 64px; }
 .sp-insp-txt:focus, .sp-insp-num:focus { outline: none; border-color: var(--blue); }
-.sp-insp-tog { width: 15px; height: 15px; accent-color: var(--blue); }
+/* A bare native checkbox is shorter than `.sp-insp-txt`/`.sp-insp-num`
+   (padding 4px + border, ~26px) — the vertical margin closes that gap so a
+   row holding only a checkbox keeps the same pitch as one holding a field,
+   not just the same WIDTH column. `.sp-insp-row`'s own `align-items: center`
+   still does the centering; this only adds the height to center within. */
+/* Colour and row-pitch-matching margin come from `.bk-check`
+   (kernel/src/ui/field.css, applied by props.ts's `row()`/fieldize()) —
+   only the fixed 15px size is local to spaces. */
+.sp-insp-tog { width: 15px; height: 15px; }
 .sp-insp-step { display: inline-flex; align-items: center; gap: 2px; }
 .sp-insp-step .sp-btn { padding: 2px 8px; line-height: 1.2; }
 .sp-insp-n { min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; }
