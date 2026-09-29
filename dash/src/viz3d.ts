@@ -58,6 +58,7 @@ import {
   normalize as vnorm, dot as vdot,
   type Mat4, type Vec3,
 } from './gl.ts'
+import { h } from '../../kernel/src/dom.ts'
 import type { Column, TableSheet } from './model.ts'
 import { readCell } from './store.ts'
 import { isErr } from './formula.ts'
@@ -1491,9 +1492,9 @@ function orbitControls(el: HTMLElement, orb: Orbit, changed: () => void): () => 
 }
 
 function mountFallback(host: HTMLElement, scene: Scene, opts: Viz3dOpts): () => void {
-  const box = document.createElement('div')
-  box.className = 'dash-viz3d dash-viz3d-2d'
-  box.style.cssText = 'width:100%;height:100%;touch-action:none;user-select:none'
+  const box = h('div.dash-viz3d.dash-viz3d-2d', {
+    style: { cssText: 'width:100%;height:100%;touch-action:none;user-select:none' },
+  })
   host.appendChild(box)
 
   const cam = frameCamera(scene, opts)
@@ -1555,16 +1556,15 @@ export function mountViz3d(host: HTMLElement, scene: Scene, opts: Viz3dOpts = {}
   // Deliberately a sibling layer rather than anything inside the GL path:
   // the same string the fallback builds, positioned over the canvas,
   // `pointer-events:none` so the orbit drag still lands on the canvas beneath.
-  const wrap = document.createElement('div')
-  wrap.className = 'dash-viz3d dash-viz3d-gl'
-  wrap.style.cssText = 'position:relative;width:100%;height:100%'
+  const wrap = h('div.dash-viz3d.dash-viz3d-gl', { style: { cssText: 'position:relative;width:100%;height:100%' } })
   host.appendChild(wrap)
 
-  const canvas = document.createElement('canvas')
   // `touch-action:none` so a one-finger drag orbits instead of scrolling the
   // page; `user-select:none` because an orbit drag that runs off the canvas
   // otherwise selects the surrounding page text and leaves it highlighted.
-  canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;user-select:none'
+  const canvas = h('canvas', {
+    style: { cssText: 'display:block;width:100%;height:100%;touch-action:none;user-select:none' },
+  })
   wrap.appendChild(canvas)
   const view = new GLView(canvas)
   // supportsWebGL2() can be TRUE while this particular context fails: browsers

@@ -32,6 +32,7 @@ import type { SyncSession } from './sync/session.ts'
 import { openDialog } from './dialog.ts'
 import { t, locale, localeChoices, setLocale } from './i18n.ts'
 import type { Store } from './store.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 export interface SettingsHooks {
   store: Store
@@ -180,7 +181,7 @@ export function readThemePref(): ThemePref {
 export function applyTheme(pref: ThemePref = readThemePref()): void {
   const existing = document.getElementById(THEME_STYLE_ID)
   if (pref === 'auto') { existing?.remove(); return }
-  const style = existing ?? document.createElement('style')
+  const style = existing ?? h('style')
   style.id = THEME_STYLE_ID
   // Never let this reach a saved file (see above). Set before the node is in
   // the document, so there is no window in which an unmarked style exists.
@@ -221,19 +222,15 @@ export function openSettings(hooks: SettingsHooks): void {
   const d = openDialog(t('Settings'))
   const { card, note, close } = d
 
-  const lede = document.createElement('p')
-  lede.className = 'dx-about-lede'
-  lede.textContent = t('These are yours, not the workbook’s: they are kept in this browser and never written into the file, so the same workbook can be English and light on your screen and Japanese and dark on someone else’s.')
+  const lede = h('p.dx-about-lede', { textContent: t('These are yours, not the workbook’s: they are kept in this browser and never written into the file, so the same workbook can be English and light on your screen and Japanese and dark on someone else’s.') })
   card.append(d.h(t('Settings')), lede)
 
   // --- language -------------------------------------------------------------
   card.append(d.h(t('Language')))
   const choices = localeChoices()
-  const sel = document.createElement('select')
+  const sel = h('select')
   for (const c of choices) {
-    const o = document.createElement('option')
-    o.value = c.code
-    o.textContent = c.label
+    const o = h('option', { value: c.code, textContent: c.label })
     if (c.code === locale()) o.selected = true
     sel.append(o)
   }
@@ -264,12 +261,10 @@ export function openSettings(hooks: SettingsHooks): void {
     ['light', t('Light')],
     ['dark', t('Dark')],
   ]
-  const themeSel = document.createElement('select')
+  const themeSel = h('select')
   const current = readThemePref()
   for (const [v, label] of themes) {
-    const o = document.createElement('option')
-    o.value = v
-    o.textContent = label
+    const o = h('option', { value: v, textContent: label })
     if (v === current) o.selected = true
     themeSel.append(o)
   }

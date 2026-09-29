@@ -57,6 +57,7 @@
 // elapsed time, which this code can actually observe.
 
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 /** index.html declares `transition: opacity .45s`; outlive it by a frame. */
 const FADE_MS = 500
@@ -206,45 +207,49 @@ function stall(el: HTMLElement): void {
   el.style.overflow = 'auto'
   el.textContent = ''
 
-  const gate = document.createElement('div')
-  gate.className = 'dx-gate'
-  gate.style.maxWidth = '34rem'
-  gate.style.margin = '12vh auto'
-  gate.style.padding = '0 1.5rem'
-  // The splash sets `font: 600 20px/1.4` on itself to size the wordmark, and
-  // everything put inside it inherits that — measured: the body copy rendered
-  // semibold at 20px, which reads as a second heading rather than a sentence.
-  gate.style.font = '400 14px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif'
+  const gate = h('div.dx-gate', {
+    style: {
+      maxWidth: '34rem',
+      margin: '12vh auto',
+      padding: '0 1.5rem',
+      // The splash sets `font: 600 20px/1.4` on itself to size the wordmark, and
+      // everything put inside it inherits that — measured: the body copy rendered
+      // semibold at 20px, which reads as a second heading rather than a sentence.
+      font: '400 14px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif',
+    },
+  })
 
-  const h = document.createElement('h1')
-  h.style.font = '600 20px/1.3 ui-sans-serif, system-ui, -apple-system, sans-serif'
-  h.style.margin = '0 0 8px'
-  h.textContent = t('This workbook did not finish opening.')
+  // Named `h1El`, not `h`: this scope needs the imported h() builder too.
+  const h1El = h('h1', {
+    style: { font: '600 20px/1.3 ui-sans-serif, system-ui, -apple-system, sans-serif', margin: '0 0 8px' },
+    textContent: t('This workbook did not finish opening.'),
+  })
 
   // ONE STRING LITERAL PER t(), ON ONE LINE. The catalogs are swept out of this
   // directory by `node scripts/test-dash-i18n.ts`, which reads the source text
   // of the call — a key built by concatenating two literals is a key the sweep
   // cannot see, so it would ship untranslatable and the guard would not say so.
-  const p = document.createElement('p')
-  p.style.margin = '0 0 14px'
-  p.textContent = t('Your data has not been changed — it is still inside this file. Try opening it again, or take the contents out below.')
-
-  const again = document.createElement('button')
-  again.className = 'dx-btn'
-  again.style.marginRight = '8px'
-  again.textContent = t('Try again')
-  again.addEventListener('click', () => location.reload())
-
-  const copy = document.createElement('button')
-  copy.className = 'dx-btn'
-  copy.textContent = t('Copy document JSON')
-  copy.addEventListener('click', () => {
-    const raw = document.getElementById('bento-doc')?.textContent ?? ''
-    void navigator.clipboard?.writeText(raw)
-    copy.textContent = t('Copied')
+  const p = h('p', {
+    style: { margin: '0 0 14px' },
+    textContent: t('Your data has not been changed — it is still inside this file. Try opening it again, or take the contents out below.'),
   })
 
-  gate.append(h, p, again, copy)
+  const again = h('button.dx-btn', {
+    style: { marginRight: '8px' },
+    textContent: t('Try again'),
+    onclick: () => location.reload(),
+  })
+
+  const copy = h('button.dx-btn', {
+    textContent: t('Copy document JSON'),
+    onclick: () => {
+      const raw = document.getElementById('bento-doc')?.textContent ?? ''
+      void navigator.clipboard?.writeText(raw)
+      copy.textContent = t('Copied')
+    },
+  })
+
+  gate.append(h1El, p, again, copy)
   el.append(gate)
 }
 

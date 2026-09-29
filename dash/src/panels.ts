@@ -33,6 +33,7 @@
 
 import './panels.css'
 import { t, locale } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 import { lsJson, lsSet } from '../../kernel/src/storage.ts'
 import { TYPE_LABEL } from './format.ts'
 import { buildCellProps, type CellRange, type PanelKit } from './cellprops.ts'
@@ -207,8 +208,7 @@ export function mountPanels(host: PanelsHost): Panels {
   // the centre column, so the panels can sit either side of BOTH. Moving the
   // nodes keeps their listeners and their subtrees, so the references main.ts
   // captured at boot stay live.
-  const centre = document.createElement('div')
-  centre.className = 'dp-centre'
+  const centre = h('div.dp-centre')
   while (body.firstChild) centre.appendChild(body.firstChild)
 
   const right = panelEl('dp-right')
@@ -251,9 +251,7 @@ export function mountPanels(host: PanelsHost): Panels {
   updateChevrons()
 
   function panelEl(cls: string): HTMLElement {
-    const el = document.createElement('aside')
-    el.className = `dp-panel ${cls}`
-    return el
+    return h(`aside.dp-panel.${cls}`)
   }
 
   function applyWidths(): void {
@@ -278,12 +276,10 @@ export function mountPanels(host: PanelsHost): Panels {
   }
 
   function resizer(side: 'right'): HTMLElement {
-    const bar = document.createElement('div')
-    bar.className = 'dp-resizer'
-    bar.title = t('Drag to resize · double-click to reset')
-    const btn = document.createElement('button')
-    btn.className = 'dp-toggle'
-    btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(side) })
+    const bar = h('div.dp-resizer', { title: t('Drag to resize · double-click to reset') })
+    const btn = h('button.dp-toggle', {
+      onclick: (e: MouseEvent) => { e.stopPropagation(); toggle(side) },
+    })
     chevrons[side] = btn
     bar.appendChild(btn)
 
@@ -394,10 +390,7 @@ export function mountPanels(host: PanelsHost): Panels {
         applyAccordion(right)
         return
       }
-      const p = document.createElement('p')
-      p.className = 'dp-empty'
-      p.textContent = t('No table sheet is open.')
-      right.appendChild(p)
+      right.appendChild(h('p.dp-empty', { textContent: t('No table sheet is open.') }))
       return
     }
     buildDatasetCellSection(sheet)
@@ -692,21 +685,19 @@ export function mountPanels(host: PanelsHost): Panels {
     if (hidden.length) {
       note(right, t('Hidden columns'))
       for (const c of hidden) {
-        const btn = document.createElement('button')
-        btn.className = 'dp-btn dp-block'
-        btn.textContent = `${c.name} — ${t('show')}`
-        btn.disabled = ro()
-        btn.addEventListener('click', () => commit(setHidden(sheet, c.id, false)))
-        right.appendChild(btn)
+        right.appendChild(h('button.dp-btn.dp-block', {
+          textContent: `${c.name} — ${t('show')}`,
+          disabled: ro(),
+          onclick: () => commit(setHidden(sheet, c.id, false)),
+        }))
       }
     }
 
     if (grid.filters.length || grid.sorts.length) {
-      const clear = document.createElement('button')
-      clear.className = 'dp-btn dp-block'
-      clear.textContent = t('Clear filters and sorts')
-      clear.addEventListener('click', () => { grid.clearView(); render() })
-      right.appendChild(clear)
+      right.appendChild(h('button.dp-btn.dp-block', {
+        textContent: t('Clear filters and sorts'),
+        onclick: () => { grid.clearView(); render() },
+      }))
     }
   }
 
@@ -789,7 +780,7 @@ export function mountPanels(host: PanelsHost): Panels {
     const open = lsJson<Record<string, boolean>>(LS_SECTIONS, {})
     for (const h of [...hostEl.querySelectorAll<HTMLElement>('.dp-section:not(.dp-static)')]) {
       const key = h.textContent ?? ''
-      const bodyEl = document.createElement('div')
+      const bodyEl = document.createElement('div')  // `h` here is the loop's local element, shadowing the imported h()
       bodyEl.className = 'dp-section-body'
       let n: ChildNode | null = h.nextSibling
       while (n && !(n instanceof HTMLElement && n.classList.contains('dp-section'))) {
@@ -935,15 +926,12 @@ const escHtml = (s: string): string =>
  */
 function popAt(rect: DOMRect, html: string): HTMLElement {
   document.querySelector('.dx-pop')?.remove()
-  const el = document.createElement('div')
-  el.className = 'dx-pop'
-  el.style.visibility = 'hidden'
-  el.innerHTML = html
+  const el = h('div.dx-pop', { style: { visibility: 'hidden' }, innerHTML: html })
   document.body.appendChild(el)
-  const h = el.offsetHeight
+  const hgt = el.offsetHeight // not `h`: that would shadow the imported h() used above
   const w = el.offsetWidth
-  const above = rect.top - h - 4
-  el.style.top = `${above >= 4 ? above : Math.max(4, Math.min(rect.bottom + 4, window.innerHeight - h - 4))}px`
+  const above = rect.top - hgt - 4
+  el.style.top = `${above >= 4 ? above : Math.max(4, Math.min(rect.bottom + 4, window.innerHeight - hgt - 4))}px`
   el.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - w - 4))}px`
   el.style.visibility = ''
   // Next tick: the click that OPENED it is still travelling, and a listener
@@ -965,6 +953,8 @@ function popAt(rect: DOMRect, html: string): HTMLElement {
 // different application.
 
 function section(hostEl: HTMLElement, title: string): void {
+  // A plain createElement here, deliberately: the local `h` shadows the
+  // imported h() for the rest of this function's scope.
   const h = document.createElement('h3')
   h.className = 'dp-section'
   h.textContent = title
@@ -972,31 +962,22 @@ function section(hostEl: HTMLElement, title: string): void {
 }
 
 function row(hostEl: HTMLElement, label: string, control: HTMLElement): void {
-  const r = document.createElement('label')
-  r.className = 'dp-row'
-  const span = document.createElement('span')
-  span.textContent = label
+  const r = h('label.dp-row')
+  const span = h('span', { textContent: label })
   r.append(span, control)
   hostEl.appendChild(r)
 }
 
 function readonlyRow(hostEl: HTMLElement, label: string, value: string): void {
-  const r = document.createElement('div')
-  r.className = 'dp-row dp-row-ro'
-  const span = document.createElement('span')
-  span.textContent = label
-  const v = document.createElement('span')
-  v.className = 'dp-value'
-  v.textContent = value
+  const r = h('div.dp-row.dp-row-ro')
+  const span = h('span', { textContent: label })
+  const v = h('span.dp-value', { textContent: value })
   r.append(span, v)
   hostEl.appendChild(r)
 }
 
 function note(hostEl: HTMLElement, message: string, cls = ''): void {
-  const p = document.createElement('p')
-  p.className = cls ? `dp-note ${cls}` : 'dp-note'
-  p.textContent = message
-  hostEl.appendChild(p)
+  hostEl.appendChild(h('p.dp-note', { className: cls, textContent: message }))
 }
 
 /**
@@ -1050,10 +1031,7 @@ function patternInertNote(hostEl: HTMLElement, type: ColumnType, fmt: string): v
 
 /** Commits on `change` — blur or Enter — never per keystroke. */
 function text(value: string, onChange: (v: string) => void): HTMLInputElement {
-  const input = document.createElement('input')
-  input.type = 'text'
-  input.value = value
-  input.spellcheck = false
+  const input = h('input', { type: 'text', value, spellcheck: false })
   input.addEventListener('change', () => onChange(input.value))
   input.addEventListener('keydown', (e) => {
     e.stopPropagation()                       // the grid owns bare keys otherwise
@@ -1063,10 +1041,7 @@ function text(value: string, onChange: (v: string) => void): HTMLInputElement {
 }
 
 function number(value: number, step: number, onChange: (v: number) => void): HTMLInputElement {
-  const input = document.createElement('input')
-  input.type = 'number'
-  input.step = String(step)
-  input.value = String(value)
+  const input = h('input', { type: 'number', step: String(step), value: String(value) })
   input.addEventListener('keydown', (e) => e.stopPropagation())
   input.addEventListener('change', () => {
     const v = parseFloat(input.value)
@@ -1081,11 +1056,14 @@ function select(
   value: string,
   onChange: (v: string) => void,
 ): HTMLSelectElement {
-  const sel = document.createElement('select')
+  const sel = h('select')
   for (const [v, label] of options) {
-    const o = document.createElement('option')
-    o.value = v
-    o.textContent = label
+    // `selected` set as a separate statement, only when true: the shared
+    // dash-dom test shim doesn't declare `selected` as a class property, so
+    // routing it through h()'s props (which falls back to setAttribute for
+    // anything not already a property on the element) silently turned it into
+    // an attribute instead of the real DOM property that `.selected` reads.
+    const o = h('option', { value: v, textContent: label })
     if (v === value) o.selected = true
     sel.appendChild(o)
   }
@@ -1096,10 +1074,7 @@ function select(
 // `toggle_`: `toggle` is the panel API's own verb, and shadowing it inside
 // mountPanels would silently make the checkbox collapse a panel.
 function toggle_(value: boolean, onChange: (v: boolean) => void): HTMLInputElement {
-  const cb = document.createElement('input')
-  cb.type = 'checkbox'
-  cb.className = 'dp-check'
-  cb.checked = value
+  const cb = h('input.dp-check', { type: 'checkbox', checked: value })
   cb.addEventListener('change', () => onChange(cb.checked))
   return cb
 }

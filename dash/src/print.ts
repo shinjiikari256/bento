@@ -114,6 +114,7 @@ import { cellKey, recalcWorkbook, workbookSources } from './cellformula.ts'
 import type {
   CanvasCell, CanvasSheet, Column, DashDoc, Sheet, TableSheet,
 } from './model.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 // --- paper -------------------------------------------------------------------
 
@@ -876,19 +877,14 @@ export function renderAndPrint(built: Printable): void {
 
 function mount(built: Printable): HTMLElement {
   document.getElementById(ROOT_ID)?.remove()
-  const root = document.createElement('div')
-  root.id = ROOT_ID
   // RUNTIME-OWNED. `capturePristine` clones the live document, so a save while
   // the printout is mounted would write the whole table into the file — every
   // row, in plaintext, in the shell. The kernel strips marked nodes from every
   // serialization (kernel/src/save.ts).
-  root.setAttribute('data-bento-transient', '')
-  const style = document.createElement('style')
-  style.textContent = built.pageCss
+  const root = h(`div#${ROOT_ID}[data-bento-transient]`)
+  const style = h('style', { textContent: built.pageCss })
   root.appendChild(style)
-  const body = document.createElement('div')
-  body.className = 'dxpr-body'
-  body.innerHTML = built.html
+  const body = h('div.dxpr-body', { innerHTML: built.html })
   root.appendChild(body)
   document.body.appendChild(root)
   return root
@@ -915,32 +911,25 @@ export function openPrintDialog(host: PrintHost): void {
   document.querySelector('.dx-ask-back')?.remove()
   const opts = loadOptions()
 
-  const back = document.createElement('div')
-  back.className = 'dx-ask-back'
-  const card = document.createElement('div')
-  card.className = 'dx-ask dx-print-card'
-  card.setAttribute('role', 'dialog')
-  card.setAttribute('aria-modal', 'true')
+  const back = h('div.dx-ask-back')
+  const card = h('div.dx-ask.dx-print-card[role=dialog][aria-modal=true]')
 
-  const h = document.createElement('h2')
-  h.className = 'dx-ask-title'
-  h.textContent = t('Print')
-  card.append(h)
+  // Shadows the imported `h()` builder in this dialog's own scope, so it keeps
+  // its original createElement form rather than risk the two `h`s colliding.
+  const h1 = document.createElement('h2')
+  h1.className = 'dx-ask-title'
+  h1.textContent = t('Print')
+  card.append(h1)
 
   const select = (
     label: string, options: Array<[string, string]>, value: string,
     onChange: (v: string) => void,
   ): void => {
-    const row = document.createElement('label')
-    row.className = 'dx-ask-row'
-    const lab = document.createElement('span')
-    lab.textContent = label
-    const sel = document.createElement('select')
-    sel.className = 'dx-ask-in'
+    const row = h('label.dx-ask-row')
+    const lab = h('span', { textContent: label })
+    const sel = h('select.dx-ask-in')
     for (const [v, text] of options) {
-      const o = document.createElement('option')
-      o.value = v
-      o.textContent = text
+      const o = h('option', { value: v, textContent: text })
       sel.append(o)
     }
     sel.value = value
@@ -949,16 +938,10 @@ export function openPrintDialog(host: PrintHost): void {
     card.append(row)
   }
 
-  const note = document.createElement('p')
-  note.className = 'dx-ask-hint'
-  const warn = document.createElement('p')
-  warn.className = 'dx-ask-err'
-  warn.hidden = true
+  const note = h('p.dx-ask-hint')
+  const warn = h('p.dx-ask-err', { hidden: true })
 
-  const ok = document.createElement('button')
-  ok.type = 'button'
-  ok.className = 'dx-btn dx-ask-go'
-  ok.textContent = t('Print')
+  const ok = h('button.dx-btn.dx-ask-go[type=button]', { textContent: t('Print') })
 
   const refresh = (): void => {
     // Summarising builds the markup and throws it away, which is honest about
@@ -1017,17 +1000,11 @@ export function openPrintDialog(host: PrintHost): void {
   // unimplemented in every browser, and a second set of numbers disagreeing
   // with the ones the system dialog can already print is worse than none. What
   // was wrong was leaving a reader to guess that from an absence.
-  const pageNums = document.createElement('p')
-  pageNums.className = 'dx-ask-hint'
-  pageNums.textContent = t('Page numbers come from your browser’s own print dialog — turn on its headers and footers there.')
+  const pageNums = h('p.dx-ask-hint', { textContent: t('Page numbers come from your browser’s own print dialog — turn on its headers and footers there.') })
   card.append(pageNums)
 
-  const foot = document.createElement('div')
-  foot.className = 'dx-ask-foot'
-  const cancel = document.createElement('button')
-  cancel.type = 'button'
-  cancel.className = 'dx-btn'
-  cancel.textContent = t('Cancel')
+  const foot = h('div.dx-ask-foot')
+  const cancel = h('button.dx-btn[type=button]', { textContent: t('Cancel') })
   foot.append(cancel, ok)
   card.append(foot)
 

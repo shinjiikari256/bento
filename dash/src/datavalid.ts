@@ -96,6 +96,7 @@
 // which is where the markup it styles is emitted, and every rig that mounts the
 // grid already stubs css because find.ts has always brought one along.
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 import { colToLetters, parseRange, parseRef } from './a1.ts'
 import type {
   CanvasSheet, Column, DataRule, DataRuleKind, RangeValidation, TableSheet,
@@ -488,20 +489,14 @@ export function openListMenu(opts: {
   onPick: (v: string) => void
 }): HTMLElement {
   closeListMenu()
-  const menu = document.createElement('div')
-  menu.className = 'dv-menu'
-  menu.setAttribute('role', 'listbox')
+  const menu = h('div.dv-menu[role=listbox]')
   const rect = opts.anchor.getBoundingClientRect()
   menu.style.left = `${Math.round(rect.left)}px`
   menu.style.top = `${Math.round(rect.bottom)}px`
   menu.style.minWidth = `${Math.max(90, Math.round(rect.width))}px`
   const cur = opts.current === null || opts.current === undefined ? '' : listKey(String(opts.current))
   for (const v of opts.options) {
-    const b = document.createElement('button')
-    b.type = 'button'
-    b.className = 'dv-opt'
-    b.setAttribute('role', 'option')
-    b.textContent = v
+    const b = h('button.dv-opt[role=option]', { type: 'button', textContent: v })
     if (listKey(v) === cur) {
       b.classList.add('dv-opt-on')
       b.setAttribute('aria-selected', 'true')
@@ -518,10 +513,7 @@ export function openListMenu(opts: {
   // A "clear" entry, because a list rule that allows blanks has no other way
   // to say so from the menu — and typing over the cell to empty it is exactly
   // the gesture the dropdown was supposed to replace.
-  const clear = document.createElement('button')
-  clear.type = 'button'
-  clear.className = 'dv-opt dv-opt-clear'
-  clear.textContent = t('Clear')
+  const clear = h('button.dv-opt.dv-opt-clear', { type: 'button', textContent: t('Clear') })
   clear.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation() })
   clear.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation(); closeListMenu(); opts.onPick('')

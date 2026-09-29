@@ -48,6 +48,7 @@ import type { Patch, Store } from './store.ts'
 import type { Grid } from './grid.ts'
 import type { SetSheetProps } from './rowcol.ts'
 import { renameSheetRefs } from './a1.ts'
+import { h } from '../../kernel/src/dom.ts'
 
 /** Remembered per browser, never in the document: this is a viewer preference. */
 const LS_SHUT = 'bento-dash-tabs-shut'
@@ -648,15 +649,12 @@ export interface Tabs {
 export function mountTabs(host: TabsHost): Tabs {
   const { store, grid } = host
 
-  const nav = document.createElement('nav')
-  nav.className = 'dx-tabs'
-  nav.setAttribute('role', 'tablist')
+  const nav = h('nav.dx-tabs[role=tablist]')
   nav.setAttribute('aria-label', t('Sheets'))
 
   const addBtn = iconButton('dx-tab-add', '＋', t('New sheet'))
   const allBtn = iconButton('dx-tab-all', '☰', t('All sheets'))
-  const strip = document.createElement('div')
-  strip.className = 'dx-tab-strip'
+  const strip = h('div.dx-tab-strip')
   const showBtn = iconButton('dx-tab-show', '⌃', t('Show sheet tabs ([)'))
   const hideBtn = iconButton('dx-tab-hide', '⌄', t('Hide sheet tabs ([)'))
 
@@ -731,11 +729,7 @@ export function mountTabs(host: TabsHost): Tabs {
 
   function tabEl(sheet: Sheet, active: boolean): HTMLElement {
     const kind = String((sheet as { kind?: unknown }).kind ?? '')
-    const el = document.createElement('button')
-    el.type = 'button'
-    el.className = 'dx-tab'
-    el.dataset.sheet = sheet.id
-    el.setAttribute('role', 'tab')
+    const el = h('button.dx-tab[type=button][role=tab]', { dataset: { sheet: sheet.id } })
     el.setAttribute('aria-selected', String(active))
     if (active) el.classList.add('active')
 
@@ -745,15 +739,11 @@ export function mountTabs(host: TabsHost): Tabs {
     // marks nobody can compare.
     const svg = kindMarkSvg(kind)
     if (svg) {
-      const mark = document.createElement('span')
-      mark.className = 'dx-tab-mark'
-      mark.innerHTML = svg
+      const mark = h('span.dx-tab-mark', { innerHTML: svg })
       el.appendChild(mark)
     }
 
-    const label = document.createElement('span')
-    label.className = 'dx-tab-name'
-    label.textContent = sheet.name || t('(untitled sheet)')
+    const label = h('span.dx-tab-name', { textContent: sheet.name || t('(untitled sheet)') })
     el.appendChild(label)
 
     // The word: PRINTED on the active tab, hidden on every other one. Either
@@ -762,9 +752,7 @@ export function mountTabs(host: TabsHost): Tabs {
     // screen reader hears the same sentence on all of them, active or not.
     const word = kindWord(kind)
     if (svg && word) {
-      const w = document.createElement('span')
-      w.className = active ? 'dx-tab-word' : 'dx-tab-sr'
-      w.textContent = word
+      const w = h('span', { className: active ? 'dx-tab-word' : 'dx-tab-sr', textContent: word })
       el.appendChild(w)
     }
 
@@ -775,9 +763,7 @@ export function mountTabs(host: TabsHost): Tabs {
       const { chip, why } = describeKind(kind)
       el.classList.add('dx-tab-off')
       el.title = `${sheet.name} — ${why}`
-      const badge = document.createElement('span')
-      badge.className = 'dx-tab-kind'
-      badge.textContent = chip
+      const badge = h('span.dx-tab-kind', { textContent: chip })
       el.appendChild(badge)
     } else if (isTable(sheet)) {
       // The kind is NAMED in the tooltip as well as drawn: a mark you have not
@@ -888,9 +874,7 @@ export function mountTabs(host: TabsHost): Tabs {
     // it — an input the reader cannot see, taking keystrokes.
     document.querySelector('.dx-tab-menu')?.remove()
     renaming = true
-    const input = document.createElement('input')
-    input.className = 'dx-tab-rename'
-    input.value = sheet.name
+    const input = h('input.dx-tab-rename', { value: sheet.name })
     label.replaceWith(input)
     input.focus()
     input.select()
@@ -993,8 +977,7 @@ export function mountTabs(host: TabsHost): Tabs {
    *  a menu dropped downwards would open off the screen. */
   function popover(anchor: HTMLElement): HTMLElement {
     document.querySelector('.dx-tab-menu')?.remove()
-    const el = document.createElement('div')
-    el.className = 'dx-tab-menu'
+    const el = h('div.dx-tab-menu')
     document.body.appendChild(el)
     const r = anchor.getBoundingClientRect()
     el.style.left = `${Math.max(6, Math.min(r.left, window.innerWidth - 226))}px`
@@ -1013,22 +996,20 @@ export function mountTabs(host: TabsHost): Tabs {
   function menuItem(
     host_: HTMLElement, label: string, onClick: () => void, disabled = false, why = '',
   ): void {
-    const b = document.createElement('button')
-    b.type = 'button'
-    b.textContent = label
-    b.disabled = disabled
-    if (why) b.title = why
-    b.addEventListener('click', () => {
-      host_.remove()
-      onClick()
+    const b = h('button[type=button]', {
+      textContent: label,
+      disabled,
+      onclick: () => {
+        host_.remove()
+        onClick()
+      },
     })
+    if (why) b.title = why
     host_.appendChild(b)
   }
 
   function menuNote(host_: HTMLElement, text: string): void {
-    const p = document.createElement('p')
-    p.className = 'dx-tab-note'
-    p.textContent = text
+    const p = h('p.dx-tab-note', { textContent: text })
     host_.appendChild(p)
   }
 
@@ -1066,8 +1047,7 @@ export function mountTabs(host: TabsHost): Tabs {
   }
 
   function sep(menu: HTMLElement): void {
-    const d = document.createElement('div')
-    d.className = 'dx-tab-sep'
+    const d = h('div.dx-tab-sep')
     menu.appendChild(d)
   }
 
@@ -1111,15 +1091,9 @@ export function mountTabs(host: TabsHost): Tabs {
     // this menu, and at the shared 220px it was ellipsed mid-phrase.
     menu.classList.add('dx-tab-menu-kinds')
     const row = (label: string, why: string, kind: 'table' | 'canvas'): void => {
-      const b = document.createElement('button')
-      b.className = 'dx-tab-menu-row'
-      b.innerHTML = ''
-      const strong = document.createElement('span')
-      strong.className = 'dx-tab-menu-title'
-      strong.textContent = label
-      const sub = document.createElement('span')
-      sub.className = 'dx-tab-menu-why'
-      sub.textContent = why
+      const b = h('button.dx-tab-menu-row', { innerHTML: '' })
+      const strong = h('span.dx-tab-menu-title', { textContent: label })
+      const sub = h('span.dx-tab-menu-why', { textContent: why })
       b.append(strong, sub)
       b.addEventListener('click', () => { menu.remove(); addSheetOf(kind) })
       menu.appendChild(b)
@@ -1258,11 +1232,7 @@ export function mountTabs(host: TabsHost): Tabs {
 }
 
 function iconButton(cls: string, glyph: string, title: string): HTMLButtonElement {
-  const b = document.createElement('button')
-  b.type = 'button'
-  b.className = `dx-tab-btn ${cls}`
-  b.textContent = glyph
-  b.title = title
+  const b = h('button[type=button]', { className: `dx-tab-btn ${cls}`, textContent: glyph, title })
   b.setAttribute('aria-label', title)
   return b
 }

@@ -52,6 +52,7 @@
 
 import './story.css'
 import { anim } from '../../kernel/src/anim.ts'
+import { h } from '../../kernel/src/dom.ts'
 import { chartSnapshotSvg, mountChart } from '../../kernel/src/charts.ts'
 import { optionFor, type ChartBinding } from './chart.ts'
 import { buildOrder, type ColumnFilter, type Predicate } from './filter.ts'
@@ -646,20 +647,20 @@ export function presentStory(opts: PresentOpts): StoryPlayer | null {
   let index = Math.min(Math.max(opts.from ?? 0, 0), steps.length - 1)
   let reduce = reduceMotionNow()
 
-  const overlay = document.createElement('div')
-  overlay.className = 'ds-overlay'
-  overlay.tabIndex = -1
-  overlay.innerHTML =
-    `<div class="ds-stage"></div>` +
-    `<div class="ds-caption"><div class="ds-cap-text"></div><div class="ds-chips"></div></div>` +
-    `<div class="ds-bar">` +
-    `<button class="ds-btn" data-nav="prev" title="${esc(t('Previous'))}">‹</button>` +
-    `<div class="ds-dots"></div>` +
-    `<button class="ds-btn" data-nav="next" title="${esc(t('Next'))}">›</button>` +
-    `<span class="ds-count"></span>` +
-    `<button class="ds-btn" data-nav="motion" title="${esc(t('Reduced motion (M)'))}">⏸</button>` +
-    `<button class="ds-btn" data-nav="close" title="${esc(t('Close (Esc)'))}">✕</button>` +
-    `</div>`
+  const overlay = h('div.ds-overlay', {
+    tabIndex: -1,
+    innerHTML:
+      `<div class="ds-stage"></div>` +
+      `<div class="ds-caption"><div class="ds-cap-text"></div><div class="ds-chips"></div></div>` +
+      `<div class="ds-bar">` +
+      `<button class="ds-btn" data-nav="prev" title="${esc(t('Previous'))}">‹</button>` +
+      `<div class="ds-dots"></div>` +
+      `<button class="ds-btn" data-nav="next" title="${esc(t('Next'))}">›</button>` +
+      `<span class="ds-count"></span>` +
+      `<button class="ds-btn" data-nav="motion" title="${esc(t('Reduced motion (M)'))}">⏸</button>` +
+      `<button class="ds-btn" data-nav="close" title="${esc(t('Close (Esc)'))}">✕</button>` +
+      `</div>`,
+  })
   document.body.appendChild(overlay)
   overlay.classList.toggle('reduce-motion', reduce)
 
@@ -864,8 +865,7 @@ export interface StorySource {
  */
 export function openStoryEditor(src: StorySource): HTMLElement {
   document.querySelector('.ds-editor')?.remove()
-  const el = document.createElement('div')
-  el.className = 'ds-editor'
+  const el = h('div.ds-editor')
   document.body.appendChild(el)
 
   const read = (): Story => readStory(src.store.doc) ?? { steps: [] }

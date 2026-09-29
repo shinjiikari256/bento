@@ -37,6 +37,7 @@
 // tell, before clicking, what the menu thinks it is about.
 
 import { t } from './i18n.ts'
+import { h } from '../../kernel/src/dom.ts'
 import {
   insertRowsAt, deleteRowsAt, insertColumn, deleteColumn, setHidden,
 } from './rowcol.ts'
@@ -94,11 +95,13 @@ export interface MenuHooks {
  */
 export function popover(x: number, y: number, html: string): HTMLElement {
   document.querySelector('.dx-pop')?.remove()
-  const el = document.createElement('div')
-  el.className = 'dx-pop'
-  el.style.left = `${Math.min(x, innerWidth - 260)}px`
-  el.style.top = `${Math.min(y, innerHeight - 40)}px`
-  el.innerHTML = html
+  const el = h('div.dx-pop', {
+    style: {
+      left: `${Math.min(x, innerWidth - 260)}px`,
+      top: `${Math.min(y, innerHeight - 40)}px`,
+    },
+    innerHTML: html,
+  })
   document.body.appendChild(el)
   // DETACHED MEANS GONE. A menu can leave the document by four routes — an
   // item was clicked, a click landed outside, Escape, or the next `popover`

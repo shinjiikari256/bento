@@ -49,6 +49,7 @@
 // `buildSheetPreview`, which is the only function the kernel calls.
 
 import { isEncryptionActive } from '../../kernel/src/save.ts'
+import { h } from '../../kernel/src/dom.ts'
 import { formatValue, alignFor, TYPE_LABEL } from './format.ts'
 import { readCell } from './store.ts'
 import { hiddenSet } from './rowcol.ts'
@@ -539,7 +540,7 @@ export function buildSheetPreview(doc: unknown): HTMLElement | null {
   if (!isDashDoc(doc)) return null
   const html = previewMarkup(doc)
   if (!html) return null
-  const host = document.createElement('div')
+  const host = h('div')
   // innerHTML on a detached div, so the string above is what the file carries.
   // The kernel re-checks the result with previewIsSafe; this is not the gate.
   host.innerHTML = html
