@@ -34,14 +34,14 @@ import { stylesSection } from './docstyles.ts';
 // with no bundler in front of them, never meet a bare `.css` import. props.ts
 // is UI-only and reached only through features.ts, which no rig imports.
 import './docstyles.css';
+// aliased: this file's `section()` helper below declares a local `h` of its
+// own (the section header element) that would shadow the builder in its scope
+import { h as buildEl } from '../../kernel/src/dom.ts';
 
 // ─────────────────────────────────────────────────────────────── small parts
 
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string): HTMLElementTagNameMap[K] => {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  return n;
-};
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string): HTMLElementTagNameMap[K] =>
+  buildEl(tag as string, cls ? { className: cls } : {}) as unknown as HTMLElementTagNameMap[K];
 
 /** A titled group. Sections are the panel's grammar — one per kind of thing. */
 function section(host: HTMLElement, title: string): HTMLElement {

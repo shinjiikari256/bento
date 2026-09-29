@@ -70,6 +70,7 @@ import { addMark, removeMark, type Mark } from './inline.ts';
 import { isNoteAtom } from './render.ts';
 import { ICONS } from './icons.ts';
 import { t } from './i18n.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // ───────────────────────────────────────────────────────── URL sanitising
 //
@@ -316,22 +317,18 @@ function openPopover(ctx: FeatureContext, tgt: Target, current: string | null): 
   closePopover();
   const rect = anchorRect(ctx.editor.host, tgt);
 
-  const box = document.createElement('div');
-  box.className = 't-link-pop';
+  const box = h('div.t-link-pop');
 
-  const field = document.createElement('input');
-  field.type = 'text';
-  field.className = 't-link-url';
-  field.spellcheck = false;
-  field.placeholder = t('https://example.com');
-  field.value = current ?? '';
-  field.setAttribute('aria-label', t('Link address'));
+  const field = h('input.t-link-url', {
+    type: 'text',
+    spellcheck: false,
+    placeholder: t('https://example.com'),
+    value: current ?? '',
+    ariaLabel: t('Link address'),
+  });
 
   const btn = (label: string, cls: string, fn: () => void) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = `t-btn ${cls}`;
-    b.textContent = label;
+    const b = h('button.t-btn', { className: cls, type: 'button', textContent: label });
     // mousedown, so the button acts before the input's blur can close us
     b.addEventListener('mousedown', e => { e.preventDefault(); fn(); });
     return b;
@@ -375,11 +372,11 @@ function openPopover(ctx: FeatureContext, tgt: Target, current: string | null): 
   document.body.appendChild(box);
   pop = box;
   // Positioned after mounting, because the width is not known before it.
-  const w = box.offsetWidth, h = box.offsetHeight;
+  const w = box.offsetWidth, boxH = box.offsetHeight;
   const left = Math.max(8, Math.min(rect.left, innerWidth - w - 8));
   const below = rect.bottom + 8;
   box.style.left = `${left}px`;
-  box.style.top = `${below + h < innerHeight ? below : Math.max(8, rect.top - h - 8)}px`;
+  box.style.top = `${below + boxH < innerHeight ? below : Math.max(8, rect.top - boxH - 8)}px`;
   field.focus();
   field.select();
 }

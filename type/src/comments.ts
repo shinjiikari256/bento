@@ -135,6 +135,7 @@ import { isNoteAtom } from './render.ts';
 import { uid, type Block, type TypeDoc } from './model.ts';
 import { registerTool, registerPanel, registerKey, registerMenuItem, registerReady, type FeatureContext } from './features.ts';
 import { t } from './i18n.ts';
+import { h } from '../../kernel/src/dom.ts';
 // NOT `import './comments.css'` here: model.ts imports this module's pure
 // functions (readThreadsRaw, reconcileThreads) for parsing, and model.ts is
 // imported by nearly every test rig under plain Node, which cannot load a
@@ -704,10 +705,8 @@ function paintLayer(ctx: FeatureContext): void {
   const wrap = paper.parentElement;
   if (!wrap) return;
   if (!layer || layer.parentElement !== wrap) {
-    layer = document.createElement('div');
-    layer.className = 't-cmt-layer';
     // never captured by a save: the file carries doc.comments, not their pixels
-    layer.setAttribute('data-bento-transient', '');
+    layer = h('div.t-cmt-layer[data-bento-transient]');
     wrap.appendChild(layer);
   }
   layer.replaceChildren();
@@ -738,12 +737,15 @@ function paintLayer(ctx: FeatureContext): void {
     if (!rects.length) continue;
 
     for (const rect of rects) {
-      const hl = document.createElement('div');
-      hl.className = 't-cmt-hl' + (th.resolved ? ' done' : '') + (th.id === selected ? ' on' : '');
-      hl.style.top = `${rect.top - top0}px`;
-      hl.style.left = `${rect.left - left0}px`;
-      hl.style.width = `${rect.width}px`;
-      hl.style.height = `${rect.height}px`;
+      const hl = h('div', {
+        className: 't-cmt-hl' + (th.resolved ? ' done' : '') + (th.id === selected ? ' on' : ''),
+        style: {
+          top: `${rect.top - top0}px`,
+          left: `${rect.left - left0}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+        },
+      });
       frag.appendChild(hl);
     }
 
@@ -771,29 +773,21 @@ function paintLayer(ctx: FeatureContext): void {
  * file too, and is not something a margin-card button could fix.
  */
 function buildMessage(ctx: FeatureContext, th: CommentThread, m: CommentMsg, cls: string, suffix = ''): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = cls;
+  const wrap = h('div', { className: cls });
   const editing = editingMsg === m.id;
 
-  const who = document.createElement('div');
-  who.className = 'who';
-  who.textContent = `${m.author} · ${when(m.at)}${suffix}`;
+  const who = h('div.who', { textContent: `${m.author} · ${when(m.at)}${suffix}` });
 
   const me = knownAuthor();
   if (me && m.author === me && !editing) {
-    const tools = document.createElement('span');
-    tools.className = 't-cmt-msgtools';
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button';
-    editBtn.className = 't-cmt-msgbtn';
-    editBtn.textContent = t('Edit');
-    editBtn.title = t('Edit your comment');
+    const tools = h('span.t-cmt-msgtools');
+    const editBtn = h('button.t-cmt-msgbtn', { type: 'button', textContent: t('Edit'), title: t('Edit your comment') });
     editBtn.addEventListener('click', () => { editingMsg = m.id; repaint?.(); refreshPanel?.(); });
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.className = 't-cmt-msgbtn';
-    delBtn.textContent = t('Delete');
-    delBtn.title = th.messages.length > 1 ? t('Delete your comment') : t('Delete this thread');
+    const delBtn = h('button.t-cmt-msgbtn', {
+      type: 'button',
+      textContent: t('Delete'),
+      title: th.messages.length > 1 ? t('Delete your comment') : t('Delete this thread'),
+    });
     delBtn.addEventListener('click', () => {
       const question = th.messages.length > 1
         ? t('Delete this comment?') : t('Delete this whole thread?');
@@ -806,50 +800,39 @@ function buildMessage(ctx: FeatureContext, th: CommentThread, m: CommentMsg, cls
   wrap.appendChild(who);
 
   if (editing) {
-    const ta = document.createElement('textarea');
-    ta.className = 't-cmt-edit';
-    ta.rows = 2;
-    ta.value = m.text;
-    const row = document.createElement('div');
-    row.className = 'btns';
-    const save = document.createElement('button');
-    save.type = 'button';
-    save.textContent = t('Save');
+    const ta = h('textarea.t-cmt-edit', { rows: 2, value: m.text });
+    const row = h('div.btns');
+    const save = h('button', { type: 'button', textContent: t('Save') });
     save.addEventListener('click', () => {
       const text = ta.value.trim();
       if (!text) return;
       editingMsg = null;
       mutateThread(ctx, th.id, cur => editMessage(cur, m.id, text));
     });
-    const cancel = document.createElement('button');
-    cancel.type = 'button';
-    cancel.textContent = t('Cancel');
+    const cancel = h('button', { type: 'button', textContent: t('Cancel') });
     cancel.addEventListener('click', () => { editingMsg = null; repaint?.(); refreshPanel?.(); });
     row.append(save, cancel);
     wrap.append(ta, row);
     return wrap;
   }
 
-  const what = document.createElement('div');
-  what.className = 'what';
-  what.textContent = m.text;
+  const what = h('div.what', { textContent: m.text });
   wrap.appendChild(what);
   return wrap;
 }
 
 /** One margin card. Expanded — replies, a reply box, resolve — when selected. */
 function buildCard(ctx: FeatureContext, th: CommentThread): HTMLElement {
-  const card = document.createElement('div');
-  card.className = 't-cmt-card' + (th.resolved ? ' done' : '') + (th.id === selected ? ' on' : '');
-  card.dataset.thread = th.id;
+  const card = h('div', {
+    className: 't-cmt-card' + (th.resolved ? ' done' : '') + (th.id === selected ? ' on' : ''),
+    dataset: { thread: th.id },
+  });
   const open = th.id === selected;
   const msgs = open ? th.messages : th.messages.slice(0, 1);
   const more = th.messages.length - msgs.length;
   for (const m of msgs) card.appendChild(buildMessage(ctx, th, m, 'msg'));
   if (more > 0) {
-    const rest = document.createElement('div');
-    rest.className = 'who';
-    rest.textContent = t('{n} more', { n: String(more) });
+    const rest = h('div.who', { textContent: t('{n} more', { n: String(more) }) });
     card.appendChild(rest);
   }
   card.addEventListener('mousedown', e => {
@@ -865,25 +848,17 @@ function buildCard(ctx: FeatureContext, th: CommentThread): HTMLElement {
 
 /** Reply box + resolve toggle, shared by the margin card and the panel. */
 function threadActions(ctx: FeatureContext, th: CommentThread): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'acts';
-  const input = document.createElement('textarea');
-  input.rows = 2;
-  input.placeholder = t('Reply…');
-  const row = document.createElement('div');
-  row.className = 'btns';
-  const send = document.createElement('button');
-  send.type = 'button';
-  send.textContent = t('Reply');
+  const box = h('div.acts');
+  const input = h('textarea', { rows: 2, placeholder: t('Reply…') });
+  const row = h('div.btns');
+  const send = h('button', { type: 'button', textContent: t('Reply') });
   send.addEventListener('click', () => {
     const text = input.value.trim();
     if (!text) return;
     mutateThread(ctx, th.id, cur => addReply(cur, authorName(), text));
     input.value = '';
   });
-  const res = document.createElement('button');
-  res.type = 'button';
-  res.textContent = th.resolved ? t('Reopen') : t('Resolve');
+  const res = h('button', { type: 'button', textContent: th.resolved ? t('Reopen') : t('Resolve') });
   res.addEventListener('click', () => mutateThread(ctx, th.id, cur => setResolved(cur, !cur.resolved)));
   row.append(send, res);
   box.append(input, row);
@@ -982,23 +957,21 @@ registerPanel({
 
       host.replaceChildren();
       if (!threads.length) {
-        const hint = document.createElement('div');
-        hint.className = 't-hint';
-        hint.textContent = t('Select some text and press ⌘⇧M to comment on it.');
+        const hint = h('div.t-hint', { textContent: t('Select some text and press ⌘⇧M to comment on it.') });
         host.appendChild(hint);
         return;
       }
-      const count = document.createElement('div');
-      count.className = 't-hint';
-      count.textContent = open
-        ? t('{open} open of {all}', { open: String(open), all: String(threads.length) })
-        : t('All {all} resolved', { all: String(threads.length) });
+      const count = h('div.t-hint', {
+        textContent: open
+          ? t('{open} open of {all}', { open: String(open), all: String(threads.length) })
+          : t('All {all} resolved', { all: String(threads.length) }),
+      });
       host.appendChild(count);
 
       for (const th of threads) {
-        const card = document.createElement('div');
-        card.className = 't-card t-cmt-item' + (th.resolved ? ' done' : '')
-                       + (th.id === selected ? ' on' : '');
+        const card = h('div', {
+          className: 't-card t-cmt-item' + (th.resolved ? ' done' : '') + (th.id === selected ? ' on' : ''),
+        });
         const first = th.messages[0];
         const repliesSuffix = th.messages.length > 1
           ? ` · ${t('{n} replies', { n: String(th.messages.length - 1) })}` : '';
@@ -1006,15 +979,11 @@ registerPanel({
         // splice the quote between the byline and the body — the reading order
         // is "who said it, about what, saying what" — by inserting it right
         // after the who-line buildMessage always puts first.
-        const quote = document.createElement('div');
-        quote.className = 'quote' + (th.orphan ? ' gone' : '');
-        quote.textContent = th.quote;
+        const quote = h('div', { className: 'quote' + (th.orphan ? ' gone' : ''), textContent: th.quote });
         firstEl.insertBefore(quote, firstEl.firstElementChild!.nextSibling);
         card.appendChild(firstEl);
         if (th.orphan) {
-          const gone = document.createElement('div');
-          gone.className = 'who';
-          gone.textContent = t('the text this was about is gone');
+          const gone = h('div.who', { textContent: t('the text this was about is gone') });
           card.appendChild(gone);
         }
         card.addEventListener('click', e => {

@@ -25,6 +25,7 @@ import { paginate, drawPages, type Metrics } from './paginate.ts';
 import { takeSnapshot, startReview } from './redlineview.ts';
 import { printDocument, buildPrintDocument } from './print.ts';
 import { sign as signDoc, verifyChain, newKey } from './canon.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // Tell the kernel who this app is — must precede any kernel module use
 // (window title suffix, save-picker label, update manifest).
@@ -308,10 +309,7 @@ const featureCtx: FeatureContext = {
 };
 
 const toolButton = (spec: ReturnType<typeof tools>[number]) => {
-  const b = document.createElement('button');
-  b.className = 't-btn';
-  b.type = 'button';
-  b.id = `tool-${spec.id}`;
+  const b = h('button.t-btn', { type: 'button', id: `tool-${spec.id}` });
   const titleText = labelText(spec.title);
   // Icon-only buttons rely on `title` in the BAR, but a row folded into the ⋯
   // menu (see fitBar/setBarFolded below) has no hover to reveal that — a menu
@@ -351,20 +349,13 @@ const mountInsertMenu = () => {
   const host = byId('gInsert');
   const specs = tools('insert');
   if (!specs.length) { host.remove(); return; }
-  const wrap = document.createElement('div');
-  wrap.className = 't-menuwrap';
-  const btn = document.createElement('button');
-  btn.className = 't-btn';
-  btn.type = 'button';
-  btn.id = 'insertMenuBtn';
+  const wrap = h('div.t-menuwrap');
+  const btn = h('button.t-btn', { type: 'button', id: 'insertMenuBtn' });
   btn.innerHTML = ICONS.plus + `<span class="t-lbl">${t('Insert')}</span>`;
   btn.title = t('Insert a picture, table, formula, citation…');
-  const menu = document.createElement('div');
-  menu.className = 't-menu';
-  menu.hidden = true;
+  const menu = h('div.t-menu', { hidden: true });
   for (const spec of specs) {
-    const item = document.createElement('button');
-    item.type = 'button';
+    const item = h('button', { type: 'button' });
     item.innerHTML = spec.icon + `<span>${labelText(spec.label ?? spec.title)}</span>`;
     item.addEventListener('mousedown', e => { e.preventDefault(); menu.hidden = true; spec.run(featureCtx); });
     menu.appendChild(item);
@@ -385,8 +376,7 @@ mountTools('gReview', 'review');
 // wrong after the first use, describing the action you had already taken.
 const menuRows: Array<[HTMLElement, ReturnType<typeof menuItems>[number]]> = [];
 for (const spec of menuItems()) {
-  const b = document.createElement('button');
-  b.type = 'button';
+  const b = h('button', { type: 'button' });
   b.innerHTML = (spec.icon ?? '') + `<span>${labelText(spec.label)}</span>`;
   b.addEventListener('click', () => spec.run(featureCtx));
   byId('moreMenu').insertBefore(b, byId('about'));
@@ -437,9 +427,7 @@ const ALL_BAR_CLASSES = [...TIERS, 't-bar-micro'];
 // nodes (not clones) keeps every listener intact for free.
 const FOLD_GROUPS = ['gFormat', 'gReview'];
 const foldHome = new WeakMap<HTMLElement, HTMLElement>();
-const foldSep = document.createElement('div');
-foldSep.className = 't-menu-sep';
-foldSep.hidden = true;
+const foldSep = h('div.t-menu-sep', { hidden: true });
 byId('moreMenu').insertBefore(foldSep, byId('snap'));
 let barFolded = false;
 function setBarFolded(next: boolean) {
@@ -531,13 +519,9 @@ for (const spec of panels('left')) {
   if (host) {
     panel = host;
   } else {
-    const tab = document.createElement('button');
-    tab.dataset.tab = spec.id;
-    tab.textContent = labelText(spec.label);
+    const tab = h('button', { dataset: { tab: spec.id }, textContent: labelText(spec.label) });
     document.querySelector('.t-tabs')!.appendChild(tab);
-    panel = document.createElement('div');
-    panel.className = 't-panel';
-    panel.dataset.panel = spec.id;
+    panel = h('div.t-panel', { dataset: { panel: spec.id } });
     document.querySelector('.t-side')!.appendChild(panel);
   }
   spec.mount(panel, featureCtx);
@@ -551,9 +535,7 @@ for (const spec of panels('left')) {
 // a property panel answers "what is this thing", and hiding half the answer
 // behind a tab is how a formatting panel becomes a place people stop looking.
 for (const spec of panels('right')) {
-  const panel = document.createElement('div');
-  panel.className = 't-panel';
-  panel.dataset.panel = spec.id;
+  const panel = h('div.t-panel', { dataset: { panel: spec.id } });
   // a DIV, not an <h3>: these are chrome, and a real heading here joins the
   // document's own headings for anything that collects them
   byId('propsPanel').appendChild(panel);
@@ -566,9 +548,7 @@ for (const spec of panels('right')) {
   if (spec.update) store.on(() => spec.update!(panel, featureCtx));
 }
 if (!byId('propsPanel').children.length) {
-  const empty = document.createElement('p');
-  empty.className = 't-props-empty';
-  empty.textContent = t('Select something to see its properties.');
+  const empty = h('p.t-props-empty', { textContent: t('Select something to see its properties.') });
   byId('propsPanel').appendChild(empty);
 }
 
@@ -695,9 +675,7 @@ document.getElementById('redo')!.addEventListener('mousedown', (e) => {
 // ────────────────────────────────────────────────────────── sidebar
 
 const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
-const el = (tag: string, cls?: string) => {
-  const n = document.createElement(tag); if (cls) n.className = cls; return n;
-};
+const el = (tag: string, cls?: string) => h(cls ? `${tag}.${cls}` : tag);
 function showTab(name: string) {
   document.querySelectorAll<HTMLElement>('.t-tabs button')
     .forEach(b => b.classList.toggle('on', b.dataset.tab === name));

@@ -38,6 +38,7 @@ import { registerReady, type FeatureContext } from './features.ts';
 import { withoutEmbeddedCaps, type TypeDoc } from './model.ts';
 import { gateRestored } from './restoregate.ts';
 import { t } from './i18n.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 export { putRecovery, getRecovery, clearRecovery, addVersion, listVersions, pruneOld, clearVersions };
 export type { Snapshot };
@@ -122,8 +123,7 @@ let styleInjected = false;
 function ensureStyle(): void {
   if (styleInjected) return;
   styleInjected = true;
-  const style = document.createElement('style');
-  style.textContent = `
+  const style = h('style', { textContent: `
 .t-recover {
   position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px;
@@ -134,23 +134,17 @@ function ensureStyle(): void {
   z-index: 210; max-width: min(560px, calc(100vw - 32px));
 }
 .t-recover > span:first-child { flex: 1 1 auto; }
-`;
+` });
   document.head.appendChild(style);
 }
 
 function showRecoveryBanner(ctx: FeatureContext, snap: Snapshot): void {
   ensureStyle();
   document.querySelector('.t-recover')?.remove();
-  const bar = document.createElement('div');
-  bar.className = 't-recover';
-  bar.setAttribute('role', 'alert');
+  const bar = h('div.t-recover', { role: 'alert' });
   const when = new Date(snap.at).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
-  const msg = document.createElement('span');
-  msg.textContent = t('Unsaved changes from {when} were found.', { when });
-  const restore = document.createElement('button');
-  restore.className = 't-btn t-primary';
-  restore.type = 'button';
-  restore.textContent = t('Restore');
+  const msg = h('span', { textContent: t('Unsaved changes from {when} were found.', { when }) });
+  const restore = h('button.t-btn.t-primary', { type: 'button', textContent: t('Restore') });
   restore.addEventListener('click', () => {
     // Gated AGAIN, against the document open at the click: identity comes from
     // the live document, and that can change while this banner is up (Stop
@@ -165,10 +159,7 @@ function showRecoveryBanner(ctx: FeatureContext, snap: Snapshot): void {
     bar.remove();
     ctx.toast(t('Restored your unsaved changes'));
   });
-  const dismiss = document.createElement('button');
-  dismiss.className = 't-btn';
-  dismiss.type = 'button';
-  dismiss.textContent = t('Discard');
+  const dismiss = h('button.t-btn', { type: 'button', textContent: t('Discard') });
   dismiss.addEventListener('click', () => { void clearRecovery(ctx.store.doc.docId); bar.remove(); });
   bar.append(msg, restore, dismiss);
   document.body.appendChild(bar);

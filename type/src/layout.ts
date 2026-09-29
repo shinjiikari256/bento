@@ -160,6 +160,7 @@
 import type { Block, PageSpec, TypeDoc } from './model.ts';
 import { registerKey, registerPanel, type FeatureContext } from './features.ts';
 import { locale, t } from './i18n.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // ────────────────────────────────────────────────────────────────── geometry
 
@@ -733,11 +734,7 @@ function togglePageBreak(ctx: FeatureContext): void {
 
 // ────────────────────────────────────────────────────────── page setup dialog
 
-const el = (tag: string, cls?: string): HTMLElement => {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  return n;
-};
+const el = (tag: string, cls?: string): HTMLElement => h(cls ? `${tag}.${cls}` : tag);
 
 /**
  * Page setup — size, orientation, the four margins, and the document's
@@ -761,7 +758,9 @@ export function openPageSetup(ctx: FeatureContext): void {
   card.setAttribute('aria-label', t('Page setup'));
   const close = () => back.remove();
 
-  const h = (text: string) => { const n = el('h2', 't-dlg-h'); n.textContent = text; return n; };
+  // NOT named `h`: the imported h() DOM builder is used just below (the
+  // option-loop in `select`), and a local `h` here would shadow it.
+  const head = (text: string) => { const n = el('h2', 't-dlg-h'); n.textContent = text; return n; };
   const row = (labelText: string, ...nodes: HTMLElement[]) => {
     const r = el('div', 't-row');
     const s = el('span');
@@ -783,9 +782,7 @@ export function openPageSetup(ctx: FeatureContext): void {
   const select = (options: Array<[string, string]>, value: string, on: (v: string) => void) => {
     const s = el('select', 't-select') as HTMLSelectElement;
     for (const [v, label] of options) {
-      const o = document.createElement('option');
-      o.value = v; o.textContent = label;
-      s.append(o);
+      s.append(h('option', { value: v, textContent: label }));
     }
     s.value = value;
     s.addEventListener('change', () => { on(s.value); sync(); });
@@ -877,14 +874,14 @@ export function openPageSetup(ctx: FeatureContext): void {
   cancel.addEventListener('click', close);
 
   card.append(
-    h(t('Page')),
+    head(t('Page')),
     row(t('Size'), sizeSel, orientSel),
     row(unit === 'in' ? t('Width × height (in)') : t('Width × height (mm)'), wIn, hIn),
-    h(t('Margins')),
+    head(t('Margins')),
     row(unit === 'in' ? t('Top / bottom (in)') : t('Top / bottom (mm)'), mt, mb),
     row(unit === 'in' ? t('Left / right (in)') : t('Left / right (mm)'), ml, mr),
     readout, err,
-    h(t('Paragraph defaults')),
+    head(t('Paragraph defaults')),
     row(t('Alignment'), alignSel),
     row(t('Line spacing'), lhSel),
   );
@@ -970,9 +967,7 @@ function mountPanel(host: HTMLElement, ctx: FeatureContext): void {
   const lineSel = el('select', 't-select') as HTMLSelectElement;
   for (const [v, label] of [['1', '1.0'], ['1.15', '1.15'], ['1.5', '1.5'],
                             ['1.62', t('Book (1.62)')], ['2', '2.0']] as Array<[string, string]>) {
-    const o = document.createElement('option');
-    o.value = v; o.textContent = label;
-    lineSel.append(o);
+    lineSel.append(h('option', { value: v, textContent: label }));
   }
   lineSel.addEventListener('change', () => applyPara(ctx, { lh: Number(lineSel.value) }));
   const lineRow = el('div', 't-lay-row');
@@ -986,8 +981,7 @@ function mountPanel(host: HTMLElement, ctx: FeatureContext): void {
     i.type = 'checkbox';
     i.addEventListener('change', () =>
       applyPara(ctx, { [key]: i.checked ? true : undefined } as Partial<ParaProps>));
-    const s = document.createElement('span');
-    s.textContent = labelText;
+    const s = h('span', { textContent: labelText });
     l.append(i, s);
     l.title = hint;
     return { label: l, input: i, key };

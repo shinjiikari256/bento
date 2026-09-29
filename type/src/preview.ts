@@ -54,6 +54,7 @@ import { docStyleCss } from './docstyles.ts';
 import { captionIndex, docLang, fillXrefsHtml } from './xref.ts';
 import { embedHtml } from './embed.ts';
 import { displayMathHtml } from './math.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 /** Above this the preview is trimmed, then dropped to a title card. A preview
  *  is a courtesy; it must never be why a file is large. */
@@ -87,12 +88,10 @@ function cssFontFamily(family: string): string {
  */
 function firstPageBlocks(doc: TypeDoc): Block[] {
   if (!doc.body.length) return [];
-  const host = document.createElement('div');
-  host.className = 't-paper';
   // marked transient defensively — capturePristine runs long before this, so
   // this node can never reach a save, but the convention costs nothing to
   // honour and guards against a future caller that clones the live document.
-  host.setAttribute('data-bento-transient', '');
+  const host = h('div.t-paper[data-bento-transient]');
   const m = margins(doc.page);
   host.style.cssText =
     `position:fixed;left:-99999px;top:0;visibility:hidden;pointer-events:none;` +
@@ -205,7 +204,7 @@ function staticize(root: HTMLElement, keepImages: boolean): void {
 
   for (const img of Array.from(root.querySelectorAll<HTMLImageElement>('img'))) {
     if (!keepImages || !img.getAttribute('src')) {
-      const tint = document.createElement('div');
+      const tint = h('div');
       tint.setAttribute('style',
         'height:100px;border-radius:4px;margin:0 0 10px;background:linear-gradient(135deg,#f7a6002e,#f7a60012)');
       img.replaceWith(tint);
@@ -265,18 +264,15 @@ function sheet(doc: TypeDoc): string {
 }
 
 function frame(inner: HTMLElement, doc: TypeDoc): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'typ-pv';
-  const style = document.createElement('style');
-  style.textContent = sheet(doc);
+  const box = h('div.typ-pv');
+  const style = h('style', { textContent: sheet(doc) });
   box.appendChild(style);
   const p = doc.page;
-  const wrap = document.createElement('div');
+  const wrap = h('div');
   wrap.setAttribute('style',
     `width:${p.width}px;transform-origin:0 0;transform:none;` +
     `transform:scale(calc(100vw / ${p.width}px));padding:24px 0`);
-  const page = document.createElement('div');
-  page.className = 'typ-page';
+  const page = h('div.typ-page');
   page.setAttribute('style',
     `width:${p.width}px;min-height:${p.height}px;padding:${p.marginTop}px ${p.marginX}px ${p.marginBottom}px;` +
     `margin:0 auto;box-shadow:0 2px 24px rgba(0,0,0,.12)`);
@@ -288,14 +284,12 @@ function frame(inner: HTMLElement, doc: TypeDoc): HTMLElement {
 
 /** Last resort: the document's title on its own page. */
 function titleCard(doc: TypeDoc): HTMLElement {
-  const card = document.createElement('div');
-  card.className = 'typ-card';
-  const h = document.createElement('b');
-  h.textContent = doc.title || 'Untitled document';
-  card.appendChild(h);
+  const card = h('div.typ-card');
+  // local name avoids shadowing the imported h() DOM builder
+  const hEl = h('b', { textContent: doc.title || 'Untitled document' });
+  card.appendChild(hEl);
   if (doc.subtitle) {
-    const p = document.createElement('div');
-    p.textContent = doc.subtitle;
+    const p = h('div', { textContent: doc.subtitle });
     card.appendChild(p);
   }
   return frame(card, doc);
@@ -321,8 +315,7 @@ export function buildTypePreview(doc: TypeDoc): HTMLElement | null {
   if (!pageOne.length) return titleCard(doc);
 
   for (const keepImages of [true, false]) {
-    const host = document.createElement('div');
-    host.innerHTML = flowHtml(pageOne, doc);
+    const host = h('div', { innerHTML: flowHtml(pageOne, doc) });
     staticize(host, keepImages);
     const built = frame(host, doc);
     if (byteLength(built.innerHTML) <= PREVIEW_BUDGET) return built;

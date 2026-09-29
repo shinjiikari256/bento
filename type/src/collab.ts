@@ -45,13 +45,12 @@ import type { Editor } from './editor.ts';
 import type { TypeDoc } from './model.ts';
 import { copyCanWrite } from './model.ts';
 import { t } from './i18n.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // ─────────────────────────────────────────────────────────────── small DOM
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string): HTMLElementTagNameMap[K] {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  return n;
+  return h(tag as string, cls ? { className: cls } : {}) as unknown as HTMLElementTagNameMap[K];
 }
 
 let toastEl: HTMLElement | null = null;

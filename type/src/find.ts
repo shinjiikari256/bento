@@ -49,6 +49,7 @@ import { registerKey, registerPanel, registerTool, type FeatureContext } from '.
 import { t } from './i18n.ts';
 import { spliceText, type Block } from './model.ts';
 import { isNoteAtom } from './render.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // ───────────────────────────────────────────────────────────── the search
 
@@ -252,44 +253,35 @@ class FindPanel {
   // ─────────────────────────────────────────────────────────── chrome
 
   #build(host: HTMLElement): void {
-    const box = document.createElement('div');
-    box.className = 't-find';
+    const box = h('div.t-find');
 
-    this.#q = document.createElement('input');
-    this.#q.type = 'text';
-    this.#q.className = 't-find-q';
-    this.#q.placeholder = t('Find in document');
-    this.#q.setAttribute('aria-label', t('Find in document'));
+    this.#q = h('input.t-find-q', {
+      type: 'text', placeholder: t('Find in document'), ariaLabel: t('Find in document'),
+    });
 
-    this.#r = document.createElement('input');
-    this.#r.type = 'text';
-    this.#r.className = 't-find-r';
-    this.#r.placeholder = t('Replace with');
-    this.#r.setAttribute('aria-label', t('Replace with'));
+    this.#r = h('input.t-find-r', {
+      type: 'text', placeholder: t('Replace with'), ariaLabel: t('Replace with'),
+    });
 
-    const opts = document.createElement('div');
-    opts.className = 't-find-opts';
+    const opts = h('div.t-find-opts');
     const option = (label: string, set: (on: boolean) => void) => {
-      const l = document.createElement('label');
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.addEventListener('change', () => { set(cb.checked); this.#search(true); });
+      const l = h('label');
+      const cb = h('input', {
+        type: 'checkbox', onchange: () => { set(cb.checked); this.#search(true); },
+      });
       l.append(cb, document.createTextNode(label));
       opts.appendChild(l);
     };
     option(t('Match case'), on => { this.#state.opts.matchCase = on; });
     option(t('Whole word'), on => { this.#state.opts.wholeWord = on; });
 
-    const bar = document.createElement('div');
-    bar.className = 't-find-bar';
-    this.#count = document.createElement('span');
-    this.#count.className = 't-find-count';
+    const bar = h('div.t-find-bar');
+    this.#count = h('span.t-find-count');
     const prev = this.#button(t('Previous match (⇧Enter)'), '↑', () => this.step(-1));
     const next = this.#button(t('Next match (Enter)'), '↓', () => this.step(1));
     bar.append(this.#count, prev, next);
 
-    const actions = document.createElement('div');
-    actions.className = 't-find-actions';
+    const actions = h('div.t-find-actions');
     actions.append(
       this.#button(t('Replace this match'), t('Replace'), () => this.#replaceCurrent()),
       this.#button(t('Replace every match, as one undo step'), t('Replace all'), () => this.#replaceAll()),
@@ -315,13 +307,12 @@ class FindPanel {
   }
 
   #button(title: string, label: string, run: () => void): HTMLButtonElement {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.title = title;
-    b.textContent = label;
     // mousedown, not click: pressing a button must not cost the caret, which is
     // the same reason the toolbar in main.ts binds mousedown.
-    b.addEventListener('mousedown', e => { e.preventDefault(); run(); });
+    const b = h('button', {
+      type: 'button', title, textContent: label,
+      onmousedown: e => { e.preventDefault(); run(); },
+    });
     this.#buttons.push(b);
     return b;
   }

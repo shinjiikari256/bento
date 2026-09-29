@@ -29,6 +29,7 @@
 import { uid, embedSafe, type Block } from './model.ts';
 import { t } from './i18n.ts';
 import { registerTool, type FeatureContext } from './features.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 // 24×24, 16px, stroke currentColor at width 2 — icons.ts's recipe, which is
 // what must not drift between apps.
@@ -101,10 +102,7 @@ const esc = (x: string) => x.replace(/[&<>"']/g, c =>
  * the paginator would put a page break through the middle of a chart.
  */
 export function renderEmbed(b: Block): HTMLElement {
-  const host = document.createElement('figure');
-  host.className = 't-embed';
-  host.dataset.id = b.id;
-  host.dataset.atomic = '1';
+  const host = h('figure.t-embed', { dataset: { id: b.id, atomic: '1' } });
 
   const e = embedOf(b);
   if (!e) {
@@ -119,9 +117,7 @@ export function renderEmbed(b: Block): HTMLElement {
     // carries its source, so a person can open it in the app that made it.
     host.append(placeholder(t('This embed could not be displayed safely.')));
   } else {
-    const box = document.createElement('div');
-    box.className = 't-embed-view';
-    box.innerHTML = view;
+    const box = h('div.t-embed-view', { innerHTML: view });
     host.appendChild(box);
   }
 
@@ -136,17 +132,13 @@ export function renderEmbed(b: Block): HTMLElement {
   // An unknown app is NAMED rather than hidden: format additivity means a file
   // from a newer app must still make sense here, and "From Bento Whatever"
   // tells the reader where to go and open it.
-  const cap = document.createElement('figcaption');
-  cap.textContent = t('From {app}').replace('{app}', APPS[e.app] ?? e.app);
+  const cap = h('figcaption', { textContent: t('From {app}').replace('{app}', APPS[e.app] ?? e.app) });
   host.appendChild(cap);
   return host;
 }
 
 function placeholder(text: string): HTMLElement {
-  const p = document.createElement('div');
-  p.className = 't-embed-missing';
-  p.textContent = text;
-  return p;
+  return h('div.t-embed-missing', { textContent: text });
 }
 
 /** The embed as plain HTML — for print and for the static first-page preview. */
@@ -245,9 +237,7 @@ const fallbackView = (app: string): string =>
 
 async function pickFile(): Promise<File | null> {
   return new Promise(resolve => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.html,text/html';
+    const input = h('input', { type: 'file', accept: '.html,text/html' });
     input.addEventListener('change', () => resolve(input.files?.[0] ?? null), { once: true });
     input.click();
   });

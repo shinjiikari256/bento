@@ -204,6 +204,7 @@ import { t } from './i18n.ts';
 import { spliceText, uid, type Block } from './model.ts';
 import { renderMath, ZW } from './math/layout.ts';
 import type { Mark } from './inline.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 export { parseMath } from './math/parse.ts';
 export { renderMath, layoutMath } from './math/layout.ts';
@@ -415,26 +416,19 @@ registerPanel({
   order: 60,
   mount(host, ctx) {
     host.innerHTML = '';
-    const hint = document.createElement('p');
-    hint.className = 't-hint';
+    const hint = h('p.t-hint');
     host.appendChild(hint);
 
-    const area = document.createElement('textarea');
-    area.className = 't-mathsrc';
-    area.rows = 3;
-    area.spellcheck = false;
+    const area = h('textarea.t-mathsrc', { rows: 3, spellcheck: false });
     host.appendChild(area);
 
-    const preview = document.createElement('div');
-    preview.className = 't-mathprev';
+    const preview = h('div.t-mathprev');
     host.appendChild(preview);
 
-    const errs = document.createElement('p');
-    errs.className = 't-hint t-bad';
+    const errs = h('p.t-hint.t-bad');
     host.appendChild(errs);
 
-    const help = document.createElement('p');
-    help.className = 't-hint';
+    const help = h('p.t-hint');
     host.appendChild(help);
 
     // `current` is the formula the panel is editing, resolved on every update.

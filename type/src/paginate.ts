@@ -33,6 +33,7 @@
 
 import type { PageSpec, TypeDoc } from './model.ts';
 import { atomize, breakY } from './layout.ts';
+import { h } from '../../kernel/src/dom.ts';
 
 export interface Page {
   n: number;
@@ -122,11 +123,11 @@ let notesProbe: HTMLElement | null = null;
 function measureNotes(doc: TypeDoc, page: PageSpec, ids: string[]): number {
   if (!ids.length) return 0;
   if (!notesProbe) {
-    notesProbe = document.createElement('div');
     // marked transient so a save can never capture it (kernel/src/save.ts
     // strips marked nodes from the pristine clone)
-    notesProbe.setAttribute('data-bento-transient', '');
-    notesProbe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;contain:strict';
+    notesProbe = h('div[data-bento-transient]', {
+      style: { cssText: 'position:absolute;left:-10000px;top:0;visibility:hidden;contain:strict' },
+    });
     document.body.appendChild(notesProbe);
   }
   const probe = notesProbe;
@@ -272,7 +273,5 @@ export function drawPages(doc: TypeDoc, host: HTMLElement, deco: HTMLElement, me
 }
 
 function el(tag: string, cls: string): HTMLElement {
-  const n = document.createElement(tag);
-  n.className = cls;
-  return n;
+  return h(`${tag}.${cls}`);
 }
