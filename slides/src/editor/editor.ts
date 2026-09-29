@@ -23,7 +23,8 @@ import { openExportImagesDialog } from './exportimages'
 import { paletteSignature, resolveThemeRefs } from '../palette'
 import { SlideCanvas } from './canvas'
 import { PropsPanel } from './panels'
-import { openCtxMenu, type CtxItem } from './ctxmenu'
+import { openCtxMenu, type CtxItem } from '../../../kernel/src/ui/ctxmenu.ts'
+import '../../../kernel/src/ui/ctxmenu.css'
 import { startPresentation } from '../present'
 // serializeFile (plain output) is deliberately NOT imported here: every path
 // in this file writes a real file for a person, so all of them must inherit an
