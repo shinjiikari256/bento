@@ -252,3 +252,8 @@ docs/             architecture, platform spec, releasing, collab design
 
 New apps will live beside `slides/` (working names `spaces/`, `dash/`); the
 shared kernel extraction is tracked in `docs/DECISIONS.md`.
+
+**Before building DOM by hand in any app, use `kernel/src/dom.ts`'s
+`h(abbr, props)`** — a CSS-selector-shaped element builder
+(`h('input.foo[type=url]', { value, onchange })`) that replaces
+`document.createElement` + one property assignment per line.

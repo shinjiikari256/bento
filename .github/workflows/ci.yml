@@ -405,6 +405,14 @@ jobs:
         # every one of them is a regression a sighted developer with a mouse
         # would never notice.
         run: node scripts/test-ui-menu.ts
+      - name: Shared DOM builder rig
+        # kernel/src/dom.ts h() tells a writable PROPERTY from a METHOD by
+        # typeof, which only a real DOM can check (a shim that does not declare
+        # every property passes what fails in a browser) — so this drives a
+        # headless Chrome over CDP: tag/class/id/attribute parsing, a malformed
+        # abbreviation or a method assignment THROWING, dataset/style/className
+        # merging rather than overwriting. Self-skips without Chrome.
+        run: node scripts/test-dom-h.ts
 
       - name: First-page preview rig
         # Every save writes a static render of page one for file-manager
