@@ -94,6 +94,74 @@ links opening outside it, that answer is "no" and the rating 4+.
 the host should not launch another app on its say-so. http, https and mailto are
 what a link in a document means. A custom URL scheme is dropped rather than
 opened, the same choice Android makes.
+## 2026-09-29 — Context menu: `kernel/src/ui/ctxmenu.ts`, a SIBLING of menu.ts
+
+**Decision.** `kernel/src/ui/ctxmenu.ts` + `ctxmenu.css`, guarded by
+`scripts/test-ui-ctxmenu.ts`, ported from `slides/src/editor/ctxmenu.ts`
+(the only one of the four apps with a right-click menu as its own
+primitive — a singleton opened at a point, dismissed by Escape/outside-
+press/scroll, never two open at once).
+
+**Deliberately NOT a shared item-render function with `menu.ts`**, though
+the plan that named this primitive asked for one. A context-menu row
+carries a keyboard-shortcut hint trailing the label (`⌘C`, as `<kbd>`) and
+a danger tone; a dropdown row carries a leading icon, a secondary hint
+LINE under the label, a selected state and a keep-open escape hatch —
+five fields neither row has ever needed from the other. The two share
+`menu.ts`'s SINGLETON/dismissal philosophy (this file's `live`-set
+equivalent is its own module-level `open`/`detach` pair, same shape,
+smaller because only one context menu is ever open) rather than sharing
+row markup, which forcing together would have meant bolting unused
+fields onto whichever side was missing them. Unifying two genuinely
+different rows to satisfy a plan written before either was read closely
+is exactly the premature abstraction CLAUDE.md's own conventions warn
+against — three similar lines beat one wrong shared one.
+
+**Adopted in `slides`** (the file it was ported from) in the same pass —
+`slides/src/editor/ctxmenu.ts` deleted, `editor.ts` imports the kernel
+version, the old `.ed-ctxmenu*` rules in `slides/src/styles.css` removed
+in favour of `ctxmenu.css`'s `--bkc-*` chains.
+
+**`dash/src/gridmenu.ts` adoption turned out to need the primitive
+EXTENDED, not just consumed.** dash's `.dx-pop`/`popover()`/`dismissable()`
+is not a right-click-menu-only concern the way slides' was — it is the
+app's one general floating-surface convention, reused for a type picker
+with a checkmarked current choice (`main.ts`'s `retype`), a paste-special
+menu with disabled+reasoned rows, and a rect-anchored totals-column menu
+(`panels.ts`'s `openTotalsMenu`, previously its own independent copy of
+"measure, prefer above, fall back below" placement). Forcing only the
+three grid menus onto `openCtxMenu` would have left dash with two
+competing floating-surface systems for a smaller win than slides got. So
+`CtxItem` gained `selected` (a checkmark + `menuitemradio`, for a picker
+row) and `title` (a native tooltip, for a disabled row's reason);
+`openCtxMenuAtRect`/`placeAboveRect` cover the rect-anchored case; and the
+point/rect placement plus the Escape/outside-press/scroll/resize dismissal
+— previously duplicated three times across dash's own popover builders —
+were pulled out as `attachDismiss`/`placeAtPoint`/`placeAboveRect`/
+`mountFloatingPanel`, so a plain-HTML popover (a form, a search box —
+content that does not reduce to a `CtxItem[]` row list) gets the same
+dismissal behaviour without being forced into the row-list shape. dash's
+`gridmenu.ts` (its three grid menus), `main.ts`'s `retype`/
+`openPasteSpecial`, and `panels.ts`'s `openTotalsMenu` all moved onto
+`openCtxMenu`/`openCtxMenuAtRect`. What stayed on dash's own
+`popover()`/`dismissable()` — now thin, unchanged wrappers — is content
+that genuinely is not a row list: `main.ts`'s promote/flatten forms and
+`filterui.ts`'s search box, which `CtxItem` was never meant to carry.
+
+**`--bkc-hover`'s chain is `--hover → --chrome-2`, matching `menu.css`'s
+`--bkm-hover` exactly** (only `dash` defines `--hover`; the other three
+define `--chrome-2` instead) — found by the theming guard, not assumed
+from menu.css's precedent. `--bkc-accent` (the `selected` checkmark's
+colour) is checked for "defines" only, not "themes": dash documents its
+own `--accent` as deliberately constant across light/dark, and the guard
+would otherwise fail dash for following its own stated design.
+
+Pointers: `kernel/src/ui/ctxmenu.ts`, `kernel/src/ui/ctxmenu.css`,
+`scripts/test-ui-ctxmenu.ts`, `scripts/test-dash-menu.ts`,
+`working/PLAN-1-shared-infra.md` (item 3).
+
+---
+
 ## 2026-09-29 — Form-field styling: `.bk-field` (kernel/src/ui/field.ts + .css), tier 2
 
 **Decision.** `kernel/src/ui/field.css` gives every app one `.bk-field`

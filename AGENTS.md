@@ -274,6 +274,19 @@ something `kernel/` already has:
   all four apps, each from its own panel's `row()`-equivalent choke-point,
   plus each app's standalone toggles (not beside a field in the same row)
   calling `fieldize()` at their own build site.
+- `kernel/src/ui/ctxmenu.ts` — `openCtxMenu(x, y, items)`/
+  `openCtxMenuAtRect(rect, items)`, a right-click/long-press/rect-anchored
+  menu (a sibling of `menu.ts`'s trigger-anchored dropdown, not a layer
+  over it — see `docs/DECISIONS.md` for why they do not share a row
+  renderer); `CtxItem` carries `selected` (a picker's checkmark) and
+  `title` (a disabled row's tooltip). `attachDismiss`/`placeAtPoint`/
+  `placeAboveRect`/`mountFloatingPanel` are the same placement/dismissal
+  engine, exported for a plain-HTML popover that is not a `CtxItem[]` row
+  list. Adopted in `slides` (its three menus) and `dash` (its three grid
+  menus, a type picker, paste-special, a rect-anchored totals menu) —
+  `dash`'s remaining raw-HTML popovers (forms, a search box) stay on its
+  own `popover()`/`dismissable()`, now built on this primitive's shared
+  dismissal rather than their own copy of it.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`

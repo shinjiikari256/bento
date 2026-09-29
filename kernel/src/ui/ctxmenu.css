@@ -1,0 +1,66 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SHARED CONTEXT-MENU PRIMITIVE'S STYLES. See ctxmenu.ts for why this is
+   a sibling of menu.ts rather than a layer over it, and menu.css for the
+   four-way theming-mechanism comparison this sheet follows unchanged
+   (no `light-dark()`; every value reads through a `--bkc-*` chain landing on
+   whatever the host app already themes). */
+
+.bkc-menu {
+  position: fixed;
+  z-index: var(--bkc-z, 120);
+  display: flex;
+  flex-direction: column;
+  min-width: var(--bkc-min-width, 184px);
+  padding: 4px;
+  background: var(--bkc-bg, var(--surface, var(--field, #fff)));
+  border: 1px solid var(--bkc-border, var(--line, #e3e8ef));
+  border-radius: var(--bkc-radius, var(--radius, 10px));
+  box-shadow: var(--bkc-shadow, 0 12px 32px rgb(20 30 45 / 0.18));
+  user-select: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bkc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  /* 40px, not a bar button's 44: this list is read top-to-bottom with the
+     finger already on it, where run length matters more than target area. */
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--bkc-item-radius, 7px);
+  background: transparent;
+  color: var(--bkc-ink, var(--ink, #1e2a3a));
+  font: inherit;
+  font-size: var(--bkc-font-size, 13px);
+  text-align: start;
+  cursor: pointer;
+}
+.bkc-item:hover:not(:disabled) { background: var(--bkc-hover, var(--hover, var(--chrome-2, rgb(0 0 0 / 0.05)))); }
+.bkc-item:disabled { opacity: 0.4; cursor: default; }
+
+.bkc-item kbd {
+  font: inherit;
+  font-size: var(--bkc-hint-size, 11.5px);
+  color: var(--bkc-hint-ink, var(--muted, #8a95a6));
+  white-space: nowrap;
+}
+
+.bkc-danger:not(:disabled) { color: var(--bkc-danger-ink, #b4232a); }
+.bkc-danger:hover:not(:disabled) { background: var(--bkc-danger-hover, #fdeced); }
+
+/* A picker row's current choice (column type, aggregate…) — the checkmark
+   is its own span so `kbd` hints and the mark can coexist without one
+   overwriting the other's textContent-based test hooks. */
+.bkc-check {
+  color: var(--bkc-accent, var(--accent, #2f6fed));
+  font-size: var(--bkc-font-size, 13px);
+}
+.bkc-selected { font-weight: 600; }
+
+.bkc-sep { height: 1px; margin: 4px 2px; background: var(--bkc-border, var(--line, #e3e8ef)); }
