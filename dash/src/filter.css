@@ -70,7 +70,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.dfx-item input { margin: 0; flex: 0 0 auto; accent-color: var(--blue); }
+/* Colour comes from `.bk-check` (kernel/src/ui/field.css) now — this list
+   overrides its vertical margin back to 0: a tight one-line-per-value list
+   has no sibling field in each row to match the height of. */
+.dfx-item input { margin: 0; flex: 0 0 auto; }
 
 /* (Select all) sits OUTSIDE the scroller, so it cannot scroll away from the
    list it commands. */

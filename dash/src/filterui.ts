@@ -58,6 +58,7 @@
 // drive the decisions rather than the pixels.
 
 import './filter.css'
+import '../../kernel/src/ui/field.css'
 import { dismissable } from './gridmenu.ts'
 import { t } from './i18n.ts'
 import type { CompareOp } from './condfmt.ts'
@@ -510,7 +511,7 @@ export function openColumnMenu(o: ColumnMenuOpts): HTMLElement | null {
       // keyed, not `v === null`: the blank box is the one entry whose label is
       // not its value, and BLANK_KEY is the single spelling of which one it is
       const label = k === BLANK_KEY ? t('(Blanks)') : String(v)
-      return `<label class="dfx-item"><input type="checkbox" data-k="${esc(k)}"` +
+      return `<label class="dfx-item"><input class="bk-check" type="checkbox" data-k="${esc(k)}"` +
         `${ticked.has(k) ? ' checked' : ''}><span>${esc(label)}</span></label>`
     }).join('')
     if (!items) {
@@ -544,7 +545,7 @@ export function openColumnMenu(o: ColumnMenuOpts): HTMLElement | null {
     `<div class="dfx-h">${esc(t('Values'))}</div>` +
     `<input class="dx-pop-in dfx-q" spellcheck="false" placeholder="${esc(t('Search these values'))}" ` +
       `aria-label="${esc(t('Search these values'))}">` +
-    `<label class="dfx-item dfx-all"><input type="checkbox" data-all="1"><span>${esc(t('(Select all)'))}</span></label>` +
+    `<label class="dfx-item dfx-all"><input class="bk-check" type="checkbox" data-all="1"><span>${esc(t('(Select all)'))}</span></label>` +
     `<div class="dfx-list">${listHtml()}</div>` +
     `<div class="dfx-noteslot">${noteHtml()}</div>` +
     `<div class="dx-pop-sep"></div>` +

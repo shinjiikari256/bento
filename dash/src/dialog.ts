@@ -33,6 +33,8 @@
 
 import './about.css'
 import { h } from '../../kernel/src/dom.ts'
+import '../../kernel/src/ui/field.css'
+import { fieldize } from '../../kernel/src/ui/field.ts'
 
 export interface Dialog {
   /** the backdrop; removing it closes everything */
@@ -96,6 +98,7 @@ export function openDialog(label: string): Dialog {
   const check = (text: string, on: boolean, onChange: (v: boolean) => void) => {
     const l = h('label.dx-about-check')
     const box = h('input', { type: 'checkbox', checked: on })
+    fieldize(box)
     box.addEventListener('change', () => onChange(box.checked))
     l.append(box, document.createTextNode(' ' + text))
     return l

@@ -34,6 +34,8 @@
 import './panels.css'
 import { t, locale } from './i18n.ts'
 import { h } from '../../kernel/src/dom.ts'
+import '../../kernel/src/ui/field.css'
+import { fieldize } from '../../kernel/src/ui/field.ts'
 import { lsJson, lsSet } from '../../kernel/src/storage.ts'
 import { TYPE_LABEL } from './format.ts'
 import { buildCellProps, type CellRange, type PanelKit } from './cellprops.ts'
@@ -961,9 +963,11 @@ function section(hostEl: HTMLElement, title: string): void {
   hostEl.appendChild(h)
 }
 
+
 function row(hostEl: HTMLElement, label: string, control: HTMLElement): void {
   const r = h('label.dp-row')
   const span = h('span', { textContent: label })
+  fieldize(control)
   r.append(span, control)
   hostEl.appendChild(r)
 }

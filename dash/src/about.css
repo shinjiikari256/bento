@@ -172,7 +172,11 @@
   cursor: pointer;
   user-select: none;
 }
-.dx-about-check input { accent-color: var(--accent); margin: 0; flex: 0 0 auto; }
+/* Colour comes from `.bk-check` (kernel/src/ui/field.css, applied by
+   fieldize() in dialog.ts) now — this row overrides its vertical margin
+   back to 0 because `gap` already spaces label from box and there is no
+   sibling field in this row for the margin to match the height of. */
+.dx-about-check input { margin: 0; flex: 0 0 auto; }
 
 /* An update was found at launch. The badge sits on the ways INTO About — the
    ⓘ button and the version chip — because an update is never urgent enough to
