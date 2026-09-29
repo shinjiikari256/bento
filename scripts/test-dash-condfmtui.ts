@@ -255,7 +255,10 @@ console.log('\n7 · the callers mount it')
   const panels = readFileSync(new URL('../dash/src/panels.ts', import.meta.url), 'utf8')
   ok(/buildCondFmtColumnSection\(sheet\)/.test(panels) && /buildCondFmtSection\(\{/.test(panels),
     'the properties panel builds the section for the selected column')
-  ok(/data-a="cf-gt"/.test(main) && /data-a="cf-dup"/.test(main) && /data-a="cf-more"/.test(main),
+  // gridmenu.ts's menus are `CtxItem[]` (kernel/src/ui/ctxmenu.ts) now, not
+  // `data-a="…"` strings — the label is the row's identity.
+  ok(main.includes("t('Highlight cells greater than…')") && main.includes("t('Highlight duplicate values')")
+    && main.includes("t('More conditional formatting…')"),
     'the cell menu offers greater-than, duplicates, and the way through to the rest')
   ok(!/kind: 'colorScale', colors:/.test(main) && !/kind: 'dataBar', color:/.test(main),
     'and the menu’s two presets go through blankCondFmtRule rather than a second set of literals')

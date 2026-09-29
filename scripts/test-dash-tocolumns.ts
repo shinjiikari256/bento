@@ -349,8 +349,10 @@ console.log('\n-- the command is reachable, on both kinds of sheet')
     'main.ts dispatches the action')
   // gridmenu.ts owns the three grid menus now — see scripts/test-dash-menu.ts,
   // which asserts the items a real right-click produces rather than the source.
+  // The menus are `CtxItem[]` (kernel/src/ui/ctxmenu.ts), not `data-a="…"`
+  // strings — the label is the row's identity.
   const menu = readFileSync(new URL('../dash/src/gridmenu.ts', import.meta.url), 'utf8')
-  ok(menu.includes('data-a="split"') && menu.includes('hooks.split()'),
+  ok(menu.includes("t('Split into columns…')") && menu.includes('hooks.split()'),
     'and the dataset cell menu offers it')
   // A SPREADSHEET HAS NO CELL MENU (grid.ts declines to open the dataset one
   // over a canvas), so the chord is the only route there and it must not be

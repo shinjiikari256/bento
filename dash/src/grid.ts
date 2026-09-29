@@ -32,6 +32,7 @@ import { buildOrder, type ColumnFilter } from './filter.ts'
 import { evaluateRules, type CellStyle } from './condfmt.ts'
 import { colToLetters, formatRef, parseRef } from './a1.ts'
 import { t } from './i18n.ts'
+import { closeCtxMenu } from '../../kernel/src/ui/ctxmenu.ts'
 import { resizeColumn, autoFitWidth, hiddenSet, readFrozen, insertRowsAt } from './rowcol.ts'
 import {
   cellKey, isFormula, recalcSheetCells, recalcWorkbook, spillExtent, translateCellFormula,
@@ -689,7 +690,11 @@ export class Grid {
     // to this column" hanging over a sheet that has no columns at all, still
     // wired to the sheet behind it. Measured in a browser after both menus
     // landed; neither rig could see it, because each mounts one sheet.
+    // Two menu systems now share the grid: the cell/row/column menus render
+    // as the kernel's `.bkc-menu` (closeCtxMenu), everything else still opens
+    // its own `.dx-pop` (popover()/dismissable() in gridmenu.ts) — both close.
     document.querySelector('.dx-pop')?.remove()
+    closeCtxMenu()
     this.sheetId = id
     this.sort = null
     this.filters = []

@@ -36,6 +36,8 @@ import { t, locale } from './i18n.ts'
 import { h } from '../../kernel/src/dom.ts'
 import '../../kernel/src/ui/field.css'
 import { fieldize } from '../../kernel/src/ui/field.ts'
+import { openCtxMenuAtRect, type CtxItem } from '../../kernel/src/ui/ctxmenu.ts'
+import '../../kernel/src/ui/ctxmenu.css'
 import { lsJson, lsSet } from '../../kernel/src/storage.ts'
 import { TYPE_LABEL } from './format.ts'
 import { buildCellProps, type CellRange, type PanelKit } from './cellprops.ts'
@@ -732,9 +734,9 @@ export function mountPanels(host: PanelsHost): Panels {
    *
    * PLACED AGAINST THE CELL'S RECT, and flipped ABOVE it by default: the totals
    * row is sticky at the bottom of a scroller that reaches the bottom of the
-   * window, so a menu dropped below the cell opens off screen. Measure first,
-   * then place — `.dx-pop` is `position: fixed`, so viewport coordinates are
-   * the right ones and nothing the grid scrolls can clip it.
+   * window, so a menu dropped below the cell opens off screen — the kernel's
+   * `openCtxMenuAtRect` (`placeAboveRect`) is the shared implementation of
+   * exactly that placement, so this no longer carries its own copy of it.
    */
   function openTotalsMenu(colId: string, rect: DOMRect): void {
     if (ro()) return
@@ -742,26 +744,29 @@ export function mountPanels(host: PanelsHost): Panels {
     const col = sheet?.columns.find((c) => c.id === colId)
     if (!sheet || !col) return
     const cur = totalsChoice(sheet.totals?.[col.id])
-    const item = (v: string, label: string): string =>
-      `<button data-agg="${v}"${v === cur ? ' class="dx-pop-on"' : ''}>` +
-      `${escHtml(label)}${v === cur ? ' ✓' : ''}</button>`
-    const el = popAt(rect,
-      `<div class="dx-pop-row">${escHtml(col.name)}</div>` +
-      AGGS.map((a) => item(a, t(a))).join('') +
-      (cur === 'custom' ? item('custom', t('custom formula')) : '') +
-      `<div class="dx-pop-sep"></div>` +
-      item('none', t('No total')))
-    el.querySelectorAll<HTMLElement>('button').forEach((b) => {
-      b.addEventListener('click', () => {
-        const v = b.dataset.agg!
-        el.remove()
-        // A hand-written `{ f }` is not ours to rewrite — the same refusal the
-        // dropdown makes. Choosing a real aggregate over it IS allowed: that is
-        // a decision, and it is undoable.
+    const item = (v: string, label: string): CtxItem => ({
+      label,
+      selected: v === cur,
+      // A hand-written `{ f }` is not ours to rewrite — the same refusal the
+      // dropdown makes, so "custom formula" is shown (when it is the current
+      // total) as the selected row but never as a live choice.
+      disabled: v === 'custom',
+      run: () => {
         if (v === cur || v === 'custom') return
+        // Choosing a real aggregate over a hand-written formula IS allowed:
+        // that is a decision, and it is undoable.
         commit(totalsPatch(sheet, col.id, v === 'none' ? null : v as TotalsAgg))
-      })
+      },
     })
+    openCtxMenuAtRect(rect, [
+      // The column name, as a non-interactive header row — there is no
+      // footer label naming which column's menu this is otherwise.
+      { label: col.name, disabled: true, run: () => {} },
+      ...AGGS.map((a) => item(a, t(a))),
+      ...(cur === 'custom' ? [item('custom', t('custom formula'))] : []),
+      'sep',
+      item('none', t('No total')),
+    ])
   }
 
   grid.onTotalsMenu = openTotalsMenu
@@ -906,47 +911,6 @@ export function mountPanels(host: PanelsHost): Panels {
   }
 
   return { toggle, refresh: () => render(true), reveal }
-}
-
-// --- a popover, placed against a rect ---------------------------------------
-
-const escHtml = (s: string): string =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-
-/**
- * `.dx-pop` — the app's one floating surface — opened against an element's
- * rect rather than a point.
- *
- * main.ts's `popover(x, y)` clamps with `Math.min(y, innerHeight - 40)`, which
- * is right for a menu hanging off a column header near the top of the window
- * and wrong for one hanging off the totals row, which IS the bottom of the
- * window: six items would open below the fold with 40px showing. So this one
- * measures itself and prefers to sit ABOVE the cell, falling back to below only
- * when there is no room. Fixed positioning, so nothing inside the scrolling
- * grid — sticky header, sticky footer, resize grips, Find's marks — can clip it
- * or be clicked through it.
- */
-function popAt(rect: DOMRect, html: string): HTMLElement {
-  document.querySelector('.dx-pop')?.remove()
-  const el = h('div.dx-pop', { style: { visibility: 'hidden' }, innerHTML: html })
-  document.body.appendChild(el)
-  const hgt = el.offsetHeight // not `h`: that would shadow the imported h() used above
-  const w = el.offsetWidth
-  const above = rect.top - hgt - 4
-  el.style.top = `${above >= 4 ? above : Math.max(4, Math.min(rect.bottom + 4, window.innerHeight - hgt - 4))}px`
-  el.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - w - 4))}px`
-  el.style.visibility = ''
-  // Next tick: the click that OPENED it is still travelling, and a listener
-  // added now would see it and close the menu before it was ever painted.
-  setTimeout(() => {
-    const off = (e: MouseEvent): void => {
-      if (el.contains(e.target as Node)) return
-      el.remove()
-      document.removeEventListener('mousedown', off)
-    }
-    document.addEventListener('mousedown', off)
-  }, 0)
-  return el
 }
 
 // --- row builders -----------------------------------------------------------

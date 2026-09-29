@@ -65,11 +65,21 @@ const { installDom, mousedown, contextmenu, fireDoc } = await import('./lib/dash
 type El = import('./lib/dash-dom.ts').El
 
 const dom = installDom()
+// dash-dom.ts's shim has no window-level event target at all — the three
+// grid menus now render through kernel/src/ui/ctxmenu.ts, which (correctly,
+// browser-side) calls window.addEventListener('resize', …) for its
+// dismiss-on-resize behaviour, and reads innerWidth/innerHeight to place
+// itself. A no-op stub is enough for this rig, mirroring test-ui-ctxmenu.ts.
+;(globalThis as unknown as { window: { innerWidth: number; innerHeight: number; addEventListener(): void; removeEventListener(): void } }).window = {
+  innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight,
+  addEventListener() {}, removeEventListener() {},
+}
 
 const { parseDoc } = await import('../dash/src/model.ts')
 const { Store } = await import('../dash/src/store.ts')
 const { Grid } = await import('../dash/src/grid.ts')
 const { installGridMenus, rowSpan, colSpan } = await import('../dash/src/gridmenu.ts')
+const { closeCtxMenu } = await import('../kernel/src/ui/ctxmenu.ts')
 type DashDoc = import('../dash/src/model.ts').DashDoc
 type TableSheet = import('../dash/src/model.ts').TableSheet
 type MenuHooks = import('../dash/src/gridmenu.ts').MenuHooks
@@ -167,20 +177,28 @@ function mount(doc: DashDoc, opts: { readOnly?: boolean; install?: boolean } = {
 const sheetOf = (store: { doc: DashDoc }): TableSheet => store.doc.sheets[0] as TableSheet
 const rowsIn = (s: TableSheet): number => s.rids.reduce((n, [, c]) => n + c, 0)
 
-/** The menu currently on the document, or null. */
-const menu = (): El | null => dom.doc.querySelector('.dx-pop')
+/**
+ * The menu currently on the document, or null. `.bkc-menu` — the kernel's
+ * shared ctx-menu primitive — not `.dx-pop`: the three grid menus render
+ * through kernel/src/ui/ctxmenu.ts now (see gridmenu.ts's header), and the
+ * items are picked by their LABEL text rather than a `data-a` code, because
+ * `CtxItem` carries a label and a closure, not an action string a test can
+ * match on. That is closer to what a reader sees, too — it's the label that
+ * says what a row does.
+ */
+const menu = (): El | null => dom.doc.querySelector('.bkc-menu')
+const rows = (): El[] => menu()?.querySelectorAll<El>('.bkc-item') ?? []
 /** Its item labels, in order — what a reader would see. */
-const items = (): string[] =>
-  (menu()?.querySelectorAll('button') ?? []).map((b) => b.textContent)
-/** Click the item whose `data-a` is `a`. Returns false when there is no such item. */
-function pick(a: string): boolean {
-  const b = menu()?.querySelectorAll('button').find((x) => x.getAttribute('data-a') === a)
+const items = (): string[] => rows().map((b) => b.querySelector('span')?.textContent ?? '')
+/** Click the item whose label is exactly `label`. Returns false when there is no such item. */
+function pick(label: string): boolean {
+  const b = rows().find((x) => x.querySelector('span')?.textContent === label)
   if (!b) return false
   b.dispatchEvent({ type: 'click' })
   return true
 }
-const has = (a: string): boolean =>
-  !!menu()?.querySelectorAll('button').some((x) => x.getAttribute('data-a') === a)
+const has = (label: string): boolean =>
+  rows().some((x) => x.querySelector('span')?.textContent === label)
 
 const rowGutter = (host: El, row: number): El =>
   host.querySelector(`.dg-row[data-rid] [data-rowhead="${row}"]`)!
@@ -198,45 +216,45 @@ console.log('\n1 · a right-click on each surface produces its own menu')
 
   contextmenu(cellAt(host, 1, 1))
   ok(!!menu(), 'right-clicking a CELL opens a menu')
-  ok(has('cut') && has('copy') && has('paste'),
+  ok(has('Cut') && has('Copy') && has('Paste'),
     'and it carries Cut, Copy and Paste — "the other reason people right-click", ' +
     'and missing from every menu in the app before this')
-  ok(has('irow-above') && has('dcol') && has('fill') && has('cf-gt'),
+  ok(has('Insert row above') && has('Delete column') && has('Fill down') && has('Highlight cells greater than…'),
     'along with what it always had: rows, columns, fill and the conditional formats')
   ok(items()[0] === 'Cut' && items()[1] === 'Copy' && items()[2] === 'Paste',
     'the clipboard verbs are FIRST, where every other application in the world ' +
     'puts them — a reader scanning for Copy who meets Insert row concludes this ' +
     'is not the menu they wanted')
-  menu()!.remove()
+  closeCtxMenu()
 
   contextmenu(rowGutter(host, 1))
   ok(!!menu(), 'right-clicking the ROW NUMBER GUTTER opens a menu — it did nothing at all')
-  ok(has('cut') && has('copy') && has('paste'), 'the row menu has the clipboard verbs too')
-  ok(has('above') && has('below') && has('del') && has('clear'),
+  ok(has('Cut') && has('Copy') && has('Paste'), 'the row menu has the clipboard verbs too')
+  ok(has('Insert row above') && has('Insert row below') && has('Delete row') && has('Clear contents'),
     'and insert above / insert below / delete / clear contents, which IS row work')
-  ok(!has('fill'),
+  ok(!has('Fill down'),
     'but NOT Fill down: a fill runs down a COLUMN, so a fill offered from a row ' +
     'would act on an axis the reader did not click')
-  ok(!has('cf-gt') && !has('cf-scale'),
+  ok(!has('Highlight cells greater than…') && !has('Colour scale'),
     'and NOT the conditional formats: dash stores a rule per COLUMN, so a rule ' +
     'added from a row menu would silently colour something else')
-  ok(!has('split'), 'and not Split into columns, which is a column operation')
-  menu()!.remove()
+  ok(!has('Split into columns…'), 'and not Split into columns, which is a column operation')
+  closeCtxMenu()
 
   contextmenu(colHeader(host, 'mon'))
   ok(!!menu(), 'right-clicking the COLUMN HEADER opens a menu — it did nothing at all')
-  ok(has('cut') && has('copy') && has('paste'), 'the column menu has the clipboard verbs too')
-  ok(has('left') && has('right') && has('del'),
+  ok(has('Cut') && has('Copy') && has('Paste'), 'the column menu has the clipboard verbs too')
+  ok(has('Insert column to the left') && has('Insert column to the right') && has('Delete column'),
     'insert left / insert right / delete, which names the axis the reader clicked')
-  ok(has('cf-gt') && has('cf-scale') && has('cf-more'),
+  ok(has('Highlight cells greater than…') && has('Colour scale') && has('More conditional formatting…'),
     'the conditional formats ARE here: they are stored per column, and this is ' +
     'the surface that means a column')
-  ok(has('sort') && has('hide'),
+  ok(has('Sort and filter…') && has('Hide this column'),
     'and the sort/filter menu and Hide, which the caret in the same header owns — ' +
     'reached, not reimplemented')
-  ok(!has('above') && !has('below'),
+  ok(!has('Insert row above') && !has('Insert row below'),
     'and no row inserts, which would be the one-menu-for-everything this splits')
-  menu()!.remove()
+  closeCtxMenu()
 }
 
 console.log('\n1b · the whole-header target, and the appender\'s gutter')
@@ -250,7 +268,7 @@ console.log('\n1b · the whole-header target, and the appender\'s gutter')
     'the header cell carries the letter strip, the name and the type badge…')
   contextmenu(head)
   ok(!!menu(), '…and the right-click target is the WHOLE cell, not just the letter')
-  menu()!.remove()
+  closeCtxMenu()
 
   // The appender row has a `+` where a number goes, because the row is not
   // there yet. "Delete row" over a row that does not exist is how a reader
@@ -289,11 +307,13 @@ console.log('\n2 · negative control — the menus are not free')
   contextmenu(colHeader(host, 'mon'))
   const cols = items().length
   contextmenu(rowGutter(host, 1))
-  ok(dom.doc.querySelectorAll('.dx-pop').length === 1,
+  ok(dom.doc.querySelectorAll('.bkc-menu').length === 1,
     'a second right-click leaves exactly ONE menu on the document')
-  ok(items().length !== cols && has('above'),
+  // No row was selected before this right-click, so the selection defaults
+  // to the whole sheet (4 rows in this fixture) — "Insert 4 rows above".
+  ok(items().length !== cols && has('Insert 4 rows above'),
     'and it is the row menu, not the column menu still hanging there')
-  menu()!.remove()
+  closeCtxMenu()
 }
 
 // ============================================ 3. the labels count, and act
@@ -310,7 +330,7 @@ console.log('\n3 · the label says how many rows, and the op does that many')
   contextmenu(rowGutter(host, 2))
   ok(items().some((s) => s.includes('3 rows')),
     'the menu says "3 rows", so the reader knows what it is about BEFORE clicking')
-  ok(pick('above'), 'Insert 3 rows above is there to click')
+  ok(pick('Insert 3 rows above'), 'Insert 3 rows above is there to click')
   ok(rowsIn(sheetOf(store)) === 9,
     'and the sheet grows by THREE — a label that says 3 and inserts 1 is worse ' +
     'than no label at all')
@@ -325,7 +345,7 @@ console.log('\n3 · the label says how many rows, and the op does that many')
   contextmenu(rowGutter(host, 4))
   ok(items().some((s) => s === 'Delete row'),
     'one selected row is spelled "row", singular — the count is read off the selection')
-  ok(pick('del') && rowsIn(sheetOf(store)) === 5, 'and Delete row deletes one')
+  ok(pick('Delete row') && rowsIn(sheetOf(store)) === 5, 'and Delete row deletes one')
 }
 
 {
@@ -338,7 +358,7 @@ console.log('\n3 · the label says how many rows, and the op does that many')
   ok(items().some((s) => s === 'Delete row'),
     'right-clicking a row OUTSIDE the selection re-selects it, and the menu is ' +
     'about that one row rather than the three the reader has moved away from')
-  pick('del')
+  pick('Delete row')
   ok(rowsIn(sheetOf(store)) === 5 && sheetOf(store).data.name.v.at(-1) === 'P5',
     'and it is the clicked row that goes')
 }
@@ -354,7 +374,7 @@ console.log('\n3b · the same for columns, in POSITIONS and not visible indexes'
     'two selected columns are Mon and Tue')
   contextmenu(colHeader(host, 'tue'))
   ok(items().some((s) => s.includes('2 columns')), 'and the menu says "2 columns"')
-  ok(pick('del'), 'Delete 2 columns is there to click')
+  ok(pick('Delete 2 columns'), 'Delete 2 columns is there to click')
   ok(sheetOf(store).columns.length === 1 && sheetOf(store).columns[0].id === 'name',
     'and BOTH go — deleted right to left, because each deletion is computed ' +
     'against the sheet as it is at that moment')
@@ -367,26 +387,26 @@ console.log('\n3c · the items that route out to the app reach it')
 {
   const { host, seen } = mount(dataset())
   contextmenu(cellAt(host, 1, 1))
-  pick('copy')
+  pick('Copy')
   ok(JSON.stringify(seen.copies) === JSON.stringify([false]),
     'Copy calls the app\'s copy — the same path ⌘C takes, so a cut cannot forget ' +
     'to snapshot before the selection is cleared')
   contextmenu(cellAt(host, 1, 1))
-  pick('cut')
+  pick('Cut')
   ok(JSON.stringify(seen.copies) === JSON.stringify([false, true]), 'and Cut says it is a cut')
   contextmenu(cellAt(host, 1, 1))
-  pick('paste')
+  pick('Paste')
   ok(seen.pastes === 1, 'Paste asks the app to paste')
   contextmenu(cellAt(host, 1, 1))
-  pick('paste-special')
+  pick('Paste special…')
   ok(seen.pasteSpecial === 1, 'Paste special… opens the paste-special menu')
   contextmenu(colHeader(host, 'mon'))
-  pick('sort')
+  pick('Sort and filter…')
   ok(JSON.stringify(seen.filterMenu) === JSON.stringify(['mon']),
     'and Sort and filter… opens the caret\'s OWN menu, for that column — one ' +
     'implementation of hide/sort/filter, reached from two places')
   contextmenu(colHeader(host, 'mon'))
-  pick('cf-more')
+  pick('More conditional formatting…')
   ok(seen.condFmt === 1, 'More conditional formatting… still reaches the panel')
 }
 
@@ -398,27 +418,31 @@ console.log('\n4 · Escape closes it (finding 13)')
   const { host } = mount(dataset())
   contextmenu(rowGutter(host, 1))
   ok(!!menu(), 'a menu is open')
-  let defaulted = false
+  // Claiming the key is `stopPropagation`, not `preventDefault`, on the
+  // kernel primitive (kernel/src/ui/ctxmenu.ts's `attachDismiss`) — it is
+  // what stops the SAME Escape from also, say, backing a browser out of
+  // fullscreen, and it is what this rig can observe from here.
+  let stopped = false
   fireDoc(dom.doc, 'keydown', {
     key: 'Escape',
-    preventDefault() { defaulted = true },
-    stopPropagation() {},
+    preventDefault() {},
+    stopPropagation() { stopped = true },
   })
   ok(menu() === null,
     'Escape closes it. It did not, and a menu that opens under the pointer leaves ' +
     'the hand nowhere near a safe place to click instead')
-  ok(defaulted, 'and it claims the key rather than letting it also cancel something else')
+  ok(stopped, 'and it claims the key rather than letting it also cancel something else')
 
   contextmenu(rowGutter(host, 1))
   fireDoc(dom.doc, 'keydown', { key: 'a', preventDefault() {}, stopPropagation() {} })
   ok(!!menu(), 'any OTHER key leaves it open — Escape is the dismissal, not every key')
-  menu()!.remove()
+  closeCtxMenu()
 
   // The listener must not outlive the menu, or the NEXT Escape (meant for a
   // cell editor, or the help card) is swallowed by a menu that is already gone.
   let after = false
   fireDoc(dom.doc, 'keydown', {
-    key: 'Escape', preventDefault() { after = true }, stopPropagation() {},
+    key: 'Escape', preventDefault() {}, stopPropagation() { after = true },
   })
   ok(!after, 'and once the menu is gone its Escape listener is gone with it')
 }
@@ -534,7 +558,7 @@ console.log('\n6 · an imported per-cell formula, and the row that follows it')
   grid.sel.selectRow(3)
   grid.paint()
   contextmenu(rowGutter(host, 3))
-  ok(pick('below'), 'Insert row below is on the gutter menu')
+  ok(pick('Insert row below'), 'Insert row below is on the gutter menu')
   const s = sheetOf(store)
   ok(rowsIn(s) === 5, 'the row is there')
   ok(s.cells?.['total:5']?.f === '=SUM(B5:C5)',
@@ -548,7 +572,7 @@ console.log('\n6 · an imported per-cell formula, and the row that follows it')
   grid.sel.selectRow(0)
   grid.paint()
   contextmenu(rowGutter(host, 0))
-  pick('above')
+  pick('Insert row above')
   ok(sheetOf(store).cells?.['total:1'] === undefined
     || sheetOf(store).cells?.['total:5'] === undefined,
     'inserting at the TOP carries nothing: there is no row above it to read a ' +

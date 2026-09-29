@@ -81,6 +81,7 @@ import { mountHelp } from './help.ts'
 // so can never be imported by a rig — and a context menu whose items nothing
 // asserts is exactly how findings 5 and 8 shipped. See gridmenu.ts's header.
 import { popover, installGridMenus, type MenuHooks } from './gridmenu.ts'
+import { openCtxMenu, type CtxItem } from '../../kernel/src/ui/ctxmenu.ts'
 import { keyToAction, normalize } from './select.ts'
 import {
   appearancePatch, overrideKeys, ridAt, toggleTarget,
@@ -1774,25 +1775,16 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     const anchor = document.querySelector<HTMLElement>(
       `.dg-row[data-row="${cur.row}"] .dg-cell[data-ci="${cur.col}"]`)
     const box = anchor?.getBoundingClientRect()
-    const el = popover(x ?? box?.right ?? 120, y ?? box?.bottom ?? 120, items.map((i) =>
-      `<button data-a="${i.id}"${i.enabled ? '' : ` disabled title="${esc(refusalText(i.why))}"`}>` +
-      `${esc(pasteLabel(i))}</button>`).join(''))
-    el.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
-      b.onclick = () => {
-        const item = items.find((i) => i.id === b.dataset.a)
-        el.remove()
-        if (!item) return
-        // A DISABLED ITEM STILL EXPLAINS ITSELF. Removing the row would leave
-        // the reader hunting for a command that is simply not possible here;
-        // greying it and saying why is the same choice tabs.ts makes for the
-        // toolbar (`actionReason`).
-        if (!item.enabled) {
-          showFindings(findingsEl, [{ message: refusalText(item.why) }])
-          return
-        }
-        runPasteSpecial(item.what, item.transpose)
-      }
-    })
+    openCtxMenu(x ?? box?.right ?? 120, y ?? box?.bottom ?? 120, items.map((i): CtxItem => ({
+      label: pasteLabel(i),
+      disabled: !i.enabled,
+      // A DISABLED ITEM STILL EXPLAINS ITSELF, as a tooltip: removing the row
+      // would leave the reader hunting for a command that is simply not
+      // possible here, and greying it and saying why is the same choice
+      // tabs.ts makes for the toolbar (`actionReason`).
+      title: i.enabled ? undefined : refusalText(i.why),
+      run: () => runPasteSpecial(i.what, i.transpose),
+    })))
   }
 
   function runPasteSpecial(what: PasteWhat, transpose: boolean): void {
@@ -2162,23 +2154,20 @@ function showFindings(host: HTMLElement, findings: Notice[]): void {
  */
 function retype(store: Store, col: Column, x: number, y: number): void {
   const types: ColumnType[] = ['text', 'number', 'money', 'percent', 'date', 'bool']
-  const el = popover(x, y, types.map((tp) =>
-    `<button data-t="${tp}"${tp === col.type ? ' class="dx-pop-on"' : ''}>` +
-    `${esc(TYPE_LABEL[tp])}${tp === col.type ? ' ✓' : ''}</button>`).join(''))
   const sheet = store.doc.sheets.find((s) =>
     s.kind === 'table' && s.columns.some((c) => c.id === col.id)) as TableSheet | undefined
-  el.querySelectorAll<HTMLElement>('button').forEach((b) => {
-    b.onclick = () => {
-      const next = b.dataset.t as ColumnType
-      el.remove()
-      if (!sheet || next === col.type) return
+  openCtxMenu(x, y, types.map((tp): CtxItem => ({
+    label: TYPE_LABEL[tp],
+    selected: tp === col.type,
+    run: () => {
+      if (!sheet || tp === col.type) return
       // Through the shared helper, like the panel's dropdown: a type change can
       // be refused, and this menu closes itself before the commit — so without
       // a report the reader picks a type, the menu vanishes, and nothing at all
       // happens or explains why.
-      setColumnType(store, sheet.id, col.id, next, toast)
-    }
-  })
+      setColumnType(store, sheet.id, col.id, tp, toast)
+    },
+  })))
 }
 
 // --- export -----------------------------------------------------------------

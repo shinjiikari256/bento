@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The Bento authors
-// The grid's three context menus — cell, row gutter, column header — and the
-// popover they are drawn in.
+// The grid's three context menus — cell, row gutter, column header — built on
+// the kernel's shared `CtxItem`/`openCtxMenu` (kernel/src/ui/ctxmenu.ts). So
+// are main.ts's retype/paste-special pickers and panels.ts's totals-row
+// menu — every dash popover that is genuinely a flat command/choice list now
+// goes through the same primitive. `popover()`/`dismissable()` stay here,
+// exported, for the handful that are NOT a list — main.ts's promote/flatten
+// forms and filterui.ts's search box — content `CtxItem` was never meant to
+// carry; see ctxmenu.ts's own header for why that split is deliberate.
 //
 // WHY THIS IS ITS OWN FILE. The cell menu used to live in main.ts, and main.ts
 // BOOTS ON EVALUATION: a rig cannot import it, so nothing could ever assert
@@ -38,6 +44,8 @@
 
 import { t } from './i18n.ts'
 import { h } from '../../kernel/src/dom.ts'
+import { openCtxMenu, type CtxItem } from '../../kernel/src/ui/ctxmenu.ts'
+import '../../kernel/src/ui/ctxmenu.css'
 import {
   insertRowsAt, deleteRowsAt, insertColumn, deleteColumn, setHidden,
 } from './rowcol.ts'
@@ -47,11 +55,6 @@ import type { Grid } from './grid.ts'
 import {
   blankCondFmtRule, condFmtPatch, describeCondFmtRule, readCondFmt, readOperand,
 } from './condfmtui.ts'
-
-/** Local, because gridmenu.ts must not import main.ts — see the note above. */
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
 
 /**
  * The app-shaped things a menu item needs and this module must not own: a
@@ -148,8 +151,6 @@ export function dismissable(el: HTMLElement): true {
   return true
 }
 
-const sep = '<div class="dx-pop-sep"></div>'
-
 /**
  * The clipboard verbs, first on every menu.
  *
@@ -158,18 +159,11 @@ const sep = '<div class="dx-pop-sep"></div>'
  * every other application in the world puts them, and a reader scanning for
  * Copy who finds Insert row first concludes this menu is not the one.
  */
-const clipboardItems = (): string =>
-  `<button data-a="cut">${esc(t('Cut'))}</button>` +
-  `<button data-a="copy">${esc(t('Copy'))}</button>` +
-  `<button data-a="paste">${esc(t('Paste'))}</button>`
-
-/** True when this item was one of the three above, and it has been handled. */
-function runClipboard(a: string | undefined, hooks: MenuHooks): boolean {
-  if (a === 'cut') { hooks.copy(true); return true }
-  if (a === 'copy') { hooks.copy(false); return true }
-  if (a === 'paste') { hooks.paste(); return true }
-  return false
-}
+const clipboardItems = (hooks: MenuHooks): CtxItem[] => [
+  { label: t('Cut'), run: () => hooks.copy(true) },
+  { label: t('Copy'), run: () => hooks.copy(false) },
+  { label: t('Paste'), run: () => hooks.paste() },
+]
 
 /**
  * How many rows this menu is about, and where they start — in CANONICAL data
@@ -230,67 +224,64 @@ const rowsWord = (n: number): string =>
 const colsWord = (n: number): string =>
   (n === 1 ? t('column') : t('{n} columns').replace('{n}', String(n)))
 
-/** The conditional-format block, which is about a COLUMN wherever it is opened from. */
-const condFmtItems = (): string =>
-  `<button data-a="cf-gt">${esc(t('Highlight cells greater than…'))}</button>` +
-  `<button data-a="cf-dup">${esc(t('Highlight duplicate values'))}</button>` +
-  `<button data-a="cf-scale">${esc(t('Colour scale'))}</button>` +
-  `<button data-a="cf-bar">${esc(t('Data bars'))}</button>` +
-  `<button data-a="cf-more">${esc(t('More conditional formatting…'))}</button>` +
-  `<button data-a="cf-off">${esc(t('Remove formatting'))}</button>`
-
 /**
- * The conditional-format items, run. Returns true when `a` was one of them.
- *
- * ONE implementation, reached from the cell menu and the column menu, because
- * these rules are stored per column and a second copy of the writing is how
- * two menus start to disagree about what a rule is.
+ * The conditional-format block, which is about a COLUMN wherever it is
+ * opened from — reached from the cell menu and the column menu, ONE
+ * implementation, because these rules are stored per column and a second
+ * copy of the writing is how two menus start to disagree about what a rule
+ * is. The row list is the same whether or not `col` is defined (mirroring
+ * the row/column menu it never varies with the selection either) — only
+ * "More conditional formatting…" still runs without a column, since it
+ * opens the panel rather than writing a rule directly; the rest silently
+ * no-op, which they always did (`!col` guard on write).
  */
-function runCondFmt(
-  a: string | undefined, store: Store, sheet: TableSheet, col: Column | undefined, hooks: MenuHooks,
-): boolean {
-  if (a === 'cf-more') { hooks.condFmt(); return true }
-  if (!col) return a?.startsWith('cf-') ?? false
-  if (a === 'cf-gt') {
-    // THE ONE EVERYBODY REACHES FOR, one click from where they right-clicked.
-    // "Flag anyone over 40 hours" was the task that found this feature
-    // unreachable, and routing it through the panel would answer it in three
-    // moves. The panel is still there for the other five kinds and for the
-    // colours; this is the shortcut, and it writes the same rule object.
-    void hooks.askForm({
-      title: t('Highlight cells greater than…'),
-      fields: [{ key: 'n', label: t('Value'), value: '0' }],
-      submit: t('Highlight'),
-      check: (v) => (v.n.trim() === '' ? t('A value to compare against.') : null),
-    }).then((got) => {
-      if (!got) return
-      const rule = blankCondFmtRule('cellValue')
-      if (rule.kind === 'cellValue') rule.value = readOperand('>', got.n)
-      const next = [...readCondFmt(sheet, col.id), rule]
-      store.commit(condFmtPatch(sheet, col.id, next) as Patch)
-      hooks.toast(describeCondFmtRule(rule))
-    })
-    return true
-  }
-  if (a === 'cf-dup') {
-    // Job 4's other half, and the same story: implemented, persisted, painted,
-    // and unreachable.
-    const rule = blankCondFmtRule('duplicates')
-    store.commit(condFmtPatch(sheet, col.id, [...readCondFmt(sheet, col.id), rule]) as Patch)
-    hooks.toast(describeCondFmtRule(rule))
-    return true
-  }
-  if (a === 'cf-scale' || a === 'cf-bar' || a === 'cf-off') {
-    // Conditional formats are DOCUMENT data — they travel with the file — and
-    // live in an additive field, so an older build keeps them. The two presets
-    // REPLACE the column's rules rather than appending, which is what they have
-    // always done: a colour scale is a whole-column treatment and stacking two
-    // of them is never what the click meant.
-    const rules = a === 'cf-off' ? [] : [blankCondFmtRule(a === 'cf-scale' ? 'colorScale' : 'dataBar')]
-    store.commit(condFmtPatch(sheet, col.id, rules) as Patch)
-    return true
-  }
-  return false
+function condFmtItems(store: Store, sheet: TableSheet, col: Column | undefined, hooks: MenuHooks): CtxItem[] {
+  const on = (mutate: (col: Column) => void) => () => { if (col) mutate(col) }
+  return [
+    {
+      label: t('Highlight cells greater than…'),
+      // THE ONE EVERYBODY REACHES FOR, one click from where they
+      // right-clicked. "Flag anyone over 40 hours" was the task that found
+      // this feature unreachable, and routing it through the panel would
+      // answer it in three moves. The panel is still there for the other
+      // five kinds and for the colours; this is the shortcut, and it
+      // writes the same rule object.
+      run: on((col) => {
+        void hooks.askForm({
+          title: t('Highlight cells greater than…'),
+          fields: [{ key: 'n', label: t('Value'), value: '0' }],
+          submit: t('Highlight'),
+          check: (v) => (v.n.trim() === '' ? t('A value to compare against.') : null),
+        }).then((got) => {
+          if (!got) return
+          const rule = blankCondFmtRule('cellValue')
+          if (rule.kind === 'cellValue') rule.value = readOperand('>', got.n)
+          const next = [...readCondFmt(sheet, col.id), rule]
+          store.commit(condFmtPatch(sheet, col.id, next) as Patch)
+          hooks.toast(describeCondFmtRule(rule))
+        })
+      }),
+    },
+    {
+      // Job 4's other half, and the same story: implemented, persisted,
+      // painted, and unreachable.
+      label: t('Highlight duplicate values'),
+      run: on((col) => {
+        const rule = blankCondFmtRule('duplicates')
+        store.commit(condFmtPatch(sheet, col.id, [...readCondFmt(sheet, col.id), rule]) as Patch)
+        hooks.toast(describeCondFmtRule(rule))
+      }),
+    },
+    // Conditional formats are DOCUMENT data — they travel with the file —
+    // and live in an additive field, so an older build keeps them. The two
+    // presets REPLACE the column's rules rather than appending, which is
+    // what they have always done: a colour scale is a whole-column
+    // treatment and stacking two of them is never what the click meant.
+    { label: t('Colour scale'), run: on((col) => store.commit(condFmtPatch(sheet, col.id, [blankCondFmtRule('colorScale')]) as Patch)) },
+    { label: t('Data bars'), run: on((col) => store.commit(condFmtPatch(sheet, col.id, [blankCondFmtRule('dataBar')]) as Patch)) },
+    { label: t('More conditional formatting…'), run: () => hooks.condFmt() },
+    { label: t('Remove formatting'), run: on((col) => store.commit(condFmtPatch(sheet, col.id, []) as Patch)) },
+  ]
 }
 
 /**
@@ -316,13 +307,6 @@ function askInsertColumn(store: Store, grid: Grid, at: number, hooks: MenuHooks)
   })
 }
 
-/** Wire every item's click to the one action it names. */
-function onPick(el: HTMLElement, run: (a: string | undefined) => void): void {
-  el.querySelectorAll<HTMLElement>('button').forEach((b) => {
-    b.onclick = () => { run(b.dataset.a); el.remove() }
-  })
-}
-
 /** The CELL menu — a cell is the crossing of a row and a column, so it has both. */
 export function openCellMenu(
   store: Store, grid: Grid, row: number, ci: number, x: number, y: number, hooks: MenuHooks,
@@ -332,43 +316,31 @@ export function openCellMenu(
   // sheet with one column hidden the old `sheet.columns[ci]` named — and
   // deleted — the column to its right.
   const col = grid.visibleColumns()[ci]
-  const el = popover(x, y,
-    clipboardItems() + sep +
-    `<button data-a="irow-above">${esc(t('Insert row above'))}</button>` +
-    `<button data-a="irow-below">${esc(t('Insert row below'))}</button>` +
-    `<button data-a="drow">${esc(t('Delete row'))}</button>` +
-    sep +
-    `<button data-a="icol">${esc(t('Insert column'))}</button>` +
-    `<button data-a="dcol">${esc(t('Delete column'))}</button>` +
-    sep +
-    `<button data-a="fill">${esc(t('Fill down'))}</button>` +
-    `<button data-a="clear">${esc(t('Clear contents'))}</button>` +
-    sep +
-    `<button data-a="paste-special">${esc(t('Paste special…'))}</button>` +
-    `<button data-a="split">${esc(t('Split into columns…'))}</button>` +
-    sep + condFmtItems())
-  onPick(el, (a) => {
-    if (runClipboard(a, hooks)) return
-    if (runCondFmt(a, store, sheet, col, hooks)) return
-    // `row` is a VISIBLE index and every structural op takes a canonical one.
-    // They differ the moment somebody sorts, and passing the wrong one deletes
-    // the wrong row — silently, because the view re-sorts over the evidence.
-    // Each edit also carries the reference shift for the cell formulas, in the
-    // SAME commit: a document where the rows have moved and the formulas have
-    // not is a workbook of plausible wrong numbers.
-    const at = grid.canonicalRow(row)
-    if (a === 'irow-above') insertRows(store, grid, at, 1)
-    else if (a === 'irow-below') insertRows(store, grid, at + 1, 1)
-    else if (a === 'drow') deleteRows(store, grid, at, 1)
-    else if (a === 'icol') {
-      askInsertColumn(store, grid, sheet.columns.findIndex((c) => c.id === col?.id) + 1, hooks)
-    } else if (a === 'dcol' && col) {
-      deleteColumns(store, grid, [col.id])
-    } else if (a === 'fill') grid.fillDownSelection()
-    else if (a === 'clear') grid.clearSelection()
-    else if (a === 'paste-special') hooks.pasteSpecial(x, y)
-    else if (a === 'split') hooks.split()
-  })
+  // `row` is a VISIBLE index and every structural op takes a canonical one.
+  // They differ the moment somebody sorts, and passing the wrong one deletes
+  // the wrong row — silently, because the view re-sorts over the evidence.
+  // Each edit also carries the reference shift for the cell formulas, in the
+  // SAME commit: a document where the rows have moved and the formulas have
+  // not is a workbook of plausible wrong numbers.
+  const at = grid.canonicalRow(row)
+  openCtxMenu(x, y, [
+    ...clipboardItems(hooks),
+    'sep',
+    { label: t('Insert row above'), run: () => insertRows(store, grid, at, 1) },
+    { label: t('Insert row below'), run: () => insertRows(store, grid, at + 1, 1) },
+    { label: t('Delete row'), run: () => deleteRows(store, grid, at, 1) },
+    'sep',
+    { label: t('Insert column'), run: () => askInsertColumn(store, grid, sheet.columns.findIndex((c) => c.id === col?.id) + 1, hooks) },
+    { label: t('Delete column'), run: () => { if (col) deleteColumns(store, grid, [col.id]) } },
+    'sep',
+    { label: t('Fill down'), run: () => grid.fillDownSelection() },
+    { label: t('Clear contents'), run: () => grid.clearSelection() },
+    'sep',
+    { label: t('Paste special…'), run: () => hooks.pasteSpecial(x, y) },
+    { label: t('Split into columns…'), run: () => hooks.split() },
+    'sep',
+    ...condFmtItems(store, sheet, col, hooks),
+  ])
 }
 
 /** The ROW gutter menu — about whole rows, and it says how many. */
@@ -378,20 +350,15 @@ export function openRowMenu(
   const { at, count } = rowSpan(grid, row)
   if (at < 0) return
   const n = rowsWord(count)
-  const el = popover(x, y,
-    clipboardItems() + sep +
-    `<button data-a="above">${esc(t('Insert {n} above').replace('{n}', n))}</button>` +
-    `<button data-a="below">${esc(t('Insert {n} below').replace('{n}', n))}</button>` +
-    `<button data-a="del">${esc(t('Delete {n}').replace('{n}', n))}</button>` +
-    sep +
-    `<button data-a="clear">${esc(t('Clear contents'))}</button>`)
-  onPick(el, (a) => {
-    if (runClipboard(a, hooks)) return
-    if (a === 'above') insertRows(store, grid, at, count)
-    else if (a === 'below') insertRows(store, grid, at + count, count)
-    else if (a === 'del') deleteRows(store, grid, at, count)
-    else if (a === 'clear') grid.clearSelection()
-  })
+  openCtxMenu(x, y, [
+    ...clipboardItems(hooks),
+    'sep',
+    { label: t('Insert {n} above').replace('{n}', n), run: () => insertRows(store, grid, at, count) },
+    { label: t('Insert {n} below').replace('{n}', n), run: () => insertRows(store, grid, at + count, count) },
+    { label: t('Delete {n}').replace('{n}', n), run: () => deleteRows(store, grid, at, count) },
+    'sep',
+    { label: t('Clear contents'), run: () => grid.clearSelection() },
+  ])
 }
 
 /** The COLUMN header menu — about whole columns, and it says how many. */
@@ -403,29 +370,21 @@ export function openColMenu(
   if (at < 0) return
   const col = sheet.columns.find((c) => c.id === colId)
   const n = colsWord(count)
-  const el = popover(x, y,
-    clipboardItems() + sep +
-    `<button data-a="left">${esc(t('Insert {n} to the left').replace('{n}', n))}</button>` +
-    `<button data-a="right">${esc(t('Insert {n} to the right').replace('{n}', n))}</button>` +
-    `<button data-a="del">${esc(t('Delete {n}').replace('{n}', n))}</button>` +
-    sep +
-    `<button data-a="clear">${esc(t('Clear contents'))}</button>` +
-    `<button data-a="split">${esc(t('Split into columns…'))}</button>` +
-    sep +
-    `<button data-a="sort">${esc(t('Sort and filter…'))}</button>` +
-    `<button data-a="hide">${esc(t('Hide this column'))}</button>` +
-    sep + condFmtItems())
-  onPick(el, (a) => {
-    if (runClipboard(a, hooks)) return
-    if (runCondFmt(a, store, sheet, col, hooks)) return
-    if (a === 'left') askInsertColumn(store, grid, at, hooks)
-    else if (a === 'right') askInsertColumn(store, grid, at + count, hooks)
-    else if (a === 'del') deleteColumns(store, grid, ids)
-    else if (a === 'clear') grid.clearSelection()
-    else if (a === 'split') hooks.split()
-    else if (a === 'sort') hooks.filterMenu(colId, x, y)
-    else if (a === 'hide') store.commit(setHidden(sheet, colId, true))
-  })
+  openCtxMenu(x, y, [
+    ...clipboardItems(hooks),
+    'sep',
+    { label: t('Insert {n} to the left').replace('{n}', n), run: () => askInsertColumn(store, grid, at, hooks) },
+    { label: t('Insert {n} to the right').replace('{n}', n), run: () => askInsertColumn(store, grid, at + count, hooks) },
+    { label: t('Delete {n}').replace('{n}', n), run: () => deleteColumns(store, grid, ids) },
+    'sep',
+    { label: t('Clear contents'), run: () => grid.clearSelection() },
+    { label: t('Split into columns…'), run: () => hooks.split() },
+    'sep',
+    { label: t('Sort and filter…'), run: () => hooks.filterMenu(colId, x, y) },
+    { label: t('Hide this column'), run: () => store.commit(setHidden(sheet, colId, true)) },
+    'sep',
+    ...condFmtItems(store, sheet, col, hooks),
+  ])
 }
 
 /**
