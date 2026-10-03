@@ -185,8 +185,23 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
       catch { /* clipboard blocked — the agent surface below still works */ }
     }),
     button(t('Replace from JSON…'), () => {
-      const json = prompt(t('Paste a bento/type document JSON. This replaces the document and can be undone with ⌘Z.'));
-      if (json) onReplaceDoc(json);
+      if (card.querySelector('.t-replace-json')) return;
+      const ta = h('textarea.t-replace-json', {
+        spellcheck: false,
+        placeholder: t('Paste a bento/type document JSON. This replaces the document and can be undone with ⌘Z.'),
+      });
+      const go = button(t('Replace'), () => {
+        if (!ta.value.trim()) { ta.focus(); return; }
+        onReplaceDoc(ta.value);
+        panel.remove();
+      });
+      const cancel = button(t('Cancel'), () => panel.remove());
+      const actRow = h('div.t-row');
+      actRow.append(go, cancel);
+      const panel = h('div.t-replace-json-panel');
+      panel.append(ta, actRow);
+      jsonRow.after(panel);
+      ta.focus();
     }),
   );
   card.append(jsonRow);

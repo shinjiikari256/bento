@@ -455,10 +455,10 @@ function documentSection(host: HTMLElement, ctx: FeatureContext): void {
   const trk = el('input') as HTMLInputElement;
   trk.type = 'checkbox';
   trk.checked = doc.track === true;
-  trk.addEventListener('change', () => {
+  trk.addEventListener('change', async () => {
     // Ask for a name at the moment tracking is switched ON — the one place a
     // prompt is expected. Every keystroke afterwards is attributed silently.
-    if (trk.checked) ensureAuthor();
+    if (trk.checked) await ensureAuthor();
     ctx.store.commit(d => { if (trk.checked) d.track = true; else delete d.track; });
     ctx.refresh();
   });

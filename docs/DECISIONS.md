@@ -204,6 +204,28 @@ fit; `"Reset"`/`"Set password"` reuse the translations already
 established for the identical strings in dash. All 8 core locales
 repacked, 100% complete (`scripts/build-spaces-i18n.mjs`).
 
+### Adopted in `type`
+
+Its one `window.prompt` (`main.ts`'s signing-name field) and every
+unprefixed `confirm()`/`prompt()` move to `confirmDialog`/`promptDialog`:
+`cite.ts`'s Remove, `collab.ts`'s Reset access, `comments.ts`'s
+`authorName()`/`ensureAuthor()` (now `async`, rippling to their three
+callers — `addComment`, the reply button, `props.ts`'s track-changes
+checkbox) and its thread-delete confirm, and `image.ts`'s embed-budget
+confirm.
+
+**`about.ts`'s "Replace from JSON…" is the one case `promptDialog`'s
+single-line field doesn't fit** — pasting a whole document needs a
+`<textarea>`, not an `<input>` — so it keeps its own small
+reveal-a-panel treatment (`.t-replace-json`), matching the pattern dash/
+spaces/slides already use for the identical job (dash's `about.ts`
+`openPaste`, slides' `openReplaceJson`).
+
+New catalog strings `"Comment"`/`"Comment:"` added fresh (type had no
+bare noun for it, only the already-translated "Comment on “{quote}”");
+`"Reset"` reuses the translation already established elsewhere. All 8
+locales repacked, 402/402 complete.
+
 ## 2026-09-29 — Context menu: `kernel/src/ui/ctxmenu.ts`, a SIBLING of menu.ts
 
 **Decision.** `kernel/src/ui/ctxmenu.ts` + `ctxmenu.css`, guarded by

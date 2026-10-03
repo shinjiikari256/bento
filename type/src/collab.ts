@@ -46,6 +46,7 @@ import type { TypeDoc } from './model.ts';
 import { copyCanWrite } from './model.ts';
 import { t } from './i18n.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts';
 
 // ─────────────────────────────────────────────────────────────── small DOM
 
@@ -385,7 +386,10 @@ export function initCollab(store: Store, editor: Editor): void {
           t('Connect to the live session without saving a new copy — copies you sent earlier will meet you there.'));
       }
       action(t('Reset access…'), false, async () => {
-        if (!confirm(t('Reset access? Every copy you’ve sent stops syncing; only copies saved after this can join.'))) return;
+        if (!(await confirmDialog({
+          message: t('Reset access? Every copy you’ve sent stops syncing; only copies saved after this can join.'),
+          cancelLabel: t('Cancel'), confirmLabel: t('Reset'), danger: true,
+        }))) return;
         await rotateKeys(session, hostStore(store));
         toast(t('Access reset — only copies saved from now on can join'));
         renderPanel();

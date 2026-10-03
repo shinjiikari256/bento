@@ -19,6 +19,7 @@ import { ICONS } from './icons.ts';
 import { IMAGE_EMBED_BUDGET, SAFE_IMG } from './model.ts';
 import { t } from './i18n.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts';
 
 /** Read a picked file as a data URI. Rejects anything that is not an image. */
 export function readImage(file: File): Promise<{ src: string; alt: string }> {
@@ -55,9 +56,12 @@ registerTool({
       input.remove();
       if (!file) return;
       if (file.size > IMAGE_EMBED_BUDGET) {
-        const go = confirm(t(
-          'This picture is {size}, and embedding it makes the document that much bigger. Insert it anyway?',
-          { size: humanSize(file.size) }));
+        const go = await confirmDialog({
+          message: t(
+            'This picture is {size}, and embedding it makes the document that much bigger. Insert it anyway?',
+            { size: humanSize(file.size) }),
+          cancelLabel: t('Cancel'), confirmLabel: t('Insert'),
+        });
         if (!go) return;
       }
       try {

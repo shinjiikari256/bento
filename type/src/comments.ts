@@ -136,6 +136,7 @@ import { uid, type Block, type TypeDoc } from './model.ts';
 import { registerTool, registerPanel, registerKey, registerMenuItem, registerReady, type FeatureContext } from './features.ts';
 import { t } from './i18n.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts';
 // NOT `import './comments.css'` here: model.ts imports this module's pure
 // functions (readThreadsRaw, reconcileThreads) for parsing, and model.ts is
 // imported by nearly every test rig under plain Node, which cannot load a
@@ -588,7 +589,7 @@ export function knownAuthor(): string {
 }
 
 /** Ask for a name if there isn't one, without the caller needing a comment. */
-export const ensureAuthor = (): string => authorName();
+export const ensureAuthor = (): Promise<string> => authorName();
 
 /**
  * Set the name directly — the primary path, from the About dialog's "You"
@@ -608,13 +609,16 @@ export function setAuthorName(name: string): void {
 }
 
 /** Who you are, as bento/slides records it — one suite, one answer. */
-function authorName(): string {
+async function authorName(): Promise<string> {
   let who = '';
   try { who = localStorage.getItem(AUTHOR_KEY) ?? ''; } catch { /* private mode */ }
   if (who) return who;
-  const asked = typeof prompt === 'function'
-    ? prompt(t('Your name, so your comments are attributed'), '') : '';
-  who = (asked ?? '').trim();
+  const got = await promptDialog({
+    title: t('Name'),
+    fields: [{ key: 'who', label: t('Your name, so your comments are attributed') }],
+    cancelLabel: t('Cancel'), submitLabel: t('Save'),
+  });
+  who = (got?.who ?? '').trim();
   if (who) { try { localStorage.setItem(AUTHOR_KEY, who); } catch { /* ignore */ } }
   // NOT t(): this becomes CONTENT in the file, and content does not change
   // language when somebody else opens it.
@@ -788,10 +792,10 @@ function buildMessage(ctx: FeatureContext, th: CommentThread, m: CommentMsg, cls
       textContent: t('Delete'),
       title: th.messages.length > 1 ? t('Delete your comment') : t('Delete this thread'),
     });
-    delBtn.addEventListener('click', () => {
+    delBtn.addEventListener('click', async () => {
       const question = th.messages.length > 1
         ? t('Delete this comment?') : t('Delete this whole thread?');
-      if (!confirm(question)) return;
+      if (!(await confirmDialog({ message: question, cancelLabel: t('Cancel'), confirmLabel: t('Delete'), danger: true }))) return;
       mutateThread(ctx, th.id, cur => deleteMessage(cur, m.id));
     });
     tools.append(editBtn, delBtn);
@@ -852,10 +856,11 @@ function threadActions(ctx: FeatureContext, th: CommentThread): HTMLElement {
   const input = h('textarea', { rows: 2, placeholder: t('Reply…') });
   const row = h('div.btns');
   const send = h('button', { type: 'button', textContent: t('Reply') });
-  send.addEventListener('click', () => {
+  send.addEventListener('click', async () => {
     const text = input.value.trim();
     if (!text) return;
-    mutateThread(ctx, th.id, cur => addReply(cur, authorName(), text));
+    const who = await authorName();
+    mutateThread(ctx, th.id, cur => addReply(cur, who, text));
     input.value = '';
   });
   const res = h('button', { type: 'button', textContent: th.resolved ? t('Reopen') : t('Resolve') });
@@ -906,7 +911,7 @@ function select(ctx: FeatureContext, id: string | null): void {
 // ─────────────────────────────────────────────────────────────── the feature
 
 /** Comment on the current selection. */
-function addComment(ctx: FeatureContext): void {
+async function addComment(ctx: FeatureContext): Promise<void> {
   const c = ctx.editor.caret();
   if (!c || c.to === undefined || c.to === c.at) {
     ctx.toast(t('Select some text first, then comment on it'));
@@ -915,10 +920,13 @@ function addComment(ctx: FeatureContext): void {
   const from = Math.min(c.at, c.to), to = Math.max(c.at, c.to);
   const blk = ctx.store.block(c.id);
   if (!blk) return;
-  const who = authorName();
-  const text = typeof prompt === 'function'
-    ? (prompt(t('Comment on “{quote}”', { quote: blk.text.slice(from, to).slice(0, 60) })) ?? '').trim()
-    : '';
+  const who = await authorName();
+  const got = await promptDialog({
+    title: t('Comment on “{quote}”', { quote: blk.text.slice(from, to).slice(0, 60) }),
+    fields: [{ key: 'text', label: t('Comment:') }],
+    cancelLabel: t('Cancel'), submitLabel: t('Comment'),
+  });
+  const text = (got?.text ?? '').trim();
   if (!text) return;
   const th = newThread(blk, from, to, who, text);
   ctx.store.commit(d => { writeThreads(d, [...readThreadsRaw(d), th]); });

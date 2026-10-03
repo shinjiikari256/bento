@@ -26,6 +26,7 @@ import { takeSnapshot, startReview } from './redlineview.ts';
 import { printDocument, buildPrintDocument } from './print.ts';
 import { sign as signDoc, verifyChain, newKey } from './canon.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { promptDialog } from '../../kernel/src/ui/promptdialog.ts';
 
 // Tell the kernel who this app is — must precede any kernel module use
 // (window title suffix, save-picker label, update manifest).
@@ -797,7 +798,12 @@ const fingerprint = (pub: string) =>
 document.getElementById('sign')!.addEventListener('click', async () => {
   let who = '';
   try { who = localStorage.getItem('bento-type-name') ?? ''; } catch { /* ignore */ }
-  const name = window.prompt('Your name, shown beside the signature', who);
+  const got = await promptDialog({
+    title: 'Sign',
+    fields: [{ key: 'name', label: 'Your name, shown beside the signature', value: who }],
+    cancelLabel: 'Cancel', submitLabel: 'Sign',
+  });
+  const name = got?.name.trim();
   if (!name) return;
   try { localStorage.setItem('bento-type-name', name); } catch { /* ignore */ }
   const key = await getKey();

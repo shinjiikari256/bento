@@ -171,6 +171,7 @@ import {
   type BibEntry, type Bibliography, type CiteRef, type CiteStyle,
 } from './cite/types.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts';
 
 export { parseBibtex, decodeTex } from './cite/bibtex.ts';
 export * from './cite/format.ts';
@@ -548,9 +549,12 @@ function mountPanel(host: HTMLElement, ctx: FeatureContext): void {
       card.append(el('div', 'what', referenceText(bib[key], res.style, res.suffix[key] ?? '')));
       const btns = el('div', 'btns');
       btns.append(btn(t('Cite here'), () => { insertCitation(ctx, [key]); }, ''));
-      btns.append(btn(t('Remove'), () => {
+      btns.append(btn(t('Remove'), async () => {
         if (counts.get(key)
-            && !confirm(t('{key} is cited in this document. Remove it anyway?', { key }))) return;
+            && !(await confirmDialog({
+              message: t('{key} is cited in this document. Remove it anyway?', { key }),
+              cancelLabel: t('Cancel'), confirmLabel: t('Remove'), danger: true,
+            }))) return;
         removeEntry(ctx, key);
         draw();
       }, ''));
