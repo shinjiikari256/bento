@@ -145,7 +145,8 @@ function boxOf(el: El, width: number, first: boolean): Box {
     }
     return { mt: 0, h: Math.min(inner, VERS_CAP) + 8 + 2, mb: 0 }
   }
-  if (has('dx-about-paste')) return { mt: 8, h: 144 + 18, mb: 0 }
+  // 7rem min-height (jsoneditor.css) + .bk-field's 4px/8px padding + 1px border
+  if (has('dx-about-paste')) return { mt: 8, h: 112 + 10, mb: 0 }
   throw new Error(`no box for <${el.tagName} class="${cls}"> — teach the model or the surface grew a shape nobody sized`)
 }
 

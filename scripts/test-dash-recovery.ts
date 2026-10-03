@@ -363,8 +363,10 @@ console.log('\nrestoring a whole workbook is reversible, from both surfaces')
   // The replace-from-JSON path KEEPS its confirm, and that is not an
   // inconsistency: it is fed by a paste of arbitrary text with nothing behind
   // it to offer back, and its own comment says so. Pinned here so a later sweep
-  // for confirm() does not remove the one that is load-bearing.
-  ok(/confirm\(t\('Replace this workbook with the pasted JSON/.test(about),
+  // for confirm() does not remove the one that is load-bearing. confirmDialog()
+  // replaced window.confirm() repo-wide since this test last looked (kernel's
+  // promptdialog.ts) — same confirm, different mechanism.
+  ok(/confirmDialog\(\{\s*message: t\('Replace this workbook with the pasted JSON/.test(about),
     'Replace-from-JSON still confirms first — a paste has no earlier state worth naming')
 }
 

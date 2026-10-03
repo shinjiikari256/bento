@@ -60,6 +60,8 @@ import { t } from './i18n.ts'
 import { docBudget, docBytes, parseDoc, rowCount, type DashDoc, type DocMeta , docForExport } from './model.ts'
 import { h } from '../../kernel/src/dom.ts'
 import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts'
+import { createJsonEditor } from '../../kernel/src/ui/jsoneditor.ts'
+import '../../kernel/src/ui/jsoneditor.css'
 
 // The update check and the theme moved to settings.ts with the surface that
 // shows them. They are re-exported because main.ts calls `checkAtLaunch` from
@@ -378,10 +380,9 @@ export function openAbout(hooks: AboutHooks): void {
   function openPaste(): void {
     if (store.readOnly) { outNote.textContent = t('This workbook is open read-only.'); return }
     if (card.querySelector('.dx-about-paste')) return
-    const ta = h('textarea.dx-about-paste', {
-      spellcheck: false,
-      placeholder: t('Paste bento/dash document JSON here'),
-    })
+    const je = createJsonEditor({ placeholder: t('Paste bento/dash document JSON here') })
+    const ta = je.el
+    ta.classList.add('dx-about-paste')
     const go = d.button(t('Replace workbook'), async () => {
       if (!ta.value.trim()) { ta.focus(); return }
       const res = parseDoc(ta.value)

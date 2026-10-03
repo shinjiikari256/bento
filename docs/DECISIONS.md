@@ -126,6 +126,36 @@ Pointers: `kernel/src/ui/jsoneditor.ts`, `kernel/src/ui/jsoneditor.css`,
 `scripts/test-ui-jsoneditor.ts`, `working/PLAN-1-shared-infra.md` (item 6).
 Adopted in dash, spaces, type and slides — see each app's own entry.
 
+### Adopted in `slides`
+
+The chart "Advanced (JSON)" escape hatch (`panels.ts`) and the About
+dialog's "Replace from JSON…" paste box (`editor.ts`) — two independently
+hand-rolled textarea+`JSON.parse`+invalid-class panels — move to
+`createJsonEditor()`. `openReplaceJson` keeps its own `parseDocInputReport()`
+call on Apply (bento-doc validation is a superset of "is this JSON" that
+the primitive deliberately does not own), layered on top of the
+primitive's live syntax feedback. The two dead `.ed-chart-json`/
+`.ed-about-json` rules this drops were both carrying a `[dir="rtl"]`
+`direction: ltr` override, now `jsoneditor.css`'s own `.bkj-editor` rule
+unconditionally (JSON reads left-to-right regardless of document
+direction, so it is correct for an LTR document too).
+
+### Adopted in `dash`
+
+`about.ts`'s own "Replace workbook" paste panel (`openPaste`) — one more
+independently hand-rolled instance of the identical shape — moves to
+`createJsonEditor()` the same way slides' did; `parseDoc(ta.value)` on
+Apply keeps doing dash's own deeper workbook validation. The dead
+`.dx-about-paste` box-styling rule drops (fieldize()'s `.bk-field` covers
+it); `.dx-about-paste` survives as a one-line margin-only class, since the
+primitive carries no margin of its own.
+
+**Caught in the same pass**: `scripts/test-dash-recovery.ts` pinned a
+regex against the OLD `confirm(t('Replace this workbook…` call shape from
+BEFORE dash's `promptdialog.ts` adoption (the 2026-10-03 entry below) —
+that conversion had silently left this one test unrun/unnoticed and
+failing. Updated to match `confirmDialog({ message: t(…`.
+
 ## 2026-10-03 — `window.prompt`/`window.confirm` replaced: `kernel/src/ui/promptdialog.ts`
 
 **Decision.** `promptDialog(opts)`/`confirmDialog(opts)`, built ON `createDialog`
