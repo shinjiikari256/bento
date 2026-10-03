@@ -9,6 +9,7 @@ import { MEDIA_EMBED_BUDGET, applyChartPalette, defaultChart, internAsset, morph
 import { CROP_MAX_SCALE, normalizeCrop } from '../crop'
 import { LANGS } from '../../../kernel/src/tokenize.ts'
 import { h } from '../../../kernel/src/dom.ts'
+import { confirmDialog, promptDialog } from '../../../kernel/src/ui/promptdialog.ts'
 import '../../../kernel/src/ui/field.css'
 import { fieldize } from '../../../kernel/src/ui/field.ts'
 import { resolveAsset } from '../render'
@@ -467,8 +468,13 @@ export class PropsPanel {
       textContent: t('＋ Save slide as layout…'),
       title: "Add this slide to the document's layout picker (New slide button)",
     })
-    saveLy.addEventListener('click', () => {
-      const name = window.prompt('Layout name', this.store.slide.name ?? 'My layout')
+    saveLy.addEventListener('click', async () => {
+      const got = await promptDialog({
+        title: 'Save as layout',
+        fields: [{ key: 'name', label: 'Layout name', value: this.store.slide.name ?? 'My layout' }],
+        cancelLabel: t('Cancel'), submitLabel: t('Save'),
+      })
+      const name = got?.name.trim()
       if (!name) return
       this.edit(() => {
         const doc = this.store.doc
@@ -1814,12 +1820,15 @@ export class PropsPanel {
     const replace = h('button.ed-btn.ed-btn-block', { textContent: el.src ? t('Replace file…') : t('Choose file…') })
     replace.addEventListener('click', () => {
       const input = h('input', { type: 'file', accept: el.kind === 'audio' ? 'audio/*' : 'video/*' })
-      input.addEventListener('change', () => {
+      input.addEventListener('change', async () => {
         const file = input.files?.[0]
         if (!file) return
         if (file.size > MEDIA_EMBED_BUDGET) {
           const mb = Math.round(file.size / (1024 * 1024))
-          if (!confirm(t('This file is {mb} MB. Embedding makes the .bento.html large and slow to open and save. Embed anyway?', { mb }))) return
+          if (!(await confirmDialog({
+            message: t('This file is {mb} MB. Embedding makes the .bento.html large and slow to open and save. Embed anyway?', { mb }),
+            cancelLabel: t('Cancel'), confirmLabel: t('Embed anyway'),
+          }))) return
         }
         const reader = new FileReader()
         // interned, not inline — same reason as every other embed site: only

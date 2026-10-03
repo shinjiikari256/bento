@@ -226,6 +226,40 @@ bare noun for it, only the already-translated "Comment on “{quote}”");
 `"Reset"` reuses the translation already established elsewhere. All 8
 locales repacked, 402/402 complete.
 
+### Adopted in `slides`
+
+`editor/comments.ts`'s `commentAuthor()`/`changeCommentAuthor()`/
+`openNew()` — nearly the same three `window.prompt` sites spaces'
+`comments.ts` has, independently written — become `async` and move to
+`promptDialog`, rippling to `canvas.ts`'s comment-anchor click, the
+"you: name" button, and Reply. `editor.ts`'s `startFromScratch`/
+`deleteSlides`/`deleteSlide` (`window.confirm`) and `promptMediaUrl`/
+`panels.ts`'s "save as layout" (`window.prompt`) move the same way.
+
+Every unprefixed `confirm()` moves too: `issueNewTickets`, the People
+panel's Remove and Reset access, `pickMedia`'s and `panels.ts`'s
+embed-budget confirms, and `openDroppedDeck`'s unsaved-changes guard.
+`openDroppedDeck`'s own comment about `requestPermission()` needing a
+live user gesture gets a note: the confirm dialog's own Open click is
+itself a fresh gesture, closer to that call than the original drop, not
+further from it — the same reasoning dash's `dropopen.ts` conversion
+relied on.
+
+New catalog strings `"Replace"` (`startFromScratch`'s confirm button —
+slides had no generic OK/Yes/Confirm word at all), `"Issue"`,
+`"Embed anyway"` (not the existing `"Embed"` key — that one is already a
+*noun*, the element-type section heading, and reusing it for an
+imperative button would be the wrong grammatical form in languages that
+distinguish them) and `"Open"` added fresh; `"Reset"` reuses the
+translation already established in dash/spaces/type. All 8 core locales
+repacked, 941/941 complete.
+
+**All four apps now adopt `promptDialog`/`confirmDialog`.** Every
+`window.prompt`/`window.confirm` in the repo is gone, and so is every
+unprefixed `prompt()`/`confirm()` — the same globals, found by a second,
+wider sweep after the first grep (anchored on `window\.`) missed roughly
+25 of them across dash, spaces, type and slides.
+
 ## 2026-09-29 — Context menu: `kernel/src/ui/ctxmenu.ts`, a SIBLING of menu.ts
 
 **Decision.** `kernel/src/ui/ctxmenu.ts` + `ctxmenu.css`, guarded by

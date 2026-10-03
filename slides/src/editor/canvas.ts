@@ -732,8 +732,8 @@ export class SlideCanvas {
       cleanup()
       ev.preventDefault()
       ev.stopPropagation()
-      if (!a) this.comments.openNew() // off-slide canvas click = whole slide
-      else this.comments.openNew(a.el?.id, a.el ? undefined : { x: a.x, y: a.y })
+      if (!a) void this.comments.openNew() // off-slide canvas click = whole slide
+      else void this.comments.openNew(a.el?.id, a.el ? undefined : { x: a.x, y: a.y })
     }
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === 'Escape') cleanup()

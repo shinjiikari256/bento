@@ -294,7 +294,9 @@ something `kernel/` already has:
   on `createDialog` (`dialog.ts`) for the modal shell; every text field runs
   through `fieldize()`. `cancelLabel`/`submitLabel`/`confirmLabel` are
   required — no hardcoded English default, since kernel has no app's `t()`
-  to call.
+  to call. Adopted in all four apps — every `window.prompt`/
+  `window.confirm`, and every unprefixed `prompt()`/`confirm()`, in the
+  repo is gone.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`

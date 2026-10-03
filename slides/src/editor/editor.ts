@@ -25,6 +25,7 @@ import { SlideCanvas } from './canvas'
 import { PropsPanel } from './panels'
 import { openCtxMenu, type CtxItem } from '../../../kernel/src/ui/ctxmenu.ts'
 import '../../../kernel/src/ui/ctxmenu.css'
+import { promptDialog, confirmDialog } from '../../../kernel/src/ui/promptdialog.ts'
 import { startPresentation } from '../present'
 // serializeFile (plain output) is deliberately NOT imported here: every path
 // in this file writes a real file for a person, so all of them must inherit an
@@ -1001,7 +1002,7 @@ export class Editor {
         () => { window.open(IMPORT_PPTX_URL, '_blank', 'noopener,noreferrer') })
       item(ICONS.template, t('Start from scratch…'),
         t('Replace every slide with one blank slide. Keeps the deck’s theme, name and live session — ⌘Z undoes.'),
-        () => this.startFromScratch())
+        () => void this.startFromScratch())
     }
   }
 
@@ -1044,9 +1045,12 @@ export class Editor {
    * lands as an ordinary edit everyone sees, which is what "let's start over
    * on this deck" means. One commit, so ⌘Z brings the whole deck back.
    */
-  private startFromScratch() {
+  private async startFromScratch() {
     const n = this.store.doc.slides.length
-    if (!window.confirm(t('Replace all {n} slides with one blank slide? ⌘Z undoes this.', { n: String(n) }))) return
+    if (!(await confirmDialog({
+      message: t('Replace all {n} slides with one blank slide? ⌘Z undoes this.', { n: String(n) }),
+      cancelLabel: t('Cancel'), confirmLabel: t('Replace'), danger: true,
+    }))) return
     const blank = builtinLayouts().find((l) => l.id === 'layout-blank')
     if (!blank) return
     this.canvas.commitTextEdit() // a live text edit would commit ONTO the new slide
@@ -1126,7 +1130,10 @@ export class Editor {
     }
     const old = c.audience
     if (!old) { this.toast(t('No audience tickets have been issued for this deck')); return }
-    if (!confirm(t('Issue new tickets? Every audience copy saved so far will stop working, including ones you handed out for a recurring session.'))) return
+    if (!(await confirmDialog({
+      message: t('Issue new tickets? Every audience copy saved so far will stop working, including ones you handed out for a recurring session.'),
+      cancelLabel: t('Cancel'), confirmLabel: t('Issue'), danger: true,
+    }))) return
     const tr = onlineTransport()
     if (tr) await tr.revokeKey(old.invite.pub, c.owner, c.ownerPriv) // defence in depth behind the key change
     this.store.commit(() => { delete this.store.doc.collab!.audience })
@@ -1455,7 +1462,10 @@ export class Editor {
           })
           kick.addEventListener('click', async (ev) => {
             ev.stopPropagation()
-            if (!confirm(t('Remove {name} from this deck? Their copy drops to read-only.', { name: peer.name }))) return
+            if (!(await confirmDialog({
+              message: t('Remove {name} from this deck? Their copy drops to read-only.', { name: peer.name }),
+              cancelLabel: t('Cancel'), confirmLabel: t('Remove'), danger: true,
+            }))) return
             const tr = onlineTransport()
             const ok = tr && (await tr.revokeKey(peer.pub!, cme!.owner!, cme!.ownerPriv!))
             this.toast(ok ? t('{name} was removed', { name: peer.name }) : t('Couldn’t reach the live session'))
@@ -1544,7 +1554,10 @@ export class Editor {
       }
       action(ICONS.key, t('Reset access…'), async () => {
         if (!this.session) return
-        if (!confirm(t('Reset access? Every copy you’ve sent stops syncing; only copies saved after this can join.'))) return
+        if (!(await confirmDialog({
+          message: t('Reset access? Every copy you’ve sent stops syncing; only copies saved after this can join.'),
+          cancelLabel: t('Cancel'), confirmLabel: t('Reset'), danger: true,
+        }))) return
         await rotateKeys(this.session, this.store)
         this.toast(t('Access reset — only copies saved from now on can join'))
         this.renderSharePanel()
@@ -1830,7 +1843,7 @@ export class Editor {
     const tools = div('ed-thumb-tools')
     tools.append(
       btn(ICONS.copy, '', (ev) => { ev.stopPropagation(); this.duplicateSlide(i) }, t('Duplicate slide')),
-      btn(ICONS.trash, '', (ev) => { ev.stopPropagation(); this.deleteSlides(this.thumbTargets(i)) }, t('Delete slide')),
+      btn(ICONS.trash, '', (ev) => { ev.stopPropagation(); void this.deleteSlides(this.thumbTargets(i)) }, t('Delete slide')),
     )
     item.append(num, surface, tools)
     item.addEventListener('click', (ev) => {
@@ -2100,7 +2113,7 @@ export class Editor {
   /** Delete several units at once — the sidebar's multi-selection — with
    *  the same cascade and confirm as one slide (states go with parents,
    *  links into the doomed are cleared, a linear slide must survive). */
-  private deleteSlides(indices: number[]) {
+  private async deleteSlides(indices: number[]) {
     if (indices.length === 1) return this.deleteSlide(indices[0])
     const plan = deletePlan(this.store.doc.slides, indices)
     if (!plan.survives) return this.toast(t('A deck needs at least one slide'))
@@ -2109,7 +2122,10 @@ export class Editor {
       plan.states ? `${plan.states} interactive state${plan.states > 1 ? 's' : ''} will be deleted with them` : '',
       plan.links ? `${plan.links} element link${plan.links > 1 ? 's' : ''} will be cleared` : '',
     ].filter(Boolean).join('; ')
-    if (!window.confirm(parts ? t('Delete {n} slides? {parts}.', { n: String(n), parts }) : t('Delete {n} slides?', { n: String(n) }))) return
+    if (!(await confirmDialog({
+      message: parts ? t('Delete {n} slides? {parts}.', { n: String(n), parts }) : t('Delete {n} slides?', { n: String(n) }),
+      cancelLabel: t('Cancel'), confirmLabel: t('Delete'), danger: true,
+    }))) return
     const doomed = plan.doomed
     this.store.commit(() => {
       this.store.doc.slides = this.store.doc.slides.filter((s) => !doomed.has(s.id))
@@ -2118,7 +2134,7 @@ export class Editor {
     this.setThumbSel([])
   }
 
-  private deleteSlide(i: number) {
+  private async deleteSlide(i: number) {
     const target = this.store.doc.slides[i]
     if (!target) return
     // dependents: states of this slide, and element links pointing at it
@@ -2142,7 +2158,10 @@ export class Editor {
         states.length ? `${states.length} interactive state${states.length > 1 ? 's' : ''} will be deleted with it` : '',
         linkCount ? `${linkCount} element link${linkCount > 1 ? 's' : ''} will be cleared` : '',
       ].filter(Boolean).join('; ')
-      if (!window.confirm(t('Delete this slide? {parts}.', { parts }))) return
+      if (!(await confirmDialog({
+        message: t('Delete this slide? {parts}.', { parts }),
+        cancelLabel: t('Cancel'), confirmLabel: t('Delete'), danger: true,
+      }))) return
     }
     this.store.commit(() => {
       this.store.doc.slides = this.store.doc.slides.filter((s) => !doomedIds.has(s.id))
@@ -2247,8 +2266,8 @@ export class Editor {
       menu.appendChild(btn(ICONS.media, t(label), () => { wrap.classList.remove('open'); onClick() }))
     }
     item('Video or audio file…', () => this.pickMedia())
-    item('Video from a link…', () => this.promptMediaUrl('video'))
-    item('Audio from a link…', () => this.promptMediaUrl('audio'))
+    item('Video from a link…', () => void this.promptMediaUrl('video'))
+    item('Audio from a link…', () => void this.promptMediaUrl('audio'))
     wrap.append(trigger, menu)
     document.addEventListener('pointerdown', (ev) => {
       if (!wrap.contains(ev.target as Node)) wrap.classList.remove('open')
@@ -2257,26 +2276,34 @@ export class Editor {
   }
 
   /** Insert a media element that REFERENCES a URL (not embedded). */
-  private promptMediaUrl(kind: 'video' | 'audio') {
+  private async promptMediaUrl(kind: 'video' | 'audio') {
     // t(kind), not kind: 'video'/'audio' are model words here, and dropping
     // them raw into a translated sentence leaves one English noun in it.
-    const url = window.prompt(t('Paste the {kind} URL — it stays a link, the file is not embedded:', { kind: t(kind) }))?.trim()
+    const got = await promptDialog({
+      title: t(kind),
+      fields: [{ key: 'url', label: t('Paste the {kind} URL — it stays a link, the file is not embedded:', { kind: t(kind) }) }],
+      cancelLabel: t('Cancel'), submitLabel: t('Insert'),
+    })
+    const url = got?.url.trim()
     if (!url) return
     this.insertMedia(kind, url)
   }
 
   private pickMedia() {
     const input = h('input', { type: 'file', accept: 'video/*,audio/*' })
-    input.addEventListener('change', () => {
+    input.addEventListener('change', async () => {
       const file = input.files?.[0]
       if (!file) return
       const kind: 'video' | 'audio' = file.type.startsWith('audio') ? 'audio' : 'video'
       if (file.size > MEDIA_EMBED_BUDGET) {
         const mb = Math.round(file.size / (1024 * 1024))
-        const ok = confirm(t(
-          'This {kind} is {mb} MB. Embedding keeps it inside the .bento.html but makes the file large and slow to open and save.\n\nEmbed anyway? (Cancel, then paste a hosted URL in the panel to keep the deck small.)',
-          { kind: t(kind), mb }, // localise the noun — see promptMediaUrl
-        ))
+        const ok = await confirmDialog({
+          message: t(
+            'This {kind} is {mb} MB. Embedding keeps it inside the .bento.html but makes the file large and slow to open and save.\n\nEmbed anyway? (Cancel, then paste a hosted URL in the panel to keep the deck small.)',
+            { kind: t(kind), mb }, // localise the noun — see promptMediaUrl
+          ),
+          cancelLabel: t('Cancel'), confirmLabel: t('Embed anyway'),
+        })
         if (!ok) { this.insertMedia(kind, ''); return } // empty element → panel URL field
       }
       const reader = new FileReader()
@@ -2751,12 +2778,17 @@ export class Editor {
     if (!item || !/\.bento\.html$/i.test(named)) return false
     ev.preventDefault()
 
-    if (this.store.dirty && !confirm(t('Open {name}? Unsaved changes in this deck will be lost.', { name: named }))) return true
+    if (this.store.dirty && !(await confirmDialog({
+      message: t('Open {name}? Unsaved changes in this deck will be lost.', { name: named }),
+      cancelLabel: t('Cancel'), confirmLabel: t('Open'), danger: true,
+    }))) return true
 
     // The handle is the prize; a plain File still opens, just without write-back.
     //
-    // ORDER MATTERS: requestPermission() needs a live user gesture, and the drop
-    // is it. Reading the file first (600KB+ of text(), then DOMParser and
+    // ORDER MATTERS: requestPermission() needs a live user gesture — the drop
+    // is it, or (when the confirm above fired) the dialog's own Open click,
+    // which is a fresh gesture closer to this call, not further from it.
+    // Reading the file first (600KB+ of text(), then DOMParser and
     // JSON.parse) spends the activation, so the request throws SecurityError and
     // the deck opens read-only — ⌘S then re-runs the save picker, which is the
     // whole thing this feature exists to avoid. So: handle, permission, THEN read.
@@ -3131,7 +3163,7 @@ export class Editor {
         } else if (this.thumbSel.length > 1 && !inField) {
           // a sidebar multi-selection and nothing on the canvas: Delete means the slides
           ev.preventDefault()
-          this.deleteSlides(this.thumbSel)
+          void this.deleteSlides(this.thumbSel)
         }
         return
       }
@@ -3378,7 +3410,7 @@ export class Editor {
       { label: t('Paste'), hint: '⌘V', run: () => void this.pasteFromClipboard() },
       'sep',
       { label: t('Duplicate slide'), run: () => this.duplicateSlide(i) },
-      { label: t('Delete slide'), danger: true, run: () => this.deleteSlide(i) },
+      { label: t('Delete slide'), danger: true, run: () => void this.deleteSlide(i) },
     ]
   }
 
@@ -3387,7 +3419,7 @@ export class Editor {
       { label: t('New slide'), run: () => this.openLayoutPicker(thumb, { kind: 'insert', at: i + 1 }) },
       { label: t('Duplicate slide'), run: () => this.duplicateSlide(i) },
       'sep',
-      { label: t('Delete slide'), danger: true, run: () => this.deleteSlide(i) },
+      { label: t('Delete slide'), danger: true, run: () => void this.deleteSlide(i) },
     ]
   }
 

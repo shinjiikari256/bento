@@ -10,13 +10,19 @@ import type { Store } from '../store'
 import { uid, type Comment } from '../model'
 import { t } from '../i18n'
 import { lsGet, lsSet } from '../../../kernel/src/storage.ts'
+import { promptDialog } from '../../../kernel/src/ui/promptdialog.ts'
 
 /** The commenter's name, remembered per browser (localStorage, never sent
  *  anywhere); asked for on first use. */
-export function commentAuthor(): string | null {
+export async function commentAuthor(): Promise<string | null> {
   let name = lsGet('bento-author')
   if (!name) {
-    name = window.prompt(t('Your name (shown on comments):'))?.trim() || ''
+    const got = await promptDialog({
+      title: t('Name'),
+      fields: [{ key: 'name', label: t('Your name (shown on comments):') }],
+      cancelLabel: t('Cancel'), submitLabel: t('Save'),
+    })
+    name = got?.name.trim() || ''
     if (!name) return null
     lsSet('bento-author', name)
   }
@@ -24,8 +30,13 @@ export function commentAuthor(): string | null {
 }
 
 /** Re-ask for the name; existing threads keep their original author. */
-export function changeCommentAuthor(): string | null {
-  const next = window.prompt(t('Your name (shown on new comments):'), lsGet('bento-author') ?? '')?.trim()
+export async function changeCommentAuthor(): Promise<string | null> {
+  const got = await promptDialog({
+    title: t('Name'),
+    fields: [{ key: 'name', label: t('Your name (shown on new comments):'), value: lsGet('bento-author') ?? '' }],
+    cancelLabel: t('Cancel'), submitLabel: t('Save'),
+  })
+  const next = got?.name.trim()
   if (!next) return null
   lsSet('bento-author', next)
   return next
@@ -92,10 +103,15 @@ export class CommentsUI {
   }
 
   /** Start a new thread on an element, at a point, or on the slide. */
-  openNew(elementId?: string, point?: { x: number; y: number }) {
-    const author = commentAuthor()
+  async openNew(elementId?: string, point?: { x: number; y: number }) {
+    const author = await commentAuthor()
     if (!author) return
-    const text = window.prompt(t('Comment:'))?.trim()
+    const got = await promptDialog({
+      title: t('Comment'),
+      fields: [{ key: 'text', label: t('Comment:') }],
+      cancelLabel: t('Cancel'), submitLabel: t('Comment'),
+    })
+    const text = got?.text.trim()
     if (!text) return
     const comment: Comment = {
       id: uid('cmt'), elementId, ...(point ?? {}), author, text, at: new Date().toISOString(),
@@ -127,8 +143,8 @@ export class CommentsUI {
     me.className = 'ed-comment-me'
     me.textContent = t('you: {name} ✎', { name: lsGet('bento-author') ?? '—' })
     me.title = t('Change the name used for your new comments and replies')
-    me.addEventListener('click', () => {
-      const next = changeCommentAuthor()
+    me.addEventListener('click', async () => {
+      const next = await changeCommentAuthor()
       if (next) me.textContent = t('you: {name} ✎', { name: next })
     })
     head.append(headLabel, me)
@@ -165,9 +181,9 @@ export class CommentsUI {
       return b
     }
     foot.append(
-      mkBtn(t('Reply'), () => {
+      mkBtn(t('Reply'), async () => {
         const text = reply.value.trim()
-        const author = commentAuthor()
+        const author = text ? await commentAuthor() : null
         if (!text || !author) return
         this.store.commit(() => {
           const live = this.store.slide.comments?.find((x) => x.id === commentId)
