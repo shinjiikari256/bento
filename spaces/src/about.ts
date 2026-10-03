@@ -29,6 +29,8 @@
 import { h } from '../../kernel/src/dom.ts'
 import { promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import '../../kernel/src/ui/field.css'
+import { createJsonEditor } from '../../kernel/src/ui/jsoneditor.ts'
+import '../../kernel/src/ui/jsoneditor.css'
 import {
   checkForUpdates, applyUpdate, canUpdateInPlace,
   autoCheckEnabled, setAutoCheck, compareVersions,
@@ -614,11 +616,13 @@ export function openAbout(hooks: AboutHooks): void {
    */
   function replaceForm(host: HTMLElement, dismiss: () => void): HTMLElement {
     const wrap = h('div')
-    const ta = h('textarea.sp-ab-json', { rows: 7, placeholder: t('Paste document JSON here…') })
+    const je = createJsonEditor({ rows: 7, placeholder: t('Paste document JSON here…') })
+    const ta = je.el
+    ta.classList.add('sp-ab-json')
     const apply = button(t('Replace'), () => {
       const res = parseDoc(ta.value)
       if (!res.ok) {
-        ta.classList.add('sp-ab-bad')
+        ta.classList.add('bkj-invalid')
         apply.textContent = t('That is not a bento/spaces document')
         setTimeout(() => { apply.textContent = t('Replace') }, 2000)
         return

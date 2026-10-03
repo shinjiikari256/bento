@@ -156,6 +156,17 @@ BEFORE dash's `promptdialog.ts` adoption (the 2026-10-03 entry below) —
 that conversion had silently left this one test unrun/unnoticed and
 failing. Updated to match `confirmDialog({ message: t(…`.
 
+### Adopted in `spaces`
+
+`about.ts`'s `replaceForm` — the fourth independently hand-rolled
+instance of the same shape — moves to `createJsonEditor()`;
+`parseDoc(ta.value)` on Apply keeps doing spaces' own document
+validation. The semantic-failure highlight ("that is not a bento/spaces
+document") switches from its own `.sp-ab-bad` class to the primitive's
+`.bkj-invalid` — one invalid-state class, not two meaning the same red
+border. `.sp-ab-json`'s box-styling drops the same way dash's did;
+`.sp-ab-json` survives as a one-line `margin-bottom` class.
+
 ## 2026-10-03 — `window.prompt`/`window.confirm` replaced: `kernel/src/ui/promptdialog.ts`
 
 **Decision.** `promptDialog(opts)`/`confirmDialog(opts)`, built ON `createDialog`

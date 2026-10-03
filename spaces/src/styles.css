@@ -1000,13 +1000,7 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 .sp-ab-confirm .sp-actions { padding: 0; }
 .sp-about .sp-ab-go { background: #a3231a; color: #fff; border-color: #a3231a; }
 .sp-about .sp-ab-go:hover { background: #8a1d15; }
-.sp-ab-json {
-  width: 100%; margin-bottom: 8px;
-  font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: var(--ink); background: #fff;
-  border: 1px solid var(--line); border-radius: 8px; padding: 8px; resize: vertical;
-}
-.sp-ab-json.sp-ab-bad { border-color: #a3231a; }
+.sp-ab-json { margin-bottom: 8px; }
 
 .sp-ab-fine {
   font-size: 10.5px; line-height: 1.5; color: var(--muted);
