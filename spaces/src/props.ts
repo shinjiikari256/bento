@@ -32,6 +32,7 @@ import { t } from './i18n'
 import { h } from '../../kernel/src/dom.ts'
 import '../../kernel/src/ui/field.css'
 import { fieldize } from '../../kernel/src/ui/field.ts'
+import { applyAccordion as kernelAccordion } from '../../kernel/src/ui/accordion.ts'
 
 /**
  * What the panel needs from the editor.
@@ -127,35 +128,19 @@ export class PropsPanel {
   // ---- accordion ------------------------------------------------------------
 
   /**
-   * The same retrofit slides does: each `.sp-insp-sec` header gathers the
-   * siblings after it into a body it can collapse, and the open state is
-   * remembered PER TITLE so it survives a rebuild, a reload and a different
-   * block being selected.
+   * The same retrofit slides/dash use (kernel/src/ui/accordion.ts): each
+   * `.sp-insp-sec` header gathers the siblings after it into a body it can
+   * collapse, and the open state is remembered PER TITLE so it survives a
+   * rebuild, a reload and a different block being selected. The behaviour
+   * only — spaces' header (a filled hover row, a ▾/▸ glyph, a trailing
+   * sub-label) stays its own, visibly different from dash/slides' shared
+   * chevron design.
    */
   private accordion(): void {
-    let open: Record<string, boolean> = {}
-    try { open = JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}') || {} } catch { open = {} }
-    for (const h of [...this.host.querySelectorAll<HTMLElement>('.sp-insp-sec')]) {
-      const key = h.dataset.key ?? h.textContent ?? ''
-      const body = mk('div', 'sp-insp-body')
-      let n: ChildNode | null = h.nextSibling
-      while (n && !(n instanceof HTMLElement && n.classList.contains('sp-insp-sec'))) {
-        const next: ChildNode | null = n.nextSibling
-        body.appendChild(n)
-        n = next
-      }
-      h.after(body)
-      const shut = open[key] === false
-      if (shut) { h.classList.add('sp-shut'); body.style.display = 'none' }
-      h.setAttribute('aria-expanded', String(!shut))
-      h.addEventListener('click', () => {
-        const nowShut = h.classList.toggle('sp-shut')
-        body.style.display = nowShut ? 'none' : ''
-        h.setAttribute('aria-expanded', String(!nowShut))
-        open[key] = !nowShut
-        try { localStorage.setItem(OPEN_KEY, JSON.stringify(open)) } catch { /* locked-down origin */ }
-      })
-    }
+    kernelAccordion(this.host, {
+      headerClass: 'sp-insp-sec', bodyClass: 'sp-insp-body', closedClass: 'sp-shut',
+      storageKey: OPEN_KEY, keyOf: (h) => h.dataset.key ?? h.textContent ?? '',
+    })
   }
 
   // ---- block ----------------------------------------------------------------

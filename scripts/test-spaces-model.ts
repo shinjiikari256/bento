@@ -2894,10 +2894,12 @@ function fsTable(f: string): string {
   ok(/\.sp-insp\.sp-open \{[^}]*position: fixed/.test(phone.slice(0, 800)),
     '…and then it is a fixed overlay, never a column')
 
-  // 5. THE ACCORDION IS SLIDES', including the persisted-per-title open state,
+  // 5. THE ACCORDION IS THE SHARED KERNEL PRIMITIVE (dash/slides wrote the
+  //    identical retrofit independently; this is now one of three callers,
+  //    not a fourth copy), including the persisted-per-title open state,
   //    so a section added below is collapsible without anyone remembering.
-  ok(/querySelectorAll<HTMLElement>\('\.sp-insp-sec'\)/.test(props) &&
-     /localStorage\.setItem\(OPEN_KEY/.test(props),
+  ok(/kernelAccordion\(this\.host, \{/.test(props) && /headerClass: 'sp-insp-sec'/.test(props) &&
+     /storageKey: OPEN_KEY/.test(props),
     'sections collapse and their open state is remembered per title')
 
   // 6. ONE CHANGE IS ONE UNDO STEP. Every control commits through one helper

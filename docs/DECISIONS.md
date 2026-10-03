@@ -159,6 +159,20 @@ rule at all, so there is nothing of DASH's left to pin; the number lives
 in `accordion.css` now. Its `KIT_PARTS` allowlist and margin-exemption
 list both drop their now-nonexistent `dp-section`/`dp-sec-toggle` entries.
 
+### Adopted in `spaces`
+
+The private `accordion()` method becomes a thin wrapper too, passing
+`keyOf: (h) => h.dataset.key ?? h.textContent ?? ''` for the one thing
+spaces needed that dash/slides didn't — a stable key distinct from the
+visible title. `headerClass`/`bodyClass`/`closedClass` stay spaces' OWN
+names (`sp-insp-sec`/`sp-insp-body`/`sp-shut`) — unlike dash and slides,
+spaces does not import `accordion.css`, since its header (a filled hover
+row, a ▾/▸ glyph, a trailing sub-label) is a genuinely different design,
+not a copy of the chevron the other two share. `scripts/test-spaces-
+model.ts`'s check moves from pinning the old implementation's literal
+`querySelectorAll`/`localStorage.setItem` calls to pinning the new call
+site's arguments instead.
+
 ## 2026-10-04 — Accordion sections are CARDS, not flat headers on white
 
 **Correction to the entry above.** The first pass of `accordion.css`
