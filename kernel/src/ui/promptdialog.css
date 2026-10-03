@@ -1,0 +1,88 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SHARED PROMPT/CONFIRM primitive's styles — tier 3, alongside
+   dialog.css. Structure (the modal shell, the actions row) is dialog.css's
+   already; this sheet is just the form inside it — a row per field, a
+   monospace variant, a hint line, an inline error, and the two buttons
+   every prompt/confirm needs. Same theming discipline as every other
+   kernel/ui sheet: `--bkp-*` chains onto whatever the host app already
+   themes, never `light-dark()`, checked by the shared guard
+   (scripts/lib/ui-theme-guard.ts).
+
+   Field borders/background/radius are NOT restated here — `promptdialog.ts`
+   runs every input through `fieldize()` (field.ts), so a prompt's text
+   field looks exactly like every other field in the app, via `.bk-field`. */
+
+.bkp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bkp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--bkp-label, var(--ink-2, var(--ink, #1e2a3a)));
+}
+.bkp-row input { width: 100%; }
+.bkp-row input.bkp-mono {
+  font-family: var(--bkp-mono-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.bkp-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--bkp-hint, var(--muted, #8a95a6));
+}
+
+.bkp-err {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--bkp-danger, #b4232a);
+}
+
+.bkp-msg {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bkp-ink, var(--ink-2, var(--ink, #1e2a3a)));
+  /* A message built from several facts joins them with '\n' (native
+     confirm() rendered that as a line break; plain HTML text collapses it
+     to a space without this). */
+  white-space: pre-line;
+}
+
+.bkp-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--bkp-border, var(--line, #e3e8ef));
+  border-radius: var(--bkp-radius, var(--radius, 8px));
+  background: var(--bkp-bg, var(--field, var(--surface, #fff)));
+  color: var(--bkp-ink, var(--ink, #1e2a3a));
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bkp-btn:hover { background: var(--bkp-hover, var(--hover, var(--chrome-2, rgb(0 0 0 / 0.05)))); }
+.bkp-btn:disabled { opacity: 0.5; cursor: default; }
+
+.bkp-btn-primary {
+  border-color: var(--bkp-accent, var(--accent, #2f6fed));
+  background: var(--bkp-accent, var(--accent, #2f6fed));
+  /* text sitting ON the solid accent fill — the token three of the four
+     apps already carry for exactly this; a plain white fallback for dash,
+     which has no such token yet (docs/DECISIONS.md's ctxmenu entry has the
+     fuller account of dash's accent being deliberately non-themed). */
+  color: var(--bkp-accent-ink, var(--accent-on, #fff));
+}
+.bkp-btn-primary:hover { background: var(--bkp-accent, var(--accent, #2f6fed)); filter: brightness(0.94); }
+
+.bkp-btn-danger {
+  border-color: var(--bkp-danger, #b4232a);
+  background: var(--bkp-danger, #b4232a);
+  color: var(--bkp-danger-ink, #fff);
+}
+.bkp-btn-danger:hover { background: var(--bkp-danger, #b4232a); filter: brightness(0.92); }

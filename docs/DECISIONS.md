@@ -94,6 +94,60 @@ links opening outside it, that answer is "no" and the rating 4+.
 the host should not launch another app on its say-so. http, https and mailto are
 what a link in a document means. A custom URL scheme is dropped rather than
 opened, the same choice Android makes.
+## 2026-10-03 — `window.prompt`/`window.confirm` replaced: `kernel/src/ui/promptdialog.ts`
+
+**Decision.** `promptDialog(opts)`/`confirmDialog(opts)`, built ON `createDialog`
+(kernel/src/ui/dialog.ts) — content is a form/message, actions are
+[Cancel, OK]/[Cancel, Confirm], and everything about being a modal (focus
+trap, `role=dialog`/`aria-modal`/`aria-labelledby`, Escape/backdrop
+dismissal, a z-index above the topbar's ceiling) is `createDialog`'s
+already, not re-implemented here. This is `dialog.ts`'s first real
+consumer — it landed kernel-half-only, adopted nowhere, until this.
+
+**Why not `window.prompt`/`window.confirm`.** dash's own pre-primitive
+replacement (`askForm`, `main.ts`) made the case directly: native modals
+are not available everywhere a self-contained HTML file is opened —
+embedded webviews (Slack, Teams, an iOS mail preview), sandboxed iframes
+without `allow-modals`, any tab where the reader has ticked "prevent this
+page from creating additional dialogs". In the return-null variant a
+button is simply dead; in the throwing variant a click handler dies
+half-way through. Measured directly in dash: clicking Formula did
+nothing at all — no dialog, no column, no message, not even a console
+line. For a document whose entire premise is that it opens anywhere,
+`window.prompt` is the wrong foundation. It also cannot do what a real
+form needs: more than one field, an error shown as the reader types
+rather than after they commit, a monospace field for a formula/id read
+character by character, a masked field for a password.
+
+**`createDialog` itself gained one thing in the same pass**: its keydown
+handler now stops EVERY key from propagating while open, not just
+Escape/Tab. `askForm`'s own reason for existing was partly this — a
+document-level "printable character starts a cell edit" handler kept
+firing behind its hand-rolled dialog, so typing a formula also typed it
+into the grid. A focus trap already keeps focus inside the card, so any
+key reaching the listener while open is the dialog's, never the page's.
+
+**No hardcoded English strings** — `cancelLabel`/`submitLabel`/
+`confirmLabel` are required params, never a `t('Cancel')` default, since
+kernel has no app's i18n to call. Text fields run through `fieldize()`
+(field.ts), so a prompt's field looks exactly like every other field in
+the host app via `.bk-field` — one more thing this primitive does NOT own
+a second style for. `PromptField.password` masks a field (`type=password`
++ `autocomplete=new-password`) for the handful of call sites asking for
+one — the native `window.prompt` these replace never masked either, so
+this is a strict improvement, not parity.
+
+**A confirm message built from several facts is joined with `'\n'`**
+(a multi-part deletion warning, an import's file count) — the way native
+`window.confirm` rendered a multi-line string for free. Plain HTML text
+collapses `'\n'` to a space without help, so `.bkp-msg` carries
+`white-space: pre-line`, fixed once in the primitive rather than in every
+caller that joins facts this way.
+
+Pointers: `kernel/src/ui/promptdialog.ts`, `kernel/src/ui/promptdialog.css`,
+`scripts/test-ui-promptdialog.ts`. Adopted in dash, spaces, type and
+slides — see each app's own entry.
+
 ## 2026-09-29 — Context menu: `kernel/src/ui/ctxmenu.ts`, a SIBLING of menu.ts
 
 **Decision.** `kernel/src/ui/ctxmenu.ts` + `ctxmenu.css`, guarded by

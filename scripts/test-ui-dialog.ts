@@ -125,6 +125,24 @@ const btn = (label: string) => { const b = new El('button'); b.textContent = lab
   doc.removeEventListener('keydown', probe)
 }
 
+// ——— ANY key stops propagating while open, not just Escape/Tab ———
+// dash's pre-primitive prompt replacement (askForm, main.ts) exists because a
+// document-level "printable character starts a cell edit" handler kept firing
+// behind its own hand-rolled dialog — typing a formula also typed it into the
+// grid. A shared dialog has to close that gap for every future consumer.
+{
+  let bubbleSaw = false
+  const probe = () => { bubbleSaw = true }
+  doc.addEventListener('keydown', probe)
+  const d = createDialog({ title: 'T', content: content() })
+  d.open()
+  doc.fireKey('a')
+  ok(d.isOpen, 'a plain letter does not close the dialog')
+  ok(!bubbleSaw, 'but it does not reach a bubble listener behind it either')
+  d.close()
+  doc.removeEventListener('keydown', probe)
+}
+
 // ——— backdrop dismisses; the card does not; and it can be refused ———
 {
   const d = createDialog({ title: 'T', content: content() })

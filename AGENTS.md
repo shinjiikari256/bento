@@ -287,6 +287,14 @@ something `kernel/` already has:
   `dash`'s remaining raw-HTML popovers (forms, a search box) stay on its
   own `popover()`/`dismissable()`, now built on this primitive's shared
   dismissal rather than their own copy of it.
+- `kernel/src/ui/promptdialog.ts` — `promptDialog(opts)`/`confirmDialog(opts)`,
+  replacing `window.prompt`/`window.confirm` (unreliable in embedded
+  webviews/sandboxed iframes/dialogs-disabled tabs, and unable to validate
+  as the reader types, hold more than one field, or mask a password). Built
+  on `createDialog` (`dialog.ts`) for the modal shell; every text field runs
+  through `fieldize()`. `cancelLabel`/`submitLabel`/`confirmLabel` are
+  required — no hardcoded English default, since kernel has no app's `t()`
+  to call.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`

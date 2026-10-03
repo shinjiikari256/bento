@@ -100,9 +100,16 @@ export function createDialog(opts: DialogOpts): Dialog {
 
   // Capture-phase, on the document, so the dialog's Escape wins over an editor
   // that also listens for it (spaces' hard-won rule), and so Tab can be trapped
-  // before anything else acts on it.
+  // before anything else acts on it. EVERY key here stops propagating, not
+  // just Escape/Tab: dash's own pre-primitive prompt replacement (askForm,
+  // main.ts) exists because a document-level "printable character starts a
+  // cell edit" handler kept firing while its dialog was open — typing a
+  // formula also typed it into the grid behind the modal. A focus trap keeps
+  // focus inside the card, so any key reaching this listener while open is
+  // the dialog's, never the page behind it.
   function onKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); api.close(); return }
+    e.stopPropagation()
+    if (e.key === 'Escape') { e.preventDefault(); api.close(); return }
     if (e.key !== 'Tab') return
     // The focus TRAP no app had: Tab off either end of the card wraps to the
     // other end, so focus can never leave an open modal.
