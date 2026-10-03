@@ -180,6 +180,30 @@ New catalog strings `"Remove"`/`"Replace"`/`"Set password"` added to all
 elsewhere in the same pass); every other button label reused an existing
 key.
 
+### Adopted in `spaces`
+
+`comments.ts`'s `commentAuthor()`/`changeCommentAuthor()`/the thread
+`openNew()` — three `window.prompt` sites, independently written from
+slides' near-identical trio in the same file shape — become `async` and
+move to `promptDialog`, rippling to their own callers (the "you: name"
+button, Reply; the void-return assignability rule means
+`run: () => void`-shaped callbacks accept an `async () => {…}` with no
+cast).
+
+Every unprefixed `confirm()`/`prompt()` moves the same way: `about.ts`'s
+`setPw`, `collabui.ts`'s Remove-a-peer and Reset access, and eight sites
+in `editor.ts` — `deletePage`'s multi-fact confirm (the first real use of
+the kernel's own `'\n'`-honours-newlines fix, below), three embed-budget
+confirms (image, media, cover picture), `linkMedia`'s URL prompt, an
+import-size confirm, and find/replace's Replace all. `deletePage`'s
+multi-part message is the first real caller of the kernel's
+`white-space: pre-line` fix for joined-with-`'\n'` messages.
+
+New catalog strings `"Embed"`/`"Continue"` added fresh — no existing word
+fit; `"Reset"`/`"Set password"` reuse the translations already
+established for the identical strings in dash. All 8 core locales
+repacked, 100% complete (`scripts/build-spaces-i18n.mjs`).
+
 ## 2026-09-29 — Context menu: `kernel/src/ui/ctxmenu.ts`, a SIBLING of menu.ts
 
 **Decision.** `kernel/src/ui/ctxmenu.ts` + `ctxmenu.css`, guarded by

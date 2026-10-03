@@ -33,6 +33,7 @@ import { sharingOn, onlineTransport, joinFromDoc, stopSharing, rotateKeys } from
 import { offlineEnabled } from '../../kernel/src/net.ts'
 import { canWrite, fingerprint, isOwner, isReaderCopy, type ShareKind } from './share.ts'
 import { h } from '../../kernel/src/dom.ts'
+import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts'
 
 export interface Peerish {
   actor: string
@@ -326,9 +327,12 @@ export class CollabUi {
           if (iAmOwner && p.pub && p.pub !== doc.collab!.owner) {
             const kick = el('span', 'sp-pkick', '✕')
             kick.title = t('Remove {name} — revokes this device’s access; everyone else is unaffected', { name: p.name })
-            kick.addEventListener('click', (ev) => {
+            kick.addEventListener('click', async (ev) => {
               ev.stopPropagation()
-              if (!confirm(t('Remove {name} from this space? Their copy drops to read-only.', { name: p.name }))) return
+              if (!(await confirmDialog({
+                message: t('Remove {name} from this space? Their copy drops to read-only.', { name: p.name }),
+                cancelLabel: t('Cancel'), confirmLabel: t('Remove'), danger: true,
+              }))) return
               close()
               const tr = onlineTransport()
               void Promise.resolve(tr ? tr.revokeKey(p.pub!, doc.collab!.owner!, doc.collab!.ownerPriv!) : false)
@@ -416,8 +420,11 @@ export class CollabUi {
       if (iAmOwner) {
         acts.append(this.action(t('Reset access…'),
           t('Mints brand-new keys. Every previously sent copy stops syncing for good; share fresh copies afterwards.'),
-          () => {
-            if (!confirm(t('Reset access? Every copy you’ve sent stops syncing; only copies saved after this can join.'))) return
+          async () => {
+            if (!(await confirmDialog({
+              message: t('Reset access? Every copy you’ve sent stops syncing; only copies saved after this can join.'),
+              cancelLabel: t('Cancel'), confirmLabel: t('Reset'), danger: true,
+            }))) return
             close()
             void rotateKeys(this.host.session, store).then(() => {
               this.sync(); this.host.paintTree()

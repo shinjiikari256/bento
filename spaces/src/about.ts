@@ -27,6 +27,7 @@
 //     and nothing added later can be made to by raising its own z-index.
 
 import { h } from '../../kernel/src/dom.ts'
+import { promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import '../../kernel/src/ui/field.css'
 import {
   checkForUpdates, applyUpdate, canUpdateInPlace,
@@ -451,7 +452,12 @@ export function openAbout(hooks: AboutHooks): void {
   pwSec.append(pwNote)
 
   const setPw = async (): Promise<void> => {
-    const pw = prompt(t('Choose a password. There is no way to recover it.'))
+    const got = await promptDialog({
+      title: t('Set a password…'),
+      fields: [{ key: 'pw', label: t('Choose a password. There is no way to recover it.'), password: true }],
+      cancelLabel: t('Cancel'), submitLabel: t('Set password'),
+    })
+    const pw = got?.pw
     if (!pw) return
     setEncryptionPassword(pw)
     // Plaintext snapshots written BEFORE encryption was turned on would defeat

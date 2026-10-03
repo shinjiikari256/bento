@@ -32,6 +32,7 @@ import type { Store } from './store.ts'
 import { t } from './i18n.ts'
 import { lsGet, lsSet } from '../../kernel/src/storage.ts'
 import { h } from '../../kernel/src/dom.ts'
+import { promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 
 /** Hooks the editor provides, so this module stays out of editor internals. */
 export interface CommentsHost {
@@ -52,10 +53,15 @@ export interface CommentsHost {
  * your cursor are the same fact, and two keys would let one file disagree with
  * itself about who you are.
  */
-export function commentAuthor(): string | null {
+export async function commentAuthor(): Promise<string | null> {
   let name = lsGet('bento-author')
   if (!name) {
-    name = window.prompt(t('Your name (shown on comments):'))?.trim() || ''
+    const got = await promptDialog({
+      title: t('Name'),
+      fields: [{ key: 'name', label: t('Your name (shown on comments):') }],
+      cancelLabel: t('Cancel'), submitLabel: t('Save'),
+    })
+    name = got?.name.trim() || ''
     if (!name) return null
     lsSet('bento-author', name)
   }
@@ -63,8 +69,13 @@ export function commentAuthor(): string | null {
 }
 
 /** Re-ask for the name; existing threads keep the author they were written by. */
-export function changeCommentAuthor(): string | null {
-  const next = window.prompt(t('Your name (shown on new comments):'), lsGet('bento-author') ?? '')?.trim()
+export async function changeCommentAuthor(): Promise<string | null> {
+  const got = await promptDialog({
+    title: t('Name'),
+    fields: [{ key: 'name', label: t('Your name (shown on new comments):'), value: lsGet('bento-author') ?? '' }],
+    cancelLabel: t('Cancel'), submitLabel: t('Save'),
+  })
+  const next = got?.name.trim()
   if (!next) return null
   lsSet('bento-author', next)
   return next
@@ -138,13 +149,18 @@ export class CommentsUi {
   }
 
   /** Start a thread on a block, or — with no block id — on the page itself. */
-  openNew(blockId?: string): void {
+  async openNew(blockId?: string): Promise<void> {
     const s = this.host.store
     const page = s.page
     if (!page || s.readOnly) return
-    const author = commentAuthor()
+    const author = await commentAuthor()
     if (!author) return
-    const text = window.prompt(t('Comment:'))?.trim()
+    const got = await promptDialog({
+      title: t('Comment'),
+      fields: [{ key: 'text', label: t('Comment:') }],
+      cancelLabel: t('Cancel'), submitLabel: t('Comment'),
+    })
+    const text = got?.text.trim()
     if (!text) return
     const comment: Comment = { id: uid('cm'), author, at: now(), text }
     this.fresh = comment.id
@@ -205,8 +221,8 @@ export class CommentsUi {
           textContent: t('you: {name} ✎', { name: lsGet('bento-author') ?? '—' }),
           title: t('Change the name used for your new comments and replies'),
         })
-        me.addEventListener('click', () => {
-          const next = changeCommentAuthor()
+        me.addEventListener('click', async () => {
+          const next = await changeCommentAuthor()
           if (next) me.textContent = t('you: {name} ✎', { name: next })
         })
         head.append(me)
@@ -239,9 +255,9 @@ export class CommentsUi {
         b.addEventListener('click', run)
         foot.append(b)
       }
-      btn(t('Reply'), () => {
+      btn(t('Reply'), async () => {
         const text = reply.value.trim()
-        const author = text ? commentAuthor() : null
+        const author = text ? await commentAuthor() : null
         if (!text || !author) return
         close()
         this.edit(id, (list, i) => {

@@ -46,6 +46,7 @@ import { startSharing } from '../../kernel/src/sync/online.ts'
 import * as shareModule from './share.ts'
 import { ICONS, type IconName } from './icons'
 import { PropsPanel } from './props'
+import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import {
   internAsset, prepareImage, humanBytes, IMAGE_EMBED_BUDGET, MEDIA_EMBED_BUDGET, blobToDataUri,
 } from './assets'
@@ -2437,7 +2438,7 @@ export class Editor {
         btn.addEventListener('click', () => void this.pickMedia(id))
       }
       for (const btn of node.querySelectorAll<HTMLElement>('[data-link-media]')) {
-        btn.addEventListener('click', () => this.linkMedia(id))
+        btn.addEventListener('click', () => void this.linkMedia(id))
       }
       const b = s.block(id)
       if (s.readOnly || this.reading || !b || !b.src) continue
@@ -4066,7 +4067,7 @@ export class Editor {
    * not looking at. Inbound links are counted in the confirmation, because
    * "this will break 4 links" is the fact that decides it.
    */
-  private deletePage(pageId: string): void {
+  private async deletePage(pageId: string): Promise<void> {
     const s = this.store
     const page = s.index.page.get(pageId)
     if (!page) return
@@ -4076,7 +4077,9 @@ export class Editor {
     const parts = [t('Delete “{name}”?', { name: page.title || t('Untitled') })]
     if (inbound) parts.push(t('{n} link(s) to it will stop working.', { n: inbound }))
     if (kids) parts.push(t('{n} page(s) inside it move up a level.', { n: kids }))
-    if (!confirm(parts.join('\n'))) return
+    if (!(await confirmDialog({
+      message: parts.join('\n'), cancelLabel: t('Cancel'), confirmLabel: t('Delete'), danger: true,
+    }))) return
     s.commit(() => {
       for (const p of s.doc.pages) if (p.parent === pageId) {
         if (page.parent) p.parent = page.parent
@@ -4127,10 +4130,13 @@ export class Editor {
     }
 
     if (prepared.dataUri.length > IMAGE_EMBED_BUDGET) {
-      const ok = confirm(t(
-        'This image is {size} and travels inside the file, making it that much bigger for everyone you send it to. Embed it anyway?',
-        { size: humanBytes(prepared.dataUri.length) },
-      ))
+      const ok = await confirmDialog({
+        message: t(
+          'This image is {size} and travels inside the file, making it that much bigger for everyone you send it to. Embed it anyway?',
+          { size: humanBytes(prepared.dataUri.length) },
+        ),
+        cancelLabel: t('Cancel'), confirmLabel: t('Embed'),
+      })
       if (!ok) { this.status(''); return }
     }
 
@@ -4237,10 +4243,13 @@ export class Editor {
       // disk and point at it" is not a thing this can offer. The honest
       // alternatives are: embed it anyway, or paste a URL — which is what the
       // block's own chooser offers, and where a no lands you.
-      const go = confirm(t(
-        'This clip is {size} and travels inside the file, making it that much bigger for everyone you send it to. Embed it anyway?',
-        { size: humanBytes(dataUri.length) },
-      ))
+      const go = await confirmDialog({
+        message: t(
+          'This clip is {size} and travels inside the file, making it that much bigger for everyone you send it to. Embed it anyway?',
+          { size: humanBytes(dataUri.length) },
+        ),
+        cancelLabel: t('Cancel'), confirmLabel: t('Embed'),
+      })
       if (!go) { this.status(''); return }
     }
 
@@ -4258,8 +4267,13 @@ export class Editor {
    * tells that host somebody opened the space, which is why the READER is
    * asked before it loads (render.ts).
    */
-  linkMedia(blockId: string | null, insertAfter: string | null = null): void {
-    const url = prompt(t('Address of a video or audio file'))?.trim()
+  async linkMedia(blockId: string | null, insertAfter: string | null = null): Promise<void> {
+    const got = await promptDialog({
+      title: t('Link'),
+      fields: [{ key: 'url', label: t('Address of a video or audio file') }],
+      cancelLabel: t('Cancel'), submitLabel: t('Insert'),
+    })
+    const url = got?.url.trim()
     if (!url) return
     // http(s) only, and checked HERE as well as in the sanitizer: `src` is not
     // inline html, so it never passes through sanitize.ts at all — a
@@ -4338,10 +4352,13 @@ export class Editor {
           this.status(t('That file could not be read as an image')); return
         }
         if (prepared.dataUri.length > IMAGE_EMBED_BUDGET) {
-          const okay = confirm(t(
-            'This image is {size} and travels inside the file, making it that much bigger for everyone you send it to. Embed it anyway?',
-            { size: humanBytes(prepared.dataUri.length) },
-          ))
+          const okay = await confirmDialog({
+            message: t(
+              'This image is {size} and travels inside the file, making it that much bigger for everyone you send it to. Embed it anyway?',
+              { size: humanBytes(prepared.dataUri.length) },
+            ),
+            cancelLabel: t('Cancel'), confirmLabel: t('Embed'),
+          })
           if (!okay) { this.status(''); return }
         }
         // hashed and interned BEFORE the commit, so the bytes and the reference
@@ -4627,7 +4644,10 @@ export class Editor {
       return
     }
     if (notes.length > 500 &&
-      !confirm(t('That is {n} files — importing them all may take a moment. Continue?', { n: notes.length }))) return
+      !(await confirmDialog({
+        message: t('That is {n} files — importing them all may take a moment. Continue?', { n: notes.length }),
+        cancelLabel: t('Cancel'), confirmLabel: t('Continue'),
+      }))) return
 
     this.status(t('Reading {n} file(s)…', { n: notes.length }))
     let files: SourceFile[]
@@ -4676,10 +4696,13 @@ export class Editor {
       const file = media.get(joinPath(img.dir, ref)) ?? byName.get(ref.slice(ref.lastIndexOf('/') + 1).toLowerCase())
       if (file && keepEmbedding && embeddedBytes > IMPORT_IMAGE_BUDGET && !asked) {
         asked = true
-        keepEmbedding = confirm(t(
-          'The images in these notes come to {size} so far, and they all travel inside the file. Keep embedding them?',
-          { size: humanBytes(embeddedBytes) },
-        ))
+        keepEmbedding = await confirmDialog({
+          message: t(
+            'The images in these notes come to {size} so far, and they all travel inside the file. Keep embedding them?',
+            { size: humanBytes(embeddedBytes) },
+          ),
+          cancelLabel: t('Cancel'), confirmLabel: t('Continue'),
+        })
       }
       if (file && keepEmbedding) {
         try {
@@ -4848,10 +4871,13 @@ export class Editor {
       })
     }
 
-    const replaceAll = () => {
+    const replaceAll = async () => {
       const needle = q.value
       if (!needle || !hits.length) return
-      if (!confirm(t('Replace {n} occurrence(s) across the whole space?', { n: hits.length }))) return
+      if (!(await confirmDialog({
+        message: t('Replace {n} occurrence(s) across the whole space?', { n: hits.length }),
+        cancelLabel: t('Cancel'), confirmLabel: t('Replace'),
+      }))) return
       // ONE commit for the whole sweep: a replace-all a user has to undo forty
       // times is not undoable in any sense they care about
       s.commit(() => {
