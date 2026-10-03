@@ -359,12 +359,15 @@ console.log('\n-- the command is reachable, on both kinds of sheet')
   // gated behind the dataset branch.
   ok(/async function textToColumns[\s\S]{0,2000}planCanvasSplit\(/.test(main),
     'and the one command handles the spreadsheet kind, which has no menu at all')
-  // The gate is `if (<overwrite> && !confirm(...)) return` STANDING BETWEEN the
-  // plan and the commit. Matched as a whole so that neutering the condition —
-  // the cheapest way to break this — cannot leave the check green.
-  ok(/if \(out\.collisions\.length && !window\.confirm\([\s\S]{0,240}?\)\) return\n\s*store\.commit\(out\.patches/.test(main),
+  // The gate is `if (<overwrite> && !(await confirmDialog(...))) return`
+  // STANDING BETWEEN the plan and the commit — confirmDialog() replaced
+  // window.confirm() (kernel/src/ui/promptdialog.ts; not available in every
+  // context a self-contained file opens in). Matched as a whole so that
+  // neutering the condition — the cheapest way to break this — cannot leave
+  // the check green.
+  ok(/if \(out\.collisions\.length && !\(await confirmDialog\([\s\S]{0,320}?\)\)\) return\n\s*store\.commit\(out\.patches/.test(main),
     'the caller ASKS before committing a split that overwrites existing columns, and the ask gates the commit')
-  ok(/if \(out\.overwrites && !window\.confirm\([\s\S]{0,240}?\)\) return\n\s*store\.commit\(out\.patches/.test(main),
+  ok(/if \(out\.overwrites && !\(await confirmDialog\([\s\S]{0,320}?\)\)\) return\n\s*store\.commit\(out\.patches/.test(main),
     'and the same gate stands in front of the spreadsheet commit')
 }
 

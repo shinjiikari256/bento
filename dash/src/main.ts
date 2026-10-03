@@ -82,6 +82,7 @@ import { mountHelp } from './help.ts'
 // asserts is exactly how findings 5 and 8 shipped. See gridmenu.ts's header.
 import { popover, installGridMenus, type MenuHooks } from './gridmenu.ts'
 import { openCtxMenu, type CtxItem } from '../../kernel/src/ui/ctxmenu.ts'
+import { promptDialog, confirmDialog } from '../../kernel/src/ui/promptdialog.ts'
 import { keyToAction, normalize } from './select.ts'
 import {
   appearancePatch, overrideKeys, ridAt, toggleTarget,
@@ -1909,9 +1910,11 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
       }
       // EXCEL WARNS, AND SO DOES THIS. A split's width comes out of the data,
       // so the author cannot see how far right it will reach before it goes.
-      if (out.overwrites && !window.confirm(
-        t('This split writes over {n} cell(s) that already hold something. Replace them?')
-          .replace('{n}', String(out.overwrites)))) return
+      if (out.overwrites && !(await confirmDialog({
+        message: t('This split writes over {n} cell(s) that already hold something. Replace them?')
+          .replace('{n}', String(out.overwrites)),
+        cancelLabel: t('Cancel'), confirmLabel: t('Replace'), danger: true,
+      }))) return
       store.commit(out.patches)
       if (out.findings.length) showFindings(findingsEl, out.findings.map((f) => ({ message: f.message })))
       return
@@ -1922,9 +1925,11 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
       showFindings(findingsEl, [{ message: t('Nothing was split.') }])
       return
     }
-    if (out.collisions.length && !window.confirm(
-      t('This split writes over the existing columns {cols}. Replace them?')
-        .replace('{cols}', out.collisions.join(', ')))) return
+    if (out.collisions.length && !(await confirmDialog({
+      message: t('This split writes over the existing columns {cols}. Replace them?')
+        .replace('{cols}', out.collisions.join(', ')),
+      cancelLabel: t('Cancel'), confirmLabel: t('Replace'), danger: true,
+    }))) return
     store.commit(out.patches)
     showFindings(findingsEl, [
       {
@@ -1962,7 +1967,10 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
       const how = canWriteInPlace()
         ? t('Saving will take a moment.')
         : t('This browser has no in-place save, so every save downloads the whole file.')
-      if (!window.confirm(`${t('This workbook is {mb} MB.').replace('{mb}', mb)} ${how} ${t('Save anyway?')}`)) return
+      if (!(await confirmDialog({
+        message: `${t('This workbook is {mb} MB.').replace('{mb}', mb)} ${how} ${t('Save anyway?')}`,
+        cancelLabel: t('Cancel'), confirmLabel: t('Save anyway?'),
+      }))) return
     }
     // EVERY OUTCOME SAYS SOMETHING, and two of them used to say nothing at all.
     //
@@ -2314,30 +2322,15 @@ async function editFormula(store: Store, sheet: TableSheet, col: Column): Promis
 
 // --- menus -------------------------------------------------------------------
 
-/** A small popover, dismissed by the next click anywhere. */
 /**
- * A small modal form — the replacement for `window.prompt`.
- *
- * WHY THIS EXISTS AT ALL. Four call sites used `window.prompt`, and one of them
- * was the Formula button, the app's headline feature. Native modals are not
- * available everywhere a self-contained HTML file is opened: embedded webviews
- * (Slack, Teams, an iOS mail preview), sandboxed iframes without `allow-modals`,
- * and any tab where the reader has ticked "prevent this page from creating
- * additional dialogs". In the return-null variant the button is simply dead; in
- * the throwing variant the click handler dies half-way through. Measured in this
- * project's own browser pane: clicking Formula did nothing at all — no dialog,
- * no column, no message, not even a console line. For a document whose entire
- * premise is that it opens anywhere, that is the wrong foundation.
- *
- * `prompt` also cannot do the things this form needs: two fields at once, a
- * list of the columns you may refer to, and an error that appears as you type
- * rather than after you commit. dash already made this argument once — see
- * `retype` above, "A POPOVER, not window.prompt" — and the topbar was simply
- * never converted.
- *
- * `check` runs on every keystroke: return a message to block submission and
- * show it, or null to allow. Resolves with the field values, or null if the
- * reader cancelled.
+ * A small modal form — the replacement for `window.prompt`. See
+ * `kernel/src/ui/promptdialog.ts` for the fuller argument against
+ * `window.prompt` (this function used to carry that argument itself,
+ * before it moved kernel-side as `promptDialog`); this is now a thin
+ * wrapper keeping `askForm`'s own call-site shape — `AskField`, the
+ * `hint`/`submit`/`check` opts — unchanged for gridmenu.ts's `MenuHooks`
+ * and this file's own callers, so adopting the shared primitive touched no
+ * call site.
  */
 interface AskField {
   key: string
@@ -2355,84 +2348,13 @@ function askForm(opts: {
   submit?: string
   check?: (values: Record<string, string>) => string | null
 }): Promise<Record<string, string> | null> {
-  return new Promise((resolve) => {
-    document.querySelector('.dx-ask-back')?.remove()
-    const back = h('div.dx-ask-back')
-    const card = h('div.dx-ask[role=dialog][aria-modal=true]')
-
-    // named h2El: `h` is the imported DOM-builder here, and a local `h` would shadow it
-    const h2El = h('h2.dx-ask-title', { textContent: opts.title })
-    card.append(h2El)
-
-    const inputs: Record<string, HTMLInputElement> = {}
-    for (const f of opts.fields) {
-      const row = h('label.dx-ask-row')
-      const lab = h('span', { textContent: f.label })
-      const inp = h('input.dx-ask-in', {
-        className: f.mono ? 'dx-ask-mono' : undefined,
-        value: f.value ?? '',
-        placeholder: f.placeholder,
-        spellcheck: false,
-      })
-      row.append(lab, inp)
-      card.append(row)
-      inputs[f.key] = inp
-    }
-
-    if (opts.hint) {
-      const hint = h('p.dx-ask-hint', { textContent: opts.hint })
-      card.append(hint)
-    }
-
-    const err = h('p.dx-ask-err', { hidden: true })
-    card.append(err)
-
-    const foot = h('div.dx-ask-foot')
-    const cancel = h('button.dx-btn', { type: 'button', textContent: t('Cancel') })
-    const ok = h('button.dx-btn.dx-ask-go', { type: 'button', textContent: opts.submit ?? t('OK') })
-    foot.append(cancel, ok)
-    card.append(foot)
-
-    const values = (): Record<string, string> => {
-      const out: Record<string, string> = {}
-      for (const k of Object.keys(inputs)) out[k] = inputs[k].value
-      return out
-    }
-    const validate = (): boolean => {
-      const msg = opts.check ? opts.check(values()) : null
-      err.hidden = !msg
-      err.textContent = msg ?? ''
-      ok.disabled = !!msg
-      return !msg
-    }
-
-    const done = (v: Record<string, string> | null): void => {
-      back.remove()
-      document.removeEventListener('keydown', onKey, true)
-      resolve(v)
-    }
-    // CAPTURE phase, and stopped here: the grid has a document-level key
-    // handler that turns a printable character into a cell edit, so without
-    // this, typing a formula also types it into the sheet behind the dialog.
-    const onKey = (e: KeyboardEvent): void => {
-      if (!back.contains(e.target as Node)) return
-      e.stopPropagation()
-      if (e.key === 'Escape') { e.preventDefault(); done(null) }
-      else if (e.key === 'Enter' && validate()) { e.preventDefault(); done(values()) }
-    }
-    document.addEventListener('keydown', onKey, true)
-
-    for (const k of Object.keys(inputs)) inputs[k].addEventListener('input', validate)
-    cancel.addEventListener('click', () => done(null))
-    ok.addEventListener('click', () => { if (validate()) done(values()) })
-    // A click on the backdrop cancels; a click inside must not.
-    back.addEventListener('mousedown', (e) => { if (e.target === back) done(null) })
-
-    back.append(card)
-    document.body.append(back)
-    validate()
-    inputs[opts.fields[0].key]?.focus()
-    inputs[opts.fields[0].key]?.select()
+  return promptDialog({
+    title: opts.title,
+    fields: opts.fields,
+    hint: opts.hint,
+    cancelLabel: t('Cancel'),
+    submitLabel: opts.submit ?? t('OK'),
+    check: opts.check,
   })
 }
 

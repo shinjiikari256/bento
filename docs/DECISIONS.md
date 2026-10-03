@@ -148,6 +148,38 @@ Pointers: `kernel/src/ui/promptdialog.ts`, `kernel/src/ui/promptdialog.css`,
 `scripts/test-ui-promptdialog.ts`. Adopted in dash, spaces, type and
 slides — see each app's own entry.
 
+### Adopted in `dash`
+
+`main.ts`'s own `askForm` — the function `promptDialog` above is modelled
+on — becomes a thin wrapper delegating to it, keeping `AskField`/`hint`/
+`submit`/`check` unchanged so gridmenu.ts's `MenuHooks.askForm` and every
+other caller (7 call sites) needed no change at all.
+
+Every `window.confirm`/`window.prompt` AND every unprefixed
+`confirm()`/`prompt()` moves to `confirmDialog`/`promptDialog`: `main.ts`
+(×3), `saveui.ts`'s password flow (Remove password, Set a password — the
+latter's field is `password: true`, the first call site this masking
+option exists for), `tabs.ts`'s remove-sheet, `dropopen.ts`'s drop-a-file
+confirm, and `about.ts`'s "Replace workbook" paste panel. Each function
+these sit in was already `async` or made `async` (`confirmBudget`,
+`removeSheet`) with no further ripple.
+
+**One of them (`dropopen.ts`) sits directly in front of
+`getAsFileSystemHandle`/`requestPermission()`, which need a live transient
+user gesture** — a concern the file's own header comment already raises
+for a different ordering question. A promise-based dialog YIELDS to the
+event loop, unlike the blocking native `window.confirm`, so the FS API
+calls now run off the fresh activation the dialog's own Open/Cancel click
+grants rather than the original drop gesture; Chrome's activation window
+is documented to survive a click this close behind it, flagged in a
+comment at the call site rather than assumed silently — worth a real
+drag-and-drop check if that assumption is ever wrong.
+
+New catalog strings `"Remove"`/`"Replace"`/`"Set password"` added to all
+7 locales (translations shared with the identical words already needed
+elsewhere in the same pass); every other button label reused an existing
+key.
+
 ## 2026-09-29 — Context menu: `kernel/src/ui/ctxmenu.ts`, a SIBLING of menu.ts
 
 **Decision.** `kernel/src/ui/ctxmenu.ts` + `ctxmenu.css`, guarded by

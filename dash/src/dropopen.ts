@@ -56,6 +56,7 @@ import { adoptFileHandle, hasFileHandle, isEncryptionActive } from '../../kernel
 import { toast, forkTemplate, applyDocLock } from './saveui.ts'
 import { t } from './i18n.ts'
 import { h } from '../../kernel/src/dom.ts'
+import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts'
 
 // --- routing (pure) ----------------------------------------------------------
 
@@ -288,8 +289,16 @@ async function openWorkbook(host: DropHost, item: DataTransferItem | undefined, 
     host.notice(t('This window has an encrypted workbook open. Open “{name}” in a new window instead.', { name }))
     return
   }
-  if (host.dirty?.() && !window.confirm(
-    t('Open “{name}”? Unsaved changes in this workbook will be lost.', { name }))) return
+  // NOTE the same activation caution the block below states applies here too:
+  // this confirm now YIELDS to the event loop (a promise-based dialog, not a
+  // blocking native one), so `requestPermission()` below runs off the fresh
+  // transient activation the dialog's OWN Open/Cancel click grants, not the
+  // original drop gesture. Chrome's activation window survives a click this
+  // close behind it — verify with a real drag-drop if that ever changes.
+  if (host.dirty?.() && !(await confirmDialog({
+    message: t('Open “{name}”? Unsaved changes in this workbook will be lost.', { name }),
+    cancelLabel: t('Cancel'), confirmLabel: t('Open'), danger: true,
+  }))) return
 
   const anyItem = item as unknown as { getAsFileSystemHandle?: () => Promise<unknown> } | undefined
   let handle: unknown = null

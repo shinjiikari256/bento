@@ -52,6 +52,7 @@
 
 import './saveui.css'
 import { h } from '../../kernel/src/dom.ts'
+import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import {
   saveFile, serializeAuto, writeUpdatedFileAs, canWriteInPlace, adoptFileHandle,
   isEncryptionActive, setEncryptionPassword,
@@ -99,16 +100,25 @@ export function toast(message: string): void {
  * refusal") — the user is told what will actually break in THIS browser and
  * decides. It is repeated on the export paths because they write a whole file
  * too: a 30MB workbook exported as a template downloads 30MB just as surely.
+ *
+ * ASYNC now (a promise-based dialog, not a blocking native one) — every
+ * caller already runs inside its own `async () => {…}` item handler, so
+ * `await`ing this costs nothing there. The `saveFile()`/`writeExport()` call
+ * each caller makes right after still runs off the transient activation the
+ * dialog's own Save/Cancel click grants (same reasoning dropopen.ts's
+ * confirm→`requestPermission()` ordering note gives).
  */
-function confirmBudget(doc: DashDoc): boolean {
+async function confirmBudget(doc: DashDoc): Promise<boolean> {
   const bytes = docBytes(doc)
   if (bytes <= docBudget(canWriteInPlace())) return true
   const mb = (bytes / 1024 / 1024).toFixed(1)
   const how = canWriteInPlace()
     ? t('Saving will take a moment.')
     : t('This browser has no in-place save, so every save downloads the whole file.')
-  return window.confirm(
-    `${t('This workbook is {mb} MB.').replace('{mb}', mb)} ${how} ${t('Save anyway?')}`)
+  return confirmDialog({
+    message: `${t('This workbook is {mb} MB.').replace('{mb}', mb)} ${how} ${t('Save anyway?')}`,
+    cancelLabel: t('Cancel'), confirmLabel: t('Save anyway?'),
+  })
 }
 
 /**
@@ -219,14 +229,14 @@ export function installSaveMenu(host: SaveMenuHost): void {
 
     item(t('Save a copy…'), t('A second file you carry on working in — same workbook, same identity.'),
       async () => {
-        if (!confirmBudget(store.doc)) return
+        if (!(await confirmBudget(store.doc))) return
         const r = await saveFile(store.doc, true)
         if (r !== 'cancelled') toast(t('Copy saved'))
       })
 
     item(t('Save as new workbook…'), t('A separate workbook — same data, new identity. Nothing links it back to this one.'),
       async () => {
-        if (!confirmBudget(store.doc)) return
+        if (!(await confirmBudget(store.doc))) return
         // ONE implementation of the fork, in about.ts, which is where the rig
         // that proves it lives (scripts/test-dash-about.ts). This was a second
         // copy of the same three lines and it had already drifted: it kept
@@ -260,7 +270,7 @@ export function installSaveMenu(host: SaveMenuHost): void {
 
     item(t('Save as template…'), t('A starting point: every open of it becomes a fresh workbook of its own.'),
       async () => {
-        if (!confirmBudget(store.doc)) return
+        if (!(await confirmBudget(store.doc))) return
         const next = clone(store.doc)
         next.template = true
         delete next.collab
@@ -274,7 +284,7 @@ export function installSaveMenu(host: SaveMenuHost): void {
 
     item(t('Save read-only copy…'), t('A locked copy for handing out: it opens, it does not edit.'),
       async () => {
-        if (!confirmBudget(store.doc)) return
+        if (!(await confirmBudget(store.doc))) return
         const next = clone(store.doc)
         next.readonly = true
         delete next.collab
@@ -287,14 +297,22 @@ export function installSaveMenu(host: SaveMenuHost): void {
     // The password. Nothing is written here — it sets the standing instruction
     // that every path above then honours through `serializeAuto`.
     if (isEncryptionActive()) {
-      item(t('Remove password…'), t('The next save writes the workbook in the clear.'), () => {
-        if (!confirm(t('Remove the password? The next save writes the workbook in the clear.'))) return
+      item(t('Remove password…'), t('The next save writes the workbook in the clear.'), async () => {
+        if (!(await confirmDialog({
+          message: t('Remove the password? The next save writes the workbook in the clear.'),
+          cancelLabel: t('Cancel'), confirmLabel: t('Remove'), danger: true,
+        }))) return
         setEncryptionPassword(null)
         toast(t('Password removed. Save to write the workbook unencrypted.'))
       })
     } else {
-      item(t('Set a password…'), t('Encrypts the workbook inside the file. There is no recovery — lose it and the data is gone.'), () => {
-        const pw = prompt(t('Choose a password. There is no way to recover it.'))
+      item(t('Set a password…'), t('Encrypts the workbook inside the file. There is no recovery — lose it and the data is gone.'), async () => {
+        const got = await promptDialog({
+          title: t('Set a password…'),
+          fields: [{ key: 'pw', label: t('Choose a password. There is no way to recover it.'), password: true }],
+          cancelLabel: t('Cancel'), submitLabel: t('Set password'),
+        })
+        const pw = got?.pw
         if (!pw) return
         setEncryptionPassword(pw)
         // Snapshots written BEFORE this moment are plaintext copies of the very

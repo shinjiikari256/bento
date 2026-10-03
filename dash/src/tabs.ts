@@ -48,6 +48,7 @@ import type { Patch, Store } from './store.ts'
 import type { Grid } from './grid.ts'
 import type { SetSheetProps } from './rowcol.ts'
 import { h } from '../../kernel/src/dom.ts'
+import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts'
 
 /** Remembered per browser, never in the document: this is a viewer preference. */
 const LS_SHUT = 'bento-dash-tabs-shut'
@@ -984,7 +985,7 @@ export function mountTabs(host: TabsHost): Tabs {
       refresh(true)
     }, at < 0 || at >= store.doc.sheets.length - 1)
     sep(menu)
-    menuItem(menu, t('Delete'), () => removeSheet(sheet))
+    menuItem(menu, t('Delete'), () => void removeSheet(sheet))
   }
 
   function sep(menu: HTMLElement): void {
@@ -992,7 +993,7 @@ export function mountTabs(host: TabsHost): Tabs {
     menu.appendChild(d)
   }
 
-  function removeSheet(sheet: Sheet): void {
+  async function removeSheet(sheet: Sheet): Promise<void> {
     if (ro()) return
     const plan = deleteSheetPlan(store.doc, sheet.id, showing())
     if ('refuse' in plan) { window.alert(plan.refuse); return }
@@ -1002,7 +1003,7 @@ export function mountTabs(host: TabsHost): Tabs {
       ? t('Delete "{name}" and its {n} rows?')
         .replace('{name}', sheet.name).replace('{n}', String(rowsOf(sheet)))
       : t('Delete "{name}"?').replace('{name}', sheet.name)
-    if (!window.confirm(msg)) return
+    if (!(await confirmDialog({ message: msg, cancelLabel: t('Cancel'), confirmLabel: t('Delete'), danger: true }))) return
     commit(plan.patch)
     if (plan.show && plan.show !== showing()) grid.setSheet(plan.show)
     refresh(true)

@@ -59,6 +59,7 @@ import { offerUndoRestore, restoredWorkbook } from './recovery.ts'
 import { t } from './i18n.ts'
 import { docBudget, docBytes, parseDoc, rowCount, type DashDoc, type DocMeta , docForExport } from './model.ts'
 import { h } from '../../kernel/src/dom.ts'
+import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts'
 
 // The update check and the theme moved to settings.ts with the surface that
 // shows them. They are re-exported because main.ts calls `checkAtLaunch` from
@@ -381,7 +382,7 @@ export function openAbout(hooks: AboutHooks): void {
       spellcheck: false,
       placeholder: t('Paste bento/dash document JSON here'),
     })
-    const go = d.button(t('Replace workbook'), () => {
+    const go = d.button(t('Replace workbook'), async () => {
       if (!ta.value.trim()) { ta.focus(); return }
       const res = parseDoc(ta.value)
       if (!res.ok) {
@@ -391,7 +392,10 @@ export function openAbout(hooks: AboutHooks): void {
       }
       // Undo does NOT reach across this. Store.replaceDoc empties both stacks,
       // so unlike slides there is no ⌘Z back — say so before, not after.
-      if (!confirm(t('Replace this workbook with the pasted JSON? This cannot be undone.'))) return
+      if (!(await confirmDialog({
+        message: t('Replace this workbook with the pasted JSON? This cannot be undone.'),
+        cancelLabel: t('Cancel'), confirmLabel: t('Replace'), danger: true,
+      }))) return
       // THE ROOM BELONGS TO THIS FILE, NOT TO THE PASTED TEXT. Content is
       // replaced; the collaboration credentials are this workbook's and stay.
       //
