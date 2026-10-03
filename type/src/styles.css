@@ -502,19 +502,7 @@ html, body {
 .t-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .t-note { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 6px 0 0; }
 .t-about-head { margin-bottom: 4px; }
-.t-replace-json {
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-  width: 100%;
-  min-height: 9rem;
-  margin-top: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 8px;
-  resize: vertical;
-  background: var(--field);
-  color: inherit;
-}
-.t-replace-json:focus { outline: none; border-color: var(--blue); }
+.t-replace-json { margin-top: 8px; }
 .t-replace-json-panel .t-row { margin-top: 6px; }
 .t-about-logo {
   display: inline-flex; align-items: center; gap: 10px;

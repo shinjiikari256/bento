@@ -167,6 +167,15 @@ document") switches from its own `.sp-ab-bad` class to the primitive's
 border. `.sp-ab-json`'s box-styling drops the same way dash's did;
 `.sp-ab-json` survives as a one-line `margin-bottom` class.
 
+### Adopted in `type`
+
+Its own `about.ts` "Replace from JSON…" reveal-panel (added this same
+pass, before the primitive existed, per that app's own entry above) —
+the fifth and last of the independently hand-rolled instances — moves to
+`createJsonEditor()` too; `onReplaceDoc(ta.value)` on Apply keeps doing
+type's own document validation. `.t-replace-json`'s box-styling drops;
+the class survives as `margin-top` only.
+
 ## 2026-10-03 — `window.prompt`/`window.confirm` replaced: `kernel/src/ui/promptdialog.ts`
 
 **Decision.** `promptDialog(opts)`/`confirmDialog(opts)`, built ON `createDialog`

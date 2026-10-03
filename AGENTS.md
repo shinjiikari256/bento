@@ -306,7 +306,7 @@ something `kernel/` already has:
   "Advanced (JSON)" escape hatch that commits on blur, a "Replace from
   JSON…" paste box that commits on an explicit button), so the primitive
   owns only the live feedback and leaves WHEN to call `read()` to the
-  caller.
+  caller. Adopted in all four apps.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`

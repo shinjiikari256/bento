@@ -20,6 +20,8 @@ import { checkForUpdates, applyUpdate, APP_VERSION, type ReleaseInfo } from '../
 import { canWriteInPlace, openedFileName } from '../../kernel/src/save.ts';
 import { setTheme, themeChoice, type ThemeChoice } from '../../kernel/src/theme.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { createJsonEditor } from '../../kernel/src/ui/jsoneditor.ts';
+import '../../kernel/src/ui/jsoneditor.css';
 import '../../kernel/src/ui/field.css';
 import type { Store } from './store.ts';
 import { wordCount, docForExport } from './model.ts';
@@ -186,10 +188,11 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
     }),
     button(t('Replace from JSON…'), () => {
       if (card.querySelector('.t-replace-json')) return;
-      const ta = h('textarea.t-replace-json', {
-        spellcheck: false,
+      const je = createJsonEditor({
         placeholder: t('Paste a bento/type document JSON. This replaces the document and can be undone with ⌘Z.'),
       });
+      const ta = je.el;
+      ta.classList.add('t-replace-json');
       const go = button(t('Replace'), () => {
         if (!ta.value.trim()) { ta.focus(); return; }
         onReplaceDoc(ta.value);
