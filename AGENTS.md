@@ -297,6 +297,16 @@ something `kernel/` already has:
   to call. Adopted in all four apps — every `window.prompt`/
   `window.confirm`, and every unprefixed `prompt()`/`confirm()`, in the
   repo is gone.
+- `kernel/src/ui/jsoneditor.ts` — `createJsonEditor(opts)` returns
+  `{ el, read(), write(value) }`, a plain value↔textarea↔value round trip
+  with no schema: a `<textarea>` (through `fieldize()`) that flags invalid
+  JSON live via a `bkj-invalid` class, as the reader types — an empty box
+  starts neutral, not invalid. Five independent "paste JSON, show an
+  error" panels converged on this shape for two different jobs (an
+  "Advanced (JSON)" escape hatch that commits on blur, a "Replace from
+  JSON…" paste box that commits on an explicit button), so the primitive
+  owns only the live feedback and leaves WHEN to call `read()` to the
+  caller.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`

@@ -94,6 +94,38 @@ links opening outside it, that answer is "no" and the rating 4+.
 the host should not launch another app on its say-so. http, https and mailto are
 what a link in a document means. A custom URL scheme is dropped rather than
 opened, the same choice Android makes.
+## 2026-10-04 — `kernel/src/ui/jsoneditor.ts`, a plain value↔textarea↔value round trip
+
+**Decision.** `createJsonEditor(opts)` returns `{ el, read(), write(value) }`
+— a `<textarea>` (run through `fieldize()`, so it looks like every other
+field) wired to flag invalid JSON live, as the reader types, via a
+`bkj-invalid` class. No schema: it validates "does this parse", nothing
+about shape. An empty box starts NEUTRAL, not invalid — the common
+"Replace from JSON…" paste panel opens blank, and flagging a never-touched
+box red would be a false alarm.
+
+**Why.** Five call sites across the four apps had independently written
+this exact shape — a `<textarea>`, a `try { JSON.parse } catch`, and some
+visible sign the text doesn't parse — for two different jobs: an
+"Advanced (JSON)" escape hatch beside a structured editor (slides'
+chart option), and a whole-document "Replace from JSON…" paste box
+(dash/spaces/slides/type's own About dialogs, each hand-rolled). The two
+jobs commit on different rhythms — the escape hatch on blur/change with
+no separate button, the paste box on an explicit Apply/Replace click —
+so the primitive does not pick one: it owns ONLY the live invalid-state
+feedback, and leaves WHEN to call `read()` to the caller.
+
+**No app-side CSS token needed.** `.bkj-invalid`'s border colour is a
+bare literal (`var(--bkj-danger, #b4232a)`) — no app defines a cross-app
+"error" colour (dash alone has `--err-ink`), the same situation
+`promptdialog.css`'s own `--bkp-danger` is in. `scripts/test-ui-jsoneditor.ts`
+does not run the shared theming guard for this reason: a bare-literal
+fallback carries no token to check, so there is nothing for it to find.
+
+Pointers: `kernel/src/ui/jsoneditor.ts`, `kernel/src/ui/jsoneditor.css`,
+`scripts/test-ui-jsoneditor.ts`, `working/PLAN-1-shared-infra.md` (item 6).
+Adopted in dash, spaces, type and slides — see each app's own entry.
+
 ## 2026-10-03 — `window.prompt`/`window.confirm` replaced: `kernel/src/ui/promptdialog.ts`
 
 **Decision.** `promptDialog(opts)`/`confirmDialog(opts)`, built ON `createDialog`

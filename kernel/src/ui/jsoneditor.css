@@ -1,0 +1,22 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SHARED JSON-EDITOR primitive's styles. Field borders/background/
+   radius are NOT restated here — jsoneditor.ts runs the textarea through
+   `fieldize()` (field.ts), so it looks exactly like every other field in
+   the host app via `.bk-field`. This sheet is only what's specific to a
+   block of raw JSON: a monospace font, a resize handle, and the invalid
+   state. Same theming discipline as every other kernel/ui sheet — see
+   promptdialog.css's header for why `--bkj-danger`'s bare literal
+   fallback needs no app-side token. */
+
+.bkj-editor {
+  font-family: var(--bkj-mono-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  line-height: 1.5;
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.bkj-editor.bkj-invalid { border-color: var(--bkj-danger, #b4232a); }
