@@ -26,6 +26,8 @@ import { PropsPanel } from './panels'
 import { openCtxMenu, type CtxItem } from '../../../kernel/src/ui/ctxmenu.ts'
 import '../../../kernel/src/ui/ctxmenu.css'
 import { promptDialog, confirmDialog } from '../../../kernel/src/ui/promptdialog.ts'
+import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
+import '../../../kernel/src/ui/jsoneditor.css'
 import { startPresentation } from '../present'
 // serializeFile (plain output) is deliberately NOT imported here: every path
 // in this file writes a real file for a person, so all of them must inherit an
@@ -1217,7 +1219,8 @@ export class Editor {
     const overlay = div('ed-about-overlay')
     const box = div('ed-about')
     const hEl = h('div.ed-about-h', { textContent: t('Replace from JSON') })
-    const ta = h('textarea.ed-about-json', { rows: 8, placeholder: t('Paste document JSON here…') })
+    const je = createJsonEditor({ rows: 8, placeholder: t('Paste document JSON here…') })
+    const ta = je.el
     const row = div('ed-about-row')
     const applyB = h('button.ed-btn.ed-btn-primary', { textContent: t('Apply') })
     applyB.addEventListener('click', () => {
@@ -1243,7 +1246,7 @@ export class Editor {
         } else this.toast(t('Document replaced — ⌘Z undoes'))
         overlay.remove()
       } else {
-        ta.style.borderColor = '#C0392B'
+        ta.classList.add('bkj-invalid')
         applyB.textContent = t('Invalid document JSON')
         setTimeout(() => { applyB.textContent = t('Apply') }, 1800)
       }

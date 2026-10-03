@@ -17,6 +17,8 @@
   width: 100%;
   min-height: 7rem;
   resize: vertical;
+  /* JSON reads left-to-right regardless of the document's own direction. */
+  direction: ltr;
 }
 
 .bkj-editor.bkj-invalid { border-color: var(--bkj-danger, #b4232a); }

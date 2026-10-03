@@ -11,6 +11,8 @@ import { LANGS } from '../../../kernel/src/tokenize.ts'
 import { h } from '../../../kernel/src/dom.ts'
 import { confirmDialog, promptDialog } from '../../../kernel/src/ui/promptdialog.ts'
 import '../../../kernel/src/ui/field.css'
+import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
+import '../../../kernel/src/ui/jsoneditor.css'
 import { fieldize } from '../../../kernel/src/ui/field.ts'
 import { resolveAsset } from '../render'
 import { measureElement } from '../measure'
@@ -1357,15 +1359,12 @@ export class PropsPanel {
     this.section(t('Advanced (JSON)'))
     const hint = h('p.ed-hint', { innerHTML: t('The full <b>chart option</b> as JSON (pure data — use template-string formatters like <code>{b}: {c}</code>, never functions). Tooltips and zoom run while presenting.') })
     this.host.appendChild(hint)
-    const ta = h('textarea.ed-chart-json', { rows: 12, spellcheck: false, value: JSON.stringify(el.option, null, 2) })
-    ta.addEventListener('change', () => {
-      try {
-        const parsed = JSON.parse(ta.value)
-        ta.classList.remove('ed-invalid')
-        this.mutate(el.id, (e) => { (e as ChartElement).option = parsed }, true)
-      } catch { ta.classList.add('ed-invalid') }
+    const je = createJsonEditor({ rows: 12, value: el.option })
+    je.el.addEventListener('change', () => {
+      const r = je.read()
+      if (r.ok) this.mutate(el.id, (e) => { (e as ChartElement).option = r.value as Record<string, unknown> }, true)
     })
-    this.host.appendChild(ta)
+    this.host.appendChild(je.el)
   }
 
   private static seriesColor(s: any, palette: string[] | undefined, i: number): string {

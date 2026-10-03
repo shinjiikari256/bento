@@ -854,14 +854,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 /* wrap instead of stacking: three actions fit in one or two rows */
 .ed-about-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ed-about-actions .ed-btn { max-width: 100%; }
-.ed-about-json {
-  width: 100%;
-  font: 11px/1.4 ui-monospace, Menlo, monospace;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px;
-  resize: vertical;
-}
 .ed-about-fine {
   font-size: 10.5px;
   line-height: 1.5;
@@ -1022,20 +1014,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   outline-offset: 3px;
   border-radius: 999px;
 }
-
-/* chart option JSON editor */
-.ed-chart-json {
-  width: 100%;
-  resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.45;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px;
-  color: var(--ink);
-}
-.ed-chart-json.ed-invalid { border-color: #c9302c; outline: 1px solid #c9302c; }
 
 /* --- help overlay + help button ------------------------------------------- */
 .ed-btn-help .ed-help-q { font-size: 15px; font-weight: 800; line-height: 1; }
@@ -2776,9 +2754,7 @@ input.ed-toggle { width: 16px; height: 16px; cursor: pointer; }
    Panel prose and every text field the user writes words into are untouched. */
 [dir="rtl"] .ed-row input[type='number'],
 [dir="rtl"] .ed-mini input,
-[dir="rtl"] .ed-axis-range input,
-[dir="rtl"] .ed-about-json,
-[dir="rtl"] .ed-chart-json {
+[dir="rtl"] .ed-axis-range input {
   direction: ltr;
 }
 
