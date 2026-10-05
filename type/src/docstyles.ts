@@ -43,6 +43,8 @@ import { docEffective, propsOf, type ParaLayout } from './layout.ts';
 import { t } from './i18n.ts';
 import type { FeatureContext } from './features.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { createColorPicker } from '../../kernel/src/ui/colorpicker.ts';
+import '../../kernel/src/ui/colorpicker.css';
 // NOT `import './docstyles.css'` here: render.ts imports this module for
 // docStyleCss, and render.ts is reachable from model.ts (via comments.ts) —
 // which the node test rigs (scripts/test-type-*.ts) load directly with no
@@ -510,15 +512,17 @@ export function stylesSection(host: HTMLElement, ctx: FeatureContext, b: Block):
 
   const colorRow = el('div', 't-sty-row');
   const colorLabel = el('span'); colorLabel.textContent = t('Colour');
-  const colorIn = el('input', 't-sty-color') as HTMLInputElement;
-  colorIn.type = 'color';
-  colorIn.value = /^#[0-9a-fA-F]{6}$/.test(active?.color ?? '') ? active!.color! : '#1a1a1a';
-  colorIn.addEventListener('change', () => patchStyle(ctx, activeId, b.kind, { color: colorIn.value }));
-  const colorClear = el('button', 't-btn') as HTMLButtonElement;
-  colorClear.type = 'button';
-  colorClear.textContent = t('Default');
-  colorClear.addEventListener('click', () => patchStyle(ctx, activeId, b.kind, { color: undefined }));
-  colorRow.append(colorLabel, colorIn, colorClear);
+  const colorPicker = createColorPicker(active?.color ?? '', (v, final) => {
+    if (final) patchStyle(ctx, activeId, b.kind, { color: v });
+  }, {
+    labels: {
+      choose: t('Choose a colour'), eyedropper: t('Pick a colour from the screen'),
+      theme: t('Theme'), recent: t('Recent'),
+    },
+    fallback: '#1a1a1a',
+    nullable: { clearTitle: t('Default'), onClear: () => patchStyle(ctx, activeId, b.kind, { color: undefined }) },
+  });
+  colorRow.append(colorLabel, colorPicker.el);
   edit.appendChild(colorRow);
 
   const ALIGN_OPTS: Array<[string, string]> = [
