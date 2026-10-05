@@ -94,6 +94,196 @@ links opening outside it, that answer is "no" and the rating 4+.
 the host should not launch another app on its say-so. http, https and mailto are
 what a link in a document means. A custom URL scheme is dropped rather than
 opened, the same choice Android makes.
+## 2026-10-05 — colorpicker.ts: alpha slider in-popover, OFF control moved to a "Default" button
+
+Two shape changes to the entry below, both from direct feedback once dash
+and slides were actually using it. **(1)** `nullable`'s OFF control — was a
+"×" button beside the swatch (`.bkcp-wrap`/`.bkcp-clear`, now gone) — moved
+to a "Default" button INSIDE the popover (`.bkcp-default`), labelled with the
+caller's own `clearTitle` text, not a tooltip on a symbol. **(2)** a new
+`alpha: true` option adds an alpha strip under the hue strip; `getValue`/
+`onChange`/`setValue`/the constructor's `hex` all accept/emit hex8/rgba()/
+hsla() now, collapsing to plain hex at full opacity. This is what let slides
+drop colorAlpha's sibling opacity-% number input — the picker carries it now.
+
+Any other in-flight work against the old `.bkcp-wrap`/`.bkcp-clear` shape, or
+assuming the picker has no alpha concept, needs to re-read
+`kernel/src/ui/colorpicker.ts`'s own header before continuing.
+
+---
+
+## 2026-10-05 — `kernel/src/ui/colorpicker.ts` SUPERSEDES `colorinput.ts`: the REAL colour picker, ported
+
+**Supersedes the entry immediately below**, which was built on a wrong
+premise: that no custom colour-picker component existed anywhere to
+generalise, so the honest move was to wrap the native `<input type=color>`
+two different ways. That premise was wrong. A full custom picker — HSV
+square, hue strip, hex/rgb/hsl field, an eyedropper, up to 10 recent
+colours, a theme-palette row, all in one popover — already exists,
+complete and working, as `slides/src/editor/colorpicker.ts` in
+`working/TZ-local-changes.md` §A2's source material (a local working
+tree, not this branch). It was missed because this branch
+(`kernel-shared-primitives`) shares only its earliest commits with
+`slides-editor-refresh` before diverging — `git merge-base` lands on
+`028afd48` (Release 1.2.4 on `main`), not on anything
+`slides-editor-refresh` or the TZ's own working tree built past that
+point. **This is not a mistake to fix by rebasing**: the branch's base on
+`main` is deliberate, so small PRs can reach the maintainer one at a time;
+`slides-editor-refresh` and the TZ are reference material to PORT
+design/logic from, not a branch to merge or rebase onto. The fix is
+checking that reference material before concluding something doesn't
+exist — which this entry exists to make easier for whoever hits this next.
+
+**Decision.** `kernel/src/ui/colorpicker.ts` is that component, ported
+near-verbatim — every HSV/hex/rgb/hsl conversion, the drag math, the
+viewport-clamped popover positioning, is unchanged. Two things differ
+because a kernel file cannot have them: no `t()` (every label —
+`choose`/`eyedropper`/`theme`/`recent` — is a required `opts.labels`
+string, kernel has no app's i18n to call, same rule `promptdialog.ts`
+follows), and no `ICONS` import (the eyedropper glyph is inlined rather
+than depending on either app's own icon set). `colorinput.ts`'s
+`nullable` (dash's off/clear state) and a new `disabled` (dash's
+read-only cells) are carried over as opt-in features the ported original
+never needed — slides has no unset or read-only colour field, dash has
+both.
+
+**`colorinput.ts`/`colorinput.css`/its test are DELETED**, not kept
+alongside — once both call sites move to the real picker, nothing
+references them, and this codebase's own convention is to delete
+unused code outright rather than leave a worse version sitting beside
+the real one "just in case."
+
+**`spaces` and `type` remain untouched**, same reasoning as before: spaces'
+text colour is a fixed named-token palette (a different feature), type
+has no colour control.
+
+Pointers: `kernel/src/ui/colorpicker.ts`, `kernel/src/ui/colorpicker.css`,
+`scripts/test-ui-colorpicker.ts`, `working/TZ-local-changes.md` §A2 (the
+source), `working/PLAN-1-shared-infra.md` (item 8). Adopted in dash and
+slides — see each app's own entry.
+
+### Adopted in `slides`
+
+`color()`/`colorAlpha()` (panels.ts) move from `createColorInput` to
+`createColorPicker`, matching the TZ's own integration shape (verified
+against the working tree's `panels.ts`, not reinvented): `paletteEntries`
+becomes `themeSwatchesFor` (building `ColorPickerPaletteEntry[]`, the slot
+riding as `.slot` now rather than doing double duty as `.title` — the
+picker's own popover owns the "Theme" row and its tooltip, nothing in
+panels.ts renders a swatch directly any more). `colorAlpha()` drops its
+manual palette-sync entirely — the picker's popover already shows the
+theme row inline, so there is no second input to keep in sync with a
+swatch click the way `createColorPalette` (now deleted) existed for.
+
+Three new catalog strings — `"Choose a colour"`, `"Pick a colour from the
+screen"`, `"Recent"` — added to all 8 core locales, translations taken
+directly from the working tree's own catalogs (not re-translated) so a
+future rebase onto that work needs no reconciliation here.
+
+### Adopted in `dash`
+
+`colourControl` (cellfmt.ts) moves the same way, gaining the picker's
+`disabled` option for a read-only cell (the ported original never needed
+one; dash's reader-copy cells do) on top of `nullable` for the off/clear
+state. `cellprops.css`'s whole colour-control section drops — unlike
+`colorinput.css`'s "structure here, taste there" split, `colorpicker.css`
+owns its full visual design (the same way `dialog.css`/`promptdialog.css`
+do), so dash needs no overrides of its own any more, only the swatch
+button where the native input used to be.
+
+Same three catalog strings added to dash's 7 core locales, translations
+reused from slides' (now the same words, the same picker, the same
+wording makes sense in both).
+
+Verified in a real browser (Playwright + system Chromium): the popover
+renders correctly in both apps (HSV square, hue strip, hex field,
+format tabs, theme row where offered), a theme-swatch pick commits and
+closes the popover, and the canvas/grid re-render with the new colour —
+with zero console errors in either app.
+
+## 2026-10-05 — `kernel/src/ui/colorinput.ts` + `.css`: a native colour input, wrapped two ways
+
+**Decision.** `createColorInput(opts)` wraps a native `<input type="color">`
+with the two features dash and slides each independently needed — and
+nothing more: `opts.nullable` (dash's `colourControl`, cellprops.ts/
+cellfmt.ts — a "×" clear button, because a cell with no explicit colour is
+not the same as one painted `#000000` and the native input has no way to
+say "unset") and `opts.palette` (slides' `color()`, panels.ts — the deck's
+brand swatches above the free picker, so a theme edit later can re-derive
+a colour chosen from it). Asking for NEITHER returns the bare `<input>`,
+no wrapper. `onInput` (live, as the OS colour wheel is dragged) stays a
+separate, optional callback from `onChange` (the committed pick) — dash's
+own comment states why: wiring `input` into an undo-stepped commit would
+make every dragged pixel its own undo step.
+
+**Unlike `accordion`/`jsoneditor`, this was NOT two apps writing the
+identical thing.** dash's off-state and slides' palette are genuinely
+different features solving different problems — the plan's framing
+("generalise slides' colorpicker.ts") does not hold either: no such file
+exists anywhere in this repo; both apps just wrap the native input
+directly, in their own panel code. Checked with the user before building
+this one rather than assuming either "they're the same" or "there's
+nothing to share" — the answer landed on full unification through
+options, matching the shape `accordion.ts`'s `staticClass`/`toggleClass`/
+`groupClass` already established for "orthogonal opt-in features, one
+primitive."
+
+**`spaces` and `type` are untouched.** spaces' text-colour control is a
+FIXED palette of named CSS tokens (gray/brown/orange/…, Notion-style
+highlight marks) — a different feature, not a free-form picker at all, so
+there is no native `<input type="color">` anywhere in it to wrap. `type`
+has no colour control.
+
+**The CSS is structure only** — a flex row for the palette, a flex row for
+the input+clear pair, a plain-box reset for the swatch/clear buttons —
+never a size, a border or a colour. dash's off-state fill (a diagonal
+stripe) and its own row height, and slides' swatch sizing, are real,
+different, app-owned designs; `colorinput.css` picks none of them, the
+same "structure here, taste there" split `field.css`/`accordion.css`
+already draw.
+
+Pointers: `kernel/src/ui/colorinput.ts`, `kernel/src/ui/colorinput.css`,
+`scripts/test-ui-colorinput.ts`, `working/PLAN-1-shared-infra.md` (item 8).
+Adopted in dash and slides — see each app's own entry.
+
+### Adopted in `dash`
+
+`cellfmt.ts`'s `colourControl` becomes a thin wrapper around
+`createColorInput({ nullable })`; its CSS keeps the SAME visual design
+(the diagonal-stripe off-state, the `--dp-row`-sized swatch and clear
+button) but now keyed off the shared `.bkc-wrap`/`.bkc-core`/`.bkc-off`/
+`.bkc-clear` classes instead of its own `.dc-colour`/`.dc-colour-off`/
+`.dc-clear` — same split as every other kernel/ui sheet, structure
+shared, taste app-owned.
+
+**Caught in the same pass**: `scripts/lib/dash-dom.ts`'s test shim's
+`classList` had `add`/`remove`/`contains` but no `toggle` — dash's own
+code had always avoided it for exactly this reason, so nothing exposed
+the gap until `colorinput.ts`'s `classList.toggle(cls, force)` call ran
+through it. Fixed in the shim (the two-argument force form, matching the
+real DOM), not worked around in the primitive — `accordion.ts`'s own
+`.toggle()` calls were ALREADY exercising this same gap latently and
+happened to never hit a dash test path that reached them; this fix
+covers both, not just the one that surfaced first.
+
+### Adopted in `slides`
+
+`color()` and `colorAlpha()` (panels.ts) both move to the primitive —
+`color()` via `createColorInput`'s own `palette` option, `colorAlpha()`
+via the standalone `createColorPalette` beside its own colour+opacity
+pair (the reason that split exists). `paletteSwatches` (building DOM)
+becomes `paletteEntries` (building data — `ColorPaletteEntry[]`); the
+slot name rides as `entry.title`, doing double duty as the swatch's
+tooltip, exactly as the original code already used it. The dead
+`.ed-colorref`/`.ed-swatches`/`.ed-swatch`/`.is-on` rules drop from
+styles.css, replaced by the same taste layered onto `.bkc-wrap`/
+`.bkc-palette`/`.bkc-swatch`/`.bkc-swatch-selected`.
+
+Verified in a real browser (Playwright + system Chromium, the same rig
+the accordion-cards fix used): both apps' colour controls render and
+pick correctly, including the full click → commit → re-render →
+selected-swatch-highlight round trip in slides.
+
 ## 2026-10-04 — `kernel/src/ui/accordion.ts` + `.css`: the panel-retrofit primitive
 
 **Decision.** `applyAccordion(host, opts)` — the flat-panel-into-

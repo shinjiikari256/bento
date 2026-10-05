@@ -1,0 +1,169 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SHARED COLOUR-PICKER primitive's styles — ported from
+   `slides/src/editor/colorpicker.ts`'s own sheet (working/TZ-local-
+   changes.md §A2), verbatim in every measurement for the parts that port
+   straight across (class names + colour-token fallback chains, `--bkcp-*`,
+   same theming discipline as every other kernel/ui sheet, checked by
+   scripts/lib/ui-theme-guard.ts). The swatch and the alpha strip are NOT a
+   verbatim port — see colorpicker.ts's own header for `alpha`/`nullable`,
+   both additions the original never needed. Unlike field.css/accordion.css's
+   "structure here, taste there" split, this primitive DOES own its full
+   visual design — same as dialog.css/promptdialog.css's own popovers —
+   because the whole point of replacing the native picker is ONE consistent
+   picker everywhere, not four apps free to reinvent this one too. */
+
+/* The swatch's own colour is a background-image LAYER on top of the
+   checkerboard, not a background-color under it — a flat colour painted via
+   background-color sits BELOW every background-image, so the checker's own
+   opaque #ccc squares would show through even at full opacity. Painted as
+   the topmost image layer instead, `--bkcp-a` alone decides how much
+   checker shows: 0 (the default, i.e. nothing has ever called setSwatch)
+   reads as "unset", 1 fully hides it, anything between previews the alpha
+   this swatch's colour carries. */
+.bkcp-swatch {
+  width: 26px; height: 26px; padding: 0; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--bkcp-border, var(--line, #e3e8ef));
+  background-image:
+    linear-gradient(rgb(var(--bkcp-rgb, 255 255 255) / var(--bkcp-a, 0)), rgb(var(--bkcp-rgb, 255 255 255) / var(--bkcp-a, 0))),
+    linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: auto, 8px 8px, 8px 8px, 8px 8px, 8px 8px;
+  background-position: 0 0, 0 0, 0 4px, 4px -4px, -4px 0;
+}
+.bkcp-swatch:disabled { cursor: default; opacity: 0.5; }
+
+/* The nullable "OFF" control lives INSIDE the popover (see .bkcp-default
+   below) — the swatch itself needs no wrapper. */
+
+.bkcp-pop {
+  position: fixed;
+  /* Above a template-set or any other full-viewport session chrome the
+     picker might be reused inside (same panel, different overlay) — not
+     just the main editor's own dialogs. */
+  z-index: 2100;
+  width: 200px;
+  padding: 10px;
+  background: var(--bkcp-bg, var(--field, var(--surface, #fff)));
+  border: 1px solid var(--bkcp-border, var(--line, #e3e8ef));
+  border-radius: var(--bkcp-radius, var(--radius, 10px));
+  box-shadow: var(--bkcp-shadow, 0 12px 30px rgb(15 23 36 / 0.25));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bkcp-sv {
+  position: relative;
+  height: 120px;
+  border-radius: 6px;
+  touch-action: none;
+  cursor: crosshair;
+  background:
+    linear-gradient(to top, #000, transparent),
+    linear-gradient(to right, #fff, hsl(var(--hue, 0) 100% 50%));
+}
+.bkcp-svdot {
+  position: absolute;
+  width: 12px; height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.bkcp-hue {
+  position: relative;
+  height: 12px;
+  border-radius: 6px;
+  touch-action: none;
+  cursor: pointer;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.bkcp-huethumb, .bkcp-alphathumb {
+  position: absolute;
+  top: 50%;
+  width: 14px; height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+/* Only present when `opts.alpha` is set — a checkerboard with the swatch's
+   own `--bkcp-rgb` painted over it at increasing opacity left→right, same
+   two-layer trick as the swatch itself. */
+.bkcp-alpha {
+  position: relative;
+  height: 12px;
+  border-radius: 6px;
+  touch-action: none;
+  cursor: pointer;
+  background-image:
+    linear-gradient(to right, rgb(var(--bkcp-rgb, 0 0 0) / 0), rgb(var(--bkcp-rgb, 0 0 0) / 1)),
+    linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: auto, 8px 8px, 8px 8px, 8px 8px, 8px 8px;
+  background-position: 0 0, 0 0, 0 4px, 4px -4px, -4px 0;
+}
+.bkcp-hexrow { display: flex; gap: 6px; }
+.bkcp-hex {
+  flex: 1; min-width: 0;
+  font: inherit; font-size: 12.5px;
+  padding: 5px 7px;
+  border: 1px solid var(--bkcp-border, var(--line, #e3e8ef));
+  border-radius: 6px;
+  background: var(--bkcp-bg, var(--field, var(--surface, #fff)));
+  color: var(--bkcp-ink, var(--ink, #1e2a3a));
+  text-transform: lowercase;
+}
+.bkcp-eye {
+  flex: 0 0 auto;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--bkcp-border, var(--line, #e3e8ef));
+  border-radius: 6px;
+  background: var(--bkcp-bg, var(--field, var(--surface, #fff)));
+  color: var(--bkcp-ink, var(--ink, #1e2a3a));
+  cursor: pointer;
+}
+.bkcp-eye svg { width: 14px; height: 14px; }
+.bkcp-fmtrow { display: flex; gap: 4px; }
+.bkcp-fmtbtn {
+  flex: 1;
+  padding: 3px 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--bkcp-border, var(--line, #e3e8ef));
+  border-radius: 5px;
+  background: var(--bkcp-bg, var(--field, var(--surface, #fff)));
+  color: var(--bkcp-hint, var(--muted, #8a95a6));
+  cursor: pointer;
+}
+.bkcp-fmtbtn-on {
+  background: var(--bkcp-accent, var(--blue, var(--accent, #2f6fed)));
+  border-color: var(--bkcp-accent, var(--blue, var(--accent, #2f6fed)));
+  color: var(--bkcp-accent-ink, var(--accent-on, #fff));
+}
+.bkcp-label { font-size: 11px; color: var(--bkcp-hint, var(--muted, #8a95a6)); margin-top: 2px; }
+.bkcp-swatches { display: flex; gap: 4px; flex-wrap: wrap; }
+.bkcp-swatch2 {
+  width: 18px; height: 18px; padding: 0; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--bkcp-border, var(--line, #e3e8ef));
+}
+.bkcp-swatch2:hover { transform: scale(1.12); }
+.bkcp-swatch2-on { outline: 2px solid var(--bkcp-accent, var(--blue, var(--accent, #2f6fed))); outline-offset: 1px; }
+
+.bkcp-default {
+  margin-top: 2px;
+  padding: 5px 0;
+  font: inherit; font-size: 12px;
+  border: 1px solid var(--bkcp-border, var(--line, #e3e8ef));
+  border-radius: 6px;
+  background: var(--bkcp-bg, var(--field, var(--surface, #fff)));
+  color: var(--bkcp-hint, var(--muted, #8a95a6));
+  cursor: pointer;
+}
+.bkcp-default:hover:not(:disabled) { color: var(--bkcp-ink, var(--ink, #1e2a3a)); }
+.bkcp-default:disabled { opacity: 0.4; cursor: default; }

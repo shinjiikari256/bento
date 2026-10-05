@@ -316,6 +316,20 @@ something `kernel/` already has:
   typography and chevron dash and slides already shared — adopted by
   those two; spaces keeps its own visibly different header and uses only
   the behaviour. `type` has no accordion, not touched.
+- `kernel/src/ui/colorpicker.ts` — `createColorPicker(hex, onChange, opts)`:
+  an HSV square + hue strip + hex/rgb/hsl field, an eyedropper, up to 10
+  recent colours, and a theme-palette row, all in one popover — a real
+  custom picker (ported from `slides/src/editor/colorpicker.ts`, see
+  `working/TZ-local-changes.md` §A2), not a wrapper around the native
+  `<input type=color>`. `opts.nullable` (dash's off/clear state) and
+  `opts.disabled` (dash's read-only cells) are opt-in, since the ported
+  original needed neither. `opts.labels` is required (no `t()` in kernel)
+  and no app `ICONS` import (the eyedropper glyph is inlined). Adopted in
+  dash and slides, replacing an earlier, narrower primitive
+  (`colorinput.ts`, now deleted — see docs/DECISIONS.md's 2026-10-05 entry
+  for why it existed and why it was wrong). spaces has no native colour
+  input to replace (its text colour is a fixed named-token palette, a
+  different feature) and `type` has no colour control.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`
