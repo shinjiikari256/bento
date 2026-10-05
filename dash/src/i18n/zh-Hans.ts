@@ -385,6 +385,7 @@ export const zhHans: Catalog = {
   "Print": "打印",
   "Print the view, or save it as a PDF (⌘P)": "打印当前视图，或另存为 PDF（⌘P）",
   "Print…": "打印…",
+  "Properties": "属性",
   "Properties travel in the file. The title is edited in the top bar.": "属性随文件一同保存。标题在顶栏中编辑。",
   "Put this workbook on the relay so people you send a copy to edit it live with you": "将此工作簿接入中继，让收到副本的人与你实时共同编辑",
   "Quoted fields stay whole. The first field replaces the cell you split; the rest spill to the right.": "带引号的字段保持完整。第一个字段替换你拆分的单元格，其余向右展开。",

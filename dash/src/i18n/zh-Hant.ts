@@ -385,6 +385,7 @@ export const zhHant: Catalog = {
   "Print": "列印",
   "Print the view, or save it as a PDF (⌘P)": "列印目前檢視，或另存為 PDF（⌘P）",
   "Print…": "列印…",
+  "Properties": "屬性",
   "Properties travel in the file. The title is edited in the top bar.": "屬性會跟著檔案一起走。標題請在頂端列編輯。",
   "Put this workbook on the relay so people you send a copy to edit it live with you": "將此活頁簿接上轉送伺服器，讓收到副本的人與你即時共同編輯",
   "Quoted fields stay whole. The first field replaces the cell you split; the rest spill to the right.": "帶引號的欄位保持完整。第一個欄位取代你拆分的儲存格，其餘向右展開。",

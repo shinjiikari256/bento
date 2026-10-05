@@ -40,6 +40,8 @@ import { openCtxMenuAtRect, type CtxItem } from '../../kernel/src/ui/ctxmenu.ts'
 import '../../kernel/src/ui/ctxmenu.css'
 import { applyAccordion as kernelAccordion } from '../../kernel/src/ui/accordion.ts'
 import '../../kernel/src/ui/accordion.css'
+import { createPanel } from '../../kernel/src/ui/panel.ts'
+import '../../kernel/src/ui/panel.css'
 import { lsJson, lsSet } from '../../kernel/src/storage.ts'
 import { TYPE_LABEL } from './format.ts'
 import { buildCellProps, type CellRange, type PanelKit } from './cellprops.ts'
@@ -86,15 +88,6 @@ export type TotalsAgg = NonNullable<TableSheet['totals']>[string]
 const TYPES: ColumnType[] = ['text', 'number', 'money', 'percent', 'date', 'bool', 'enum']
 const AGGS: Array<'sum' | 'avg' | 'count' | 'min' | 'max'> = ['sum', 'avg', 'count', 'min', 'max']
 
-// Widths are slides' bounds, nudged: a column's controls need a little more
-// room than an element's.
-const PANEL_BOUNDS = { right: [200, 440] } as const
-const PANEL_DEFAULTS = { right: 250 } as const
-/** Below this the panels boot shut, so the GRID is what you see. Slides' rule. */
-const PHONE_W = 700
-
-const LS_WIDTHS = 'bento-dash-panels'
-const LS_SHUT = 'bento-dash-panels-shut'
 /** Per-app, NOT slides' 'bento-panel-open': same origin, different section names. */
 const LS_SECTIONS = 'bento-dash-panel-open'
 
@@ -202,24 +195,41 @@ export function mountPanels(host: PanelsHost): Panels {
   // still honest, but it is only half the sentence.
   store.say = toast
 
-  // DECLARED FIRST, and it has to be: `resizer()` writes into this while
-  // building the strips below, and the strips are built before any of the
-  // sections that follow. A `const` further down the closure is in its temporal
-  // dead zone at that point — mounting threw `Cannot access 'chevrons' before
-  // initialization`, which took the whole boot with it (the panels had already
-  // emptied `.dx-body`, so the grid vanished too).
-  const chevrons: Partial<Record<Side, HTMLElement>> = {}
-
   // Everything that was in `.dx-body` — the grid and the chart pane — becomes
-  // the centre column, so the panels can sit either side of BOTH. Moving the
-  // nodes keeps their listeners and their subtrees, so the references main.ts
+  // the centre column, so the panel can sit beside both. Moving the nodes
+  // keeps their listeners and their subtrees, so the references main.ts
   // captured at boot stay live.
   const centre = h('div.dp-centre')
   while (body.firstChild) centre.appendChild(body.firstChild)
 
-  const right = panelEl('dp-right')
-  const rightBar = resizer('right')
-  body.append(centre, rightBar, right)
+  // Resize, collapse, persistence and the phone drawer are all
+  // kernel/src/ui/panel.ts's now (this app was the primitive's own design
+  // reference — see that file's header) — only the row grid, typography and
+  // the panel's own --chrome background/amber resizer-hover (dash's own
+  // tokens, not generic ones the shared fallback chain lands on by default)
+  // stay local, in panels.css.
+  const right = h('aside.dp-panel.dp-right')
+  const panel = createPanel({
+    content: right,
+    side: 'end',
+    defaultWidth: 250,
+    // Slides' bounds, nudged: a column's controls need a little more room
+    // than an element's.
+    minWidth: 200,
+    maxWidth: 440,
+    storageKey: 'bento-dash-panel-right',
+    label: t('Properties'),
+  })
+  panel.resizer.title = t('Drag to resize · double-click to reset')
+  // The arrow points where clicking moves the boundary, not at the panel —
+  // the tooltip is the one thing the kernel chevron leaves to the caller.
+  const updateToggleTitle = (): void => {
+    panel.resizer.querySelector('button')!.title =
+      panel.collapsed ? t('Show properties (])') : t('Hide properties (])')
+  }
+  panel.onChange(updateToggleTitle)
+  updateToggleTitle()
+  body.append(centre, panel.root)
 
   // THE SHEET TABS, mounted from here — and main.ts needs no edit for it.
   // `mountTabs` inserts itself directly AFTER `.dx-body`, which lands the strip
@@ -230,95 +240,7 @@ export function mountPanels(host: PanelsHost): Panels {
   // exactly the shape of bug two people editing one screen produce.
   mountTabs({ store, grid, body })
 
-  // --- widths and collapse, both remembered ---------------------------------
-
-  const widths = { ...PANEL_DEFAULTS } as { right: number }
-  const saved = lsJson<Record<string, number>>(LS_WIDTHS, {})
-  for (const side of ['right'] as const) {
-    const [min, max] = PANEL_BOUNDS[side]
-    if (typeof saved[side] === 'number') widths[side] = Math.min(max, Math.max(min, saved[side]))
-  }
-  applyWidths()
-
-  // A phone boots shut so the grid is what you see — but only if the reader has
-  // never said otherwise, or opening the panel on a phone would be forgotten on
-  // every reload.
-  const shut = lsJson<Record<string, boolean>>(LS_SHUT, {})
-  {
-    const pref = shut.right
-    // A width of ZERO means "not laid out yet", not "phone". A background or
-    // freshly-created tab reports 0 before first layout, and `0 < 700` then
-    // collapsed the panel on a desktop — with no stored preference to explain
-    // it, so it looked like the panel had simply not shipped.
-    const vw = window.innerWidth
-    const phone = vw > 0 && vw < PHONE_W
-    if (pref ?? phone) right.classList.add('dp-shut')
-  }
-  updateChevrons()
-
-  function panelEl(cls: string): HTMLElement {
-    return h(`aside.dp-panel.${cls}`)
-  }
-
-  function applyWidths(): void {
-    right.style.setProperty('--dp-w', `${widths.right}px`)
-  }
-
-
-  function updateChevrons(): void {
-    const btn = chevrons.right
-    if (!btn) return
-    const closed = right.classList.contains('dp-shut')
-    // The arrow points where clicking moves the boundary, not at the panel.
-    btn.textContent = closed ? '‹' : '›'
-    btn.title = closed ? t('Show properties (])') : t('Hide properties (])')
-  }
-
-  function toggle(_side: Side): void {
-    const nowShut = right.classList.toggle('dp-shut')
-    shut.right = nowShut
-    lsSet(LS_SHUT, JSON.stringify(shut))
-    updateChevrons()
-  }
-
-  function resizer(side: 'right'): HTMLElement {
-    const bar = h('div.dp-resizer', { title: t('Drag to resize · double-click to reset') })
-    const btn = h('button.dp-toggle', {
-      onclick: (e: MouseEvent) => { e.stopPropagation(); toggle(side) },
-    })
-    chevrons[side] = btn
-    bar.appendChild(btn)
-
-    bar.addEventListener('mousedown', (down) => {
-      if (down.target === btn) return         // the chevron is a click, not a drag
-      if (right.classList.contains('dp-shut')) return
-      down.preventDefault()
-      const startX = down.clientX
-      const startW = widths[side]
-      const [min, max] = PANEL_BOUNDS[side]
-      right.classList.add('dp-noanim')
-      document.body.classList.add('dp-resizing')
-      const move = (e: MouseEvent): void => {
-        widths[side] = Math.min(max, Math.max(min, startW - (e.clientX - startX)))
-        applyWidths()
-      }
-      const up = (): void => {
-        window.removeEventListener('mousemove', move)
-        window.removeEventListener('mouseup', up)
-        right.classList.remove('dp-noanim')
-        document.body.classList.remove('dp-resizing')
-        lsSet(LS_WIDTHS, JSON.stringify(widths))
-      }
-      window.addEventListener('mousemove', move)
-      window.addEventListener('mouseup', up)
-    })
-    bar.addEventListener('dblclick', () => {
-      widths[side] = PANEL_DEFAULTS[side]
-      applyWidths()
-      lsSet(LS_WIDTHS, JSON.stringify(widths))
-    })
-    return bar
-  }
+  function toggle(_side: Side): void { panel.toggle() }
 
   // --- what is current ------------------------------------------------------
 
@@ -884,7 +806,7 @@ export function mountPanels(host: PanelsHost): Panels {
     const open = lsJson<Record<string, boolean>>(LS_SECTIONS, {})
     open[title] = true
     lsSet(LS_SECTIONS, JSON.stringify(open))
-    if (right.classList.contains('dp-shut')) toggle('right')
+    if (panel.collapsed) panel.expand()
     render(true)
     for (const h of right.querySelectorAll<HTMLElement>('.bka-section')) {
       if (h.textContent === title) { h.scrollIntoView({ block: 'nearest' }); return }

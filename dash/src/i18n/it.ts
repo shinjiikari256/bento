@@ -385,6 +385,7 @@ export const it: Catalog = {
   "Print": "Stampa",
   "Print the view, or save it as a PDF (⌘P)": "Stampa la vista o salvala come PDF (⌘P)",
   "Print…": "Stampa…",
+  "Properties": "Proprietà",
   "Properties travel in the file. The title is edited in the top bar.": "Le proprietà viaggiano nel file. Il titolo si modifica nella barra in alto.",
   "Put this workbook on the relay so people you send a copy to edit it live with you": "Metti questa cartella di lavoro sul relay perché chi riceve una copia la modifichi in diretta con te",
   "Quoted fields stay whole. The first field replaces the cell you split; the rest spill to the right.": "I campi tra virgolette restano interi. Il primo campo sostituisce la cella divisa; gli altri si estendono a destra.",

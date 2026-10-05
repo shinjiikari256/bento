@@ -70,7 +70,6 @@ const allCss = files.map((f) => css[f]).join('\n')
  */
 const SET_ELSEWHERE: Record<string, string> = {
   '--row-h': 'grid.ts setProperty from its ROW_H constant (styles.css carries a fallback)',
-  '--dp-w': 'panels.ts, the dragged panel width',
   '--dbx-cols': 'dashboard.ts, the tile grid column count',
   '--tray-safe-top': 'bento/tray’s WKWebView host — tray/ios/EditorViewController.swift',
   '--tray-safe-right': 'bento/tray’s WKWebView host',

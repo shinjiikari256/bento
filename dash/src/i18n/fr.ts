@@ -385,6 +385,7 @@ export const fr: Catalog = {
   "Print": "Imprimer",
   "Print the view, or save it as a PDF (⌘P)": "Imprimer la vue, ou l’enregistrer en PDF (⌘P)",
   "Print…": "Imprimer…",
+  "Properties": "Propriétés",
   "Properties travel in the file. The title is edited in the top bar.": "Les propriétés voyagent avec le fichier. Le titre se modifie dans la barre supérieure.",
   "Put this workbook on the relay so people you send a copy to edit it live with you": "Placer ce classeur sur le relais pour que les destinataires d’une copie le modifient en direct avec vous",
   "Quoted fields stay whole. The first field replaces the cell you split; the rest spill to the right.": "Les champs entre guillemets restent entiers. Le premier champ remplace la cellule divisée ; les autres s’étendent vers la droite.",

@@ -385,6 +385,7 @@ export const de: Catalog = {
   "Print": "Drucken",
   "Print the view, or save it as a PDF (⌘P)": "Die Ansicht drucken oder als PDF sichern (⌘P)",
   "Print…": "Drucken…",
+  "Properties": "Eigenschaften",
   "Properties travel in the file. The title is edited in the top bar.": "Die Eigenschaften reisen in der Datei mit. Der Titel wird in der oberen Leiste bearbeitet.",
   "Put this workbook on the relay so people you send a copy to edit it live with you": "Diese Arbeitsmappe auf das Relay legen, damit Empfänger einer Kopie live mit Ihnen bearbeiten",
   "Quoted fields stay whole. The first field replaces the cell you split; the rest spill to the right.": "Felder in Anführungszeichen bleiben ganz. Das erste Feld ersetzt die geteilte Zelle, der Rest reicht nach rechts.",

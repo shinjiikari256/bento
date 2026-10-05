@@ -385,6 +385,7 @@ export const ja: Catalog = {
   "Print": "印刷",
   "Print the view, or save it as a PDF (⌘P)": "表示中のビューを印刷、または PDF として保存します（⌘P）",
   "Print…": "印刷…",
+  "Properties": "プロパティ",
   "Properties travel in the file. The title is edited in the top bar.": "プロパティはファイルと一緒に持ち運ばれます。タイトルは上部バーで編集します。",
   "Put this workbook on the relay so people you send a copy to edit it live with you": "このブックをリレーに接続し、コピーを渡した相手とリアルタイムで共同編集します",
   "Quoted fields stay whole. The first field replaces the cell you split; the rest spill to the right.": "引用符で囲まれた項目はそのまま残ります。最初の項目は分割元のセルを置き換え、残りは右へ広がります。",

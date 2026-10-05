@@ -13,18 +13,23 @@
    The SPACING is slides' (slides/src/styles.css `.ed-props` / `.ed-section` /
    `.ed-row` / `.ed-resizer`): 14px panel padding, 11px uppercase section
    headers at 0.07em with 18px above and 8px below, 12.5px rows with a 110px
-   control, an 8px gutter, an 8px pitch, 6px control radii, a 5px resizer strip
-   and a 16×44 chevron docked to the screen edge when the panel is shut. The
-   ROW is dash's own, and the note at `.dp-panel` says why the reference is not
+   control, an 8px gutter, an 8px pitch and 6px control radii. The ROW is
+   dash's own, and the note at `.dp-panel` says why the reference is not
    copied there. The COLOURS come from dash's own :root, so the panel sits
    against dash's grid rather than importing slides' palette wholesale. Two apps
    that agree on spacing and differ on hue read as one product; the reverse does
-   not. */
+   not.
+
+   RESIZE, COLLAPSE, THE 5PX STRIP, THE 16×44 DOCKING CHEVRON AND THE PHONE
+   DRAWER all moved to `kernel/src/ui/panel.ts` + `.css` — this app WAS that
+   primitive's own design reference (its header comment says so); what is
+   left here is the handful of things the primitive deliberately leaves to
+   the host, at the `.bkp-end`/`.bkp-toggle` rules below. */
 
 /* ————— layout ————— */
 
 /* Everything that was already in .dx-body — the grid and the chart — moves in
-   here at mount, so the panels bracket BOTH rather than just the grid. */
+   here at mount, so the panel brackets both rather than just the grid. */
 .dp-centre {
   flex: 1 1 auto;
   min-width: 0;
@@ -33,7 +38,7 @@
 }
 
 /* styles.css stacks .dx-body on a narrow window so the chart sits UNDER the
-   grid. The panels are the columns now, so that flip moves down one level.
+   grid. The panel is a column now, so that flip moves down one level.
    `#app` gives these the specificity to win regardless of stylesheet order —
    which import order decides, and import order is not something a rule this
    load-bearing should depend on. */
@@ -42,72 +47,23 @@
   #app .dp-centre { flex-direction: column; }
 }
 
-/* ————— phones: the panels become DRAWERS —————
-   As flex siblings, two 220px panels plus their resizers claim 450px of a
-   390px screen: MEASURED, document.body.scrollWidth was 460 against a
-   clientWidth of 390, so the whole app grew a horizontal scrollbar and the
-   grid — the thing you came for — was the smallest region on screen.
-   panels.ts already shuts both panels at BOOT on a narrow window, which is why
-   this never showed up on a real phone; it shows up the moment a desktop window
-   is narrowed or a tablet is rotated, because that path runs once and never
-   again. Overlaying costs no layout width at all, so the grid keeps the full
-   screen whether a drawer is open or shut. slides made the same move at the
-   same breakpoint, and for the same reason.
-
-   699 and not 700, because panels.ts tests `vw < PHONE_W` with PHONE_W = 700 —
-   so 700 is a DESKTOP there. At `max-width: 700px` the two definitions
-   disagreed on exactly one pixel, and on that pixel a fresh load left both
-   panels open AND floating: two overlay drawers covering a 700px window, with
-   the grid a sliver between them. Breakpoints that mean the same thing have to
-   BE the same number. */
-@media (max-width: 699px) {
-  #app .dx-body { position: relative; }
-  #app .dp-panel {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    z-index: 40;
-    box-shadow: var(--shadow-pop);
-  }
-  #app .dp-right { right: 0; }
-  /* a shut drawer casts no shadow, or the closed edge draws a grey smear */
-  #app .dp-panel.dp-shut { box-shadow: none; }
-
-  /* The chevron DOCKS now, open or shut. With the panel floating, the resizer
-     strip is the only thing left in flow, so it sits hard against the screen
-     edge — and a 16px chevron centred on a 5px rail then hung 5.5px past the
-     viewport. Measured: body.scrollWidth 396 against clientWidth 390, a
-     horizontal scrollbar for six pixels of decoration. These are the same rules
-     the shut state already used; the phone just always wants them. */
-  #app .dp-resizer:has(+ .dp-panel) .dp-toggle {
-    left: auto;
-    right: 0;
-    transform: translateY(-50%);
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-
-  /* …AND THE CHEVRON HAS TO BE ON TOP OF THE DRAWER IT CLOSES.
-     Docking is only half the job. The resizer strips stay in flow at x=0 and
-     x=vw-5, but an OPEN drawer is `position: absolute; z-index: 40` over the
-     same pixels — so the pull tab was painted underneath the panel it opens
-     and closes. MEASURED at 375px with both drawers open:
-     elementFromPoint on each chevron's centre returned `.dp-panel`, not the
-     button — both toggles unreachable, the grid completely covered, and
-     nothing left to shut them with but the `[` and `]` keys, which is not a
-     thing a phone has. (At boot this never showed, because a phone boots with
-     both drawers shut and the chevrons sit over the grid.)
-
-     The strip rides above the drawer instead. The tab does NOT move between
-     states — only its arrow flips — so the control a reader just used to open
-     a drawer is still under their thumb to close it, rather than 200px away at
-     an edge that depends on a width they may have dragged. */
-  #app .dp-resizer { z-index: 45; }
-
-  /* and it sits in its own gutter rather than on top of the first 16px of the
-     panel: a tab overlapping a row's label reads as a rendering bug */
-  #app .dp-right:not(.dp-shut) { padding-right: 22px; }
+/* ————— kernel/src/ui/panel.ts adoption —————
+   Resize, collapse, persistence and the phone drawer are all the shared
+   primitive's now (this app was its own design reference — see that file's
+   header comment) — what stays here is what the primitive deliberately
+   leaves to the host: the panel's own `--chrome` background (the kernel
+   default fallback lands on `--surface` first, a different colour in this
+   app) and the amber resizer-hover (`--accent`, dash's own, not a shared
+   concept), plus two chevron touches — a drop shadow and an ink/border
+   hover state — the primitive doesn't carry by default. */
+#app .bkp-end {
+  --bkp-bg: var(--chrome);
+  --bkp-resizer-hover: rgb(247 166 0 / 0.45);
 }
+#app .bkp-toggle {
+  box-shadow: 0 1px 4px light-dark(rgb(20 30 45 / 0.12), rgb(0 0 0 / 0.45));
+}
+#app .bkp-toggle:hover { color: var(--ink); border-color: var(--line-strong); }
 
 /* ————— ONE GRID FOR THE WHOLE PANEL —————
    Five sections were written at different times by different hands — Cell and
@@ -152,97 +108,35 @@
   --dp-row: 26px;               /* the height every control shares */
   --dp-pitch: 8px;              /* under every row, note, button and list */
   --dp-radius: 6px;             /* every control corner, and every button's */
-  width: var(--dp-w, 220px);
   /* The row layout QUERIES THIS PANEL, never the viewport: the panel is dragged
      between 200 and 440px by hand, so its width and the window's width are
-     unrelated numbers. Both panels are containers, so a row laid out in the
-     sheet list and a row laid out in the properties behave identically. */
+     unrelated numbers. */
   container-type: inline-size;
-  flex: none;
-  /* A FLEX ITEM FLOORS AT ITS MIN-CONTENT WIDTH UNLESS TOLD NOT TO, and this
-     one is dragged by hand, so that floor was silently overriding the reader.
-     MEASURED at a 1440px window: `--dp-w: 200px` laid out at 276.7px and
-     `--dp-w: 320px` at 303.8px — the panel was as wide as its longest label
-     wanted, not as wide as it had been dragged, and the number it stored in
-     localStorage described a width it had never taken. The stacked layout below
-     is the same bug's other half: its threshold is a CONTENT width, so whether
-     a row stacked depended on which section happened to be mounted rather than
-     on the panel's width. `.dp-shut` already carried this declaration for the
-     same reason, which is the whole of the argument for it living up here. */
+  /* Still the flex-item-floors-at-min-content guard (CLAUDE.md's own, hard-
+     won on this exact panel) even though .dp-panel is no longer the flex
+     item .bkp-content is now — a container query reads its own box, not its
+     ancestor's, so a stray min-content floor here would misreport the width
+     every row's --dp-ctl clamps against. */
   min-width: 0;
+  /* .bkp-content's own overflow:auto is a safety net, not the scroll
+     container — THIS element is, so it keeps dash's own refinements over the
+     generic default: no horizontal scrollbar ever, and a stable gutter so a
+     vertical one appearing/disappearing does not reflow every row. */
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
   /* a dimmer backdrop than the accordion cards themselves (kernel's
      .bka-group) — a white card on a white panel has nothing to sit
      against. */
-  background: var(--chrome);
   padding: 12px;
-  transition: width 0.18s ease, padding 0.18s ease;
 }
 .dp-right {
-  border-left: 1px solid var(--line);
   /* 8px inline, not 14: the accordion cards inside carry their own wider
      inline-start padding for the header chevron (kernel accordion.css), and
      at a 14px gutter that left a 250px panel's label column too narrow for
      "Selection" on one line. */
   padding: 14px 8px;
-}
-
-.dp-panel.dp-shut {
-  width: 0;
-  padding-left: 0;
-  padding-right: 0;
-  border-width: 0;
-  overflow: hidden;
-}
-.dp-noanim { transition: none !important; }
-
-/* ————— resizer strips ————— */
-
-.dp-resizer {
-  position: relative;
-  flex: none;
-  width: 5px;
-  cursor: col-resize;
-  background: transparent;
-  transition: background 0.12s ease 0.08s;
-}
-.dp-resizer:hover,
-body.dp-resizing .dp-resizer { background: rgb(247 166 0 / 0.45); }
-body.dp-resizing { cursor: col-resize; user-select: none; }
-/* against a shut panel the strip carries nothing but the reopen chevron */
-.dp-resizer:has(+ .dp-panel.dp-shut) { cursor: default; }
-.dp-resizer:has(+ .dp-panel.dp-shut):hover { background: transparent; }
-
-.dp-toggle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px;
-  height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--muted);
-  font: 11px/1 inherit;
-  padding: 0;
-  cursor: pointer;
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 4px light-dark(rgb(20 30 45 / 0.12), rgb(0 0 0 / 0.45));
-}
-.dp-toggle:hover { color: var(--ink); border-color: var(--line-strong); }
-/* shut: the chevron pins fully on-screen, docked to the edge like a drawer pull */
-.dp-resizer:has(+ .dp-panel.dp-shut) .dp-toggle {
-  left: auto;
-  right: 0;
-  transform: translateY(-50%);
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
 }
 
 /* ————— sections ————— */
