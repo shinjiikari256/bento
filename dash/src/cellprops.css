@@ -39,51 +39,12 @@
 .dc-preview-sample { color: var(--muted); font-style: italic; }
 
 /* ————— colour, with an off state —————
-   `<input type="color">` always holds a colour, so "no background" cannot be
-   said by the swatch. The × is the off switch; the diagonal slash is what says
-   the swatch is not in effect, since the input still paints its fallback. */
-.dc-colour {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;                          /* the control column — see .dc-preview */
-  min-width: 0;
-}
-.dc-colour input[type='color'] {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: var(--dp-row, 26px);
-  padding: 0 1px;
-  border: 1px solid var(--line);
-  border-radius: var(--dp-radius);
-  background: var(--surface);
-  cursor: pointer;
-}
-.dc-colour input[type='color']:disabled { cursor: default; opacity: 0.5; }
-
-/* Not set: the swatch is showing a DEFAULT, not the cell's colour, and it has
-   to say so — otherwise every unstyled cell looks like it was painted. */
-.dc-colour-off input[type='color'] {
-  opacity: 0.4;
-  background:
-    linear-gradient(to top right,
-      transparent calc(50% - 1px), var(--line-strong) 50%, transparent calc(50% + 1px));
-}
-
-.dc-clear {
-  flex: none;
-  width: 20px;
-  height: var(--dp-row, 26px);
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--dp-radius);
-  background: var(--surface);
-  color: var(--muted);
-  font: 13px/1 inherit;
-  cursor: pointer;
-}
-.dc-clear:hover:not(:disabled) { color: var(--ink); border-color: var(--line-strong); }
-.dc-clear:disabled { opacity: 0.35; cursor: default; }
+   kernel/src/ui/colorpicker.ts's own popover picker now, replacing the
+   native `<input type="color">` this file used to wrap — see
+   docs/DECISIONS.md's 2026-10-05 entry for why (one picker everywhere,
+   a theme palette inline, an eyedropper). colorpicker.css owns the WHOLE
+   visual design (unlike field.css's "structure here, taste there" split)
+   so this control needs no overrides of its own any more. */
 
 /* The currency symbol is one or two glyphs; the full control width for `£`
    reads as a field that wants a sentence. It narrows from the START of the

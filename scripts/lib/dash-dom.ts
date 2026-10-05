@@ -87,6 +87,12 @@ export class El {
       add: (...xs: string[]) => write([...new Set([...read(), ...xs])]),
       remove: (...xs: string[]) => write(read().filter((c) => !xs.includes(c))),
       contains: (x: string) => read().includes(x),
+      toggle: (x: string, force?: boolean): boolean => {
+        const has = read().includes(x)
+        const want = force !== undefined ? force : !has
+        if (want !== has) write(want ? [...read(), x] : read().filter((c) => c !== x))
+        return want
+      },
     }
   }
 
