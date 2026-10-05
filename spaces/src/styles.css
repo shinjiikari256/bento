@@ -312,11 +312,11 @@ option { background: var(--field); color: var(--ink); }
 .sp-body { display: flex; flex: 1 1 auto; min-height: 0; }
 
 /* ————— sidebar ————— */
+/* Width, resize, collapse, persistence and the phone drawer all come from
+   kernel/src/ui/panel.ts now (editor.ts) — .sp-side is .bkp-content's child,
+   not the panel root, so what is left here is its own padding/scroll, not
+   its chrome (that lives at the .bkp-start/.bkp-end overrides below). */
 .sp-side {
-  /* the reader's width, restored from localStorage — never the document's */
-  flex: 0 0 var(--sp-panew, 244px); min-width: 0;
-  transition: flex-basis .18s ease, padding .18s ease;
-  border-inline-end: 1px solid var(--line); background: var(--bg);
   overflow: auto; padding: 10px 8px max(16px, env(safe-area-inset-bottom));
 }
 .sp-side-head {
@@ -1017,18 +1017,11 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 .sp-menu { display: none; }
 @media (max-width: 820px) {
   .sp-menu { display: inline-flex; }
-  /* The drawer is simply absent until asked for. An animated off-canvas panel
-     is nicer, and two attempts at one (a logical inset, then a transform) both
-     failed to move under measurement — so this ships the version whose
-     behaviour is obvious from the rule. A slide-in can come back with a test
-     that proves it. */
-  .sp-side { display: none; }
-  .sp-side.sp-open {
-    display: block; position: fixed; inset: 0 auto 0 0; width: 268px;
-    z-index: 50; box-shadow: 0 0 50px rgb(var(--shade) / .3);
-    padding-top: max(14px, env(safe-area-inset-top));
-  }
-  [dir='rtl'] .sp-side.sp-open { inset: 0 0 0 auto; }
+  /* The drawer itself — position, z-index, the off-canvas slide and its
+     breakpoint — is kernel/src/ui/panel.ts's `.bkp-drawer` now (panel.css);
+     .sp-side carries none of its own positioning any more, only what the
+     drawer doesn't know to add: clearing a phone's notch. */
+  .sp-side { padding-top: max(14px, env(safe-area-inset-top)); }
   .sp-scrim { position: fixed; inset: 0; background: rgb(var(--shade) / .3); z-index: 45; }
   .sp-main { --sp-pad-x: 18px; --sp-pad-y: 26px; padding: var(--sp-pad-y) var(--sp-pad-x) 45vh; }
   /* THE MARGIN THE GUTTER LIVES IN — see below — and it hangs off the PAGE, not
@@ -1082,7 +1075,7 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
        it a dark reader's UA furniture prints dark over our white. */
     color-scheme: only light !important;
   }
-  .sp-bar, .sp-side, .sp-insp, .sp-insp-rz, .sp-banner, .sp-gutter, .sp-scrim, .sp-langchip { display: none !important; }
+  .sp-bar, .bkp-start, .bkp-end, .sp-banner, .sp-gutter, .sp-scrim, .sp-langchip { display: none !important; }
   .sp-tb-tools, .sp-tb-grip { display: none !important; }
   .sp-main { overflow: visible; --sp-pad-x: 0px; --sp-pad-y: 0px; padding: 0; background: #fff; }
   .sp-toggle-body[hidden] { display: block !important; }  /* toggles print OPEN */
@@ -1551,51 +1544,37 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 .sp-about-logo b + span { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
 .sp-about-logo:hover b { text-decoration: underline; }
 
-/* ————— the panel edge: resize here, collapse here —————
-   Slides' pattern, and its reasoning: the control that hides a panel belongs on
-   the panel's own edge, where you are already looking, rather than in a toolbar
-   across the room. */
-.sp-resizer {
-  flex: none; width: 5px; position: relative;
-  cursor: col-resize; background: transparent;
-  transition: background .12s ease .08s;
+/* ————— kernel/src/ui/panel.ts adoption —————
+   Resize, collapse, persistence and the phone-drawer MECHANICS are the
+   shared primitive's now. What stays here: the panel's own `--bg`
+   background (the kernel default fallback lands on `--surface` first —
+   identical to `--bg` in light mode, a different shade in dark), the blue
+   `--blue` resizer-hover (this app's own, not a shared concept), and the
+   chevron's drop shadow + hover state the primitive doesn't carry by
+   default. */
+#app .bkp-start, #app .bkp-end {
+  --bkp-bg: var(--bg);
+  --bkp-resizer-hover: color-mix(in srgb, var(--blue) 45%, transparent);
+  /* ABOVE .sp-scrim's 45 (below), same ordering the old .sp-open drawer
+     used at z-index 50 — the open drawer must sit over its own backdrop. */
+  --bkp-drawer-z: 50;
 }
-.sp-resizer:hover,
-body.sp-col-resizing .sp-resizer { background: color-mix(in srgb, var(--blue) 45%, transparent); }
-body.sp-col-resizing { cursor: col-resize; user-select: none; }
-.sp-noanim { transition: none !important; }
-
-/* The chevron rides the strip and is ALWAYS visible — same as slides. A
-   hover-only affordance is one nobody finds: the first version of this faded in
-   on hover, so the way to hide the panel was invisible until you happened to
-   pass over a 5px strip. */
-.sp-pane-tab {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px; height: 44px; padding: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--surface); color: var(--muted);
-  border: 1px solid var(--line); border-radius: 8px;
-  cursor: pointer; z-index: 15;
+#app .bkp-toggle {
   box-shadow: 0 1px 4px rgb(var(--shade) / .12);
 }
-.sp-pane-tab:hover { color: var(--ink); border-color: var(--edge); }
-.sp-pane-tab svg { width: 13px; height: 13px; display: block; }
+#app .bkp-toggle:hover { color: var(--ink); border-color: var(--edge); }
 
-/* Collapsed: the panel takes no width and the strip carries only the chevron,
-   docked flush to the screen edge so there is always a way back. */
-.sp-side.sp-pane-closed {
-  flex-basis: 0; padding-inline: 0; border-inline-end-width: 0; overflow: hidden;
-}
-.sp-side.sp-pane-closed + .sp-resizer { cursor: default; }
-.sp-side.sp-pane-closed + .sp-resizer:hover { background: transparent; }
-.sp-side.sp-pane-closed + .sp-resizer .sp-pane-tab {
-  inset-inline-start: 0; left: auto; transform: translateY(-50%);
-}
-
-/* On a phone the panel is a drawer, not a column: no strip, no resizing. */
+/* On a phone the panel is a drawer with NO strip at all, unlike
+   slides/dash/type's own adoption of this primitive — the topbar's own
+   Pages/Properties buttons (`.sp-panel-toggle`/`.sp-insp-toggle`) are the
+   only way in, and editor.ts's syncDrawerScrim is the way back out (a tap
+   on the backdrop), so there is nothing for a reachable edge strip to add
+   below this breakpoint. */
 @media (max-width: 820px) {
-  .sp-resizer { display: none; }
+  #app .bkp-resizer { display: none; }
+  /* …and a collapsed drawer's 16px dock would then be an invisible band
+     over the page edge eating taps — make it nothing */
+  #app .bkp { --bkp-collapsed-w: 0px; }
 }
 
 /* THE PAGES BUTTON ONLY EXISTS WHERE THE PANEL IS A DRAWER.
@@ -1611,31 +1590,11 @@ body.sp-col-resizing { cursor: col-resize; user-select: none; }
 }
 
 /* ————— the properties panel —————
-   The sibling of the page list, on the other edge, with the SAME resizer strip
-   and the SAME chevron. Two collapse idioms in one window would be two things
-   to learn for one behaviour.
-
-   IT COSTS NOTHING WHILE CLOSED, and that is the whole point of the rule
-   rather than a nicety: the wide-page work that shipped one commit before this
-   gives the column the window's slack, and a panel holding 280px of it open by
-   default would take that back on every screen. Closed is `flex-basis: 0`, no
-   padding and no border — `.sp-main` is `flex: 1 1 auto`, so the column is the
-   width it would be if this file did not exist. */
+   The sibling of the page list, on the other edge, sharing the same
+   primitive. .sp-insp is .bkp-content's child, not the panel root — its own
+   rule keeps only its padding/scroll, same split as .sp-side above. */
 .sp-insp {
-  flex: 0 0 var(--sp-inspw, 280px); min-width: 0;
-  transition: flex-basis .18s ease, padding .18s ease;
-  border-inline-start: 1px solid var(--line); background: var(--bg);
   overflow: auto; padding: 10px 10px max(16px, env(safe-area-inset-bottom));
-}
-.sp-insp.sp-pane-closed {
-  flex-basis: 0; padding-inline: 0; border-inline-start-width: 0; overflow: hidden;
-}
-/* Mirror of the page list's strip. The chevron docks to the END edge when the
-   panel is shut, so there is always a way back in. */
-.sp-insp-rz.sp-shut { cursor: default; }
-.sp-insp-rz.sp-shut:hover { background: transparent; }
-.sp-insp-rz.sp-shut .sp-pane-tab {
-  inset-inline-end: 0; left: auto; transform: translateY(-50%);
 }
 
 .sp-insp-title {
@@ -1701,16 +1660,11 @@ body.sp-col-resizing { cursor: col-resize; user-select: none; }
 .sp-insp .sp-select { max-width: 100%; }
 
 /* THE SAME BARGAIN THE PAGE LIST MAKES BELOW THE BREAKPOINT: an overlay, not a
-   third column. 820px of window does not hold two panels and a page. */
+   third column. 820px of window does not hold two panels and a page. The
+   drawer itself is kernel/src/ui/panel.ts's `.bkp-drawer` (panel.css); only
+   the notch clearance stays local, same as .sp-side's own phone rule. */
 @media (max-width: 820px) {
-  .sp-insp-rz { display: none; }
-  .sp-insp { display: none; }
-  .sp-insp.sp-open {
-    display: block; position: fixed; inset: 0 0 0 auto; width: 288px;
-    z-index: 50; box-shadow: 0 0 50px rgb(var(--shade) / .3);
-    padding-top: max(14px, env(safe-area-inset-top));
-  }
-  [dir='rtl'] .sp-insp.sp-open { inset: 0 auto 0 0; }
+  .sp-insp { padding-top: max(14px, env(safe-area-inset-top)); }
 }
 
 /* THE BUTTON IS SHOWN AT EVERY WIDTH, and this is a correction.

@@ -53,6 +53,8 @@ import {
 import { h } from '../../kernel/src/dom.ts'
 import '../../kernel/src/ui/field.css'
 import { fieldize } from '../../kernel/src/ui/field.ts'
+import { createPanel, type Panel } from '../../kernel/src/ui/panel.ts'
+import '../../kernel/src/ui/panel.css'
 
 const CTRL = navigator.platform.toLowerCase().includes('mac') ? 'metaKey' : 'ctrlKey'
 
@@ -131,25 +133,17 @@ export class Editor {
   private readB: HTMLButtonElement | null = null
   private redoB!: HTMLButtonElement
   private dirtyDot!: HTMLElement
-  private paneTab: HTMLButtonElement | null = null
-  private static readonly PANE_MIN = 150
-  private static readonly PANE_MAX = 420
-  private static readonly PANE_DEFAULT = 244
-  private paneW = Editor.PANE_DEFAULT
-  private paneClosed = false
+  private sidePanel!: Panel
+  /** a single shared backdrop for whichever panel is open as a phone drawer —
+   *  see syncDrawerScrim */
+  private scrim: HTMLElement | null = null
 
   // The properties panel — the reader's, like the page list, and CLOSED unless
   // this reader has opened it. See props.ts on why the default is that way
   // round.
   private inspector!: HTMLElement
-  private inspTab: HTMLButtonElement | null = null
-  private inspRz: HTMLElement | null = null
+  private inspPanel!: Panel
   private props: PropsPanel | null = null
-  private static readonly INSP_MIN = 200
-  private static readonly INSP_MAX = 420
-  private static readonly INSP_DEFAULT = 280
-  private inspW = Editor.INSP_DEFAULT
-  private inspClosed = true
   /** the block the panel is describing: the last one the caret or a click was in */
   private inspOn: string | null = null
   /** review threads — markers in the end margin, badges in the tree */
@@ -186,18 +180,8 @@ export class Editor {
   constructor(root: HTMLElement, store: Store) {
     this.root = root
     this.store = store
-    // the reader's panel, restored — never the document's
-    try {
-      const w = Number(localStorage.getItem('bento-sp-pane'))
-      if (Number.isFinite(w) && w > 0) this.paneW = Math.min(Editor.PANE_MAX, Math.max(Editor.PANE_MIN, w))
-      this.paneClosed = localStorage.getItem('bento-sp-pane-closed') === '1'
-      const iw = Number(localStorage.getItem('bento-sp-insp'))
-      if (Number.isFinite(iw) && iw > 0) this.inspW = Math.min(Editor.INSP_MAX, Math.max(Editor.INSP_MIN, iw))
-      // ABSENT MEANS CLOSED. Only an explicit '0' — this reader opened it once —
-      // gives the panel any width, so a fresh file opens as the page and nothing
-      // else.
-      this.inspClosed = localStorage.getItem('bento-sp-insp-closed') !== '0'
-    } catch { /* storage throws on a locked-down origin; the defaults are fine */ }
+    // the reader's panel widths/collapse, restored — never the document's —
+    // is kernel/src/ui/panel.ts's own job now (storageKey below).
     this.build()
     // AFTER build(): `main` exists by then, and the marker layer is painted
     // into whatever the page paint just produced.
@@ -215,7 +199,6 @@ export class Editor {
       main: () => this.main,
       editable: () => !this.store.readOnly && !this.reading && !this.overlay,
     })
-    if (this.paneClosed) this.sidebar.classList.add('sp-pane-closed')
     this.props = new PropsPanel(this.inspector, {
       store: this.store,
       target: () => this.inspOn,
@@ -268,7 +251,7 @@ export class Editor {
 
     // Pages panel toggle — on every width, like slides' Slides/Format toggles.
     // A sidebar you cannot put away is a sidebar you resent on a laptop.
-    const pagesB = iconBtn('panelLeft', t('Pages — show or hide the page list'), () => this.toggleSidebar())
+    const pagesB = iconBtn('panelLeft', t('Pages — show or hide the page list'), () => this.togglePane())
     pagesB.classList.add('sp-panel-toggle')
 
     const title = h('input.sp-doctitle', { value: this.store.doc.title })
@@ -503,20 +486,36 @@ export class Editor {
     queueMicrotask(() => this.fitTopbar())
 
     this.sidebar = el('nav', 'sp-side')
-    this.sidebar.setAttribute('aria-label', t('Pages'))
     this.main = el('main', 'sp-main')
-
     this.inspector = el('aside', 'sp-insp')
-    this.inspector.setAttribute('aria-label', t('Properties'))
-    if (this.inspClosed) this.inspector.classList.add('sp-pane-closed')
+
+    // Resize, collapse, persistence and the phone drawer are
+    // kernel/src/ui/panel.ts's — this app had its own independent but
+    // same-shaped realisation (see that file's header comment). 820px, not
+    // the primitive's 700 default, to keep isDrawer()'s own breakpoint (the
+    // bar-fold/panel-toggle CSS below is keyed to the same number). The
+    // inspector defaults CLOSED (props.ts explains why that is the right
+    // way round); the page list defaults open.
+    this.sidePanel = createPanel({
+      content: this.sidebar, side: 'start', defaultWidth: 244, minWidth: 150, maxWidth: 420,
+      drawerBelow: 820, storageKey: 'bento-sp-panel-side', label: t('Pages'),
+    })
+    this.inspPanel = createPanel({
+      content: this.inspector, side: 'end', defaultWidth: 280, minWidth: 200, maxWidth: 420,
+      drawerBelow: 820, collapsed: true, storageKey: 'bento-sp-panel-insp', label: t('Properties'),
+    })
+    this.sidePanel.resizer.title = t('Drag to resize · double-click to reset')
+    this.inspPanel.resizer.title = t('Drag to resize · double-click to reset')
+    // The scrim is the one thing the primitive leaves to the host: on a
+    // phone an open drawer needs a tap-outside-to-close backdrop, which
+    // "a column collapsed to 16px" (the desktop idiom the primitive reuses
+    // for the drawer's own chevron) has no equivalent of.
+    this.sidePanel.onChange(() => this.syncDrawerScrim(this.sidePanel))
+    this.inspPanel.onChange(() => this.syncDrawerScrim(this.inspPanel))
 
     const body = el('div', 'sp-body')
-    body.append(this.sidebar, this.makeResizer(), this.main, this.makeInspResizer(), this.inspector)
+    body.append(this.sidePanel.root, this.main, this.inspPanel.root)
     this.root.append(bar, body)
-    this.applyPaneWidth()
-    this.syncPaneChevron()
-    this.applyInspWidth()
-    this.syncInspChevron()
 
     // WHICH BLOCK THE PANEL MEANS. Capture-phase on the page, because the
     // interesting blocks are the ones with no editable host to focus — a table,
@@ -654,182 +653,38 @@ export class Editor {
     return b
   }
 
-  /** Open/close the page drawer on narrow screens, with a scrim to tap away. */
-  /**
-   * The strip between the page list and the page: drag to resize, chevron to
-   * collapse, double-click to reset. Slides' pattern, and its reasoning — the
-   * control that hides a panel belongs ON the panel's edge, where you are
-   * already looking, not in a toolbar across the room.
-   *
-   * The width is the reader's, so it lives in localStorage, never the document.
-   */
-  private makeResizer(): HTMLElement {
-    const handle = el('div', 'sp-resizer')
-    handle.title = t('Drag to resize · double-click to reset')
-
-    const tab = h('button.sp-pane-tab[type=button]', {
-      onclick: (e) => { e.stopPropagation(); this.togglePane() },
-    })
-    this.paneTab = tab
-    handle.append(tab)
-
-    handle.addEventListener('mousedown', (down) => {
-      if (down.target === tab) return          // the chevron is a click, not a drag
-      if (this.paneClosed) return
-      down.preventDefault()
-      const startX = down.clientX
-      const startW = this.paneW
-      this.sidebar.classList.add('sp-noanim')
-      document.body.classList.add('sp-col-resizing')
-      const move = (ev: MouseEvent) => {
-        // clientX is physical; which way widens depends on the edge the panel
-        // is docked to, and RTL swaps that over.
-        const dx = ev.clientX - startX
-        const widens = document.dir === 'rtl' ? -dx : dx
-        this.paneW = Math.min(Editor.PANE_MAX, Math.max(Editor.PANE_MIN, startW + widens))
-        this.applyPaneWidth()
-      }
-      const up = () => {
-        window.removeEventListener('mousemove', move)
-        window.removeEventListener('mouseup', up)
-        this.sidebar.classList.remove('sp-noanim')
-        document.body.classList.remove('sp-col-resizing')
-        try { localStorage.setItem('bento-sp-pane', String(this.paneW)) } catch { /* storage can throw */ }
-      }
-      window.addEventListener('mousemove', move)
-      window.addEventListener('mouseup', up)
-    })
-
-    handle.addEventListener('dblclick', () => {
-      this.paneW = Editor.PANE_DEFAULT
-      this.applyPaneWidth()
-      try { localStorage.setItem('bento-sp-pane', String(this.paneW)) } catch { /* storage can throw */ }
-    })
-    return handle
+  /** `force` means "should it end up OPEN" — undefined just flips it, same
+   *  as the old togglePane/toggleInsp's own `force` argument meant. */
+  private setOpen(panel: Panel, open?: boolean): void {
+    if (open === undefined) panel.toggle()
+    else if (open) panel.expand()
+    else panel.collapse()
   }
 
-  private applyPaneWidth(): void {
-    this.sidebar.style.setProperty('--sp-panew', `${this.paneW}px`)
-  }
+  /** Collapse or restore the page list — resize, the chevron, persistence
+   *  and the phone drawer are sidePanel's (kernel/src/ui/panel.ts) own;
+   *  syncDrawerScrim (hung off sidePanel.onChange) adds the tap-outside
+   *  backdrop a drawer needs that a desktop column does not. */
+  togglePane(force?: boolean): void { this.setOpen(this.sidePanel, force) }
 
-  /**
-   * The properties panel's edge — the page list's strip, mirrored.
-   *
-   * Deliberately a second small method rather than a parameterised one: the two
-   * differ in which direction widens (the panel is docked to the END edge, so a
-   * drag toward the start makes it bigger) and in which way the chevron points,
-   * and a `side` flag threaded through both would be harder to read than this.
-   */
-  private makeInspResizer(): HTMLElement {
-    const handle = el('div', 'sp-resizer sp-insp-rz')
-    handle.title = t('Drag to resize · double-click to reset')
-    if (this.inspClosed) handle.classList.add('sp-shut')
-    this.inspRz = handle
-
-    const tab = h('button.sp-pane-tab[type=button]', {
-      onclick: (e) => { e.stopPropagation(); this.toggleInsp() },
-    })
-    this.inspTab = tab
-    handle.append(tab)
-
-    handle.addEventListener('mousedown', (down) => {
-      if (down.target === tab) return
-      if (this.inspClosed) return
-      down.preventDefault()
-      const startX = down.clientX
-      const startW = this.inspW
-      this.inspector.classList.add('sp-noanim')
-      document.body.classList.add('sp-col-resizing')
-      const move = (ev: MouseEvent) => {
-        // the panel is on the END edge, so dragging toward the START widens it
-        const dx = startX - ev.clientX
-        const widens = document.dir === 'rtl' ? -dx : dx
-        this.inspW = Math.min(Editor.INSP_MAX, Math.max(Editor.INSP_MIN, startW + widens))
-        this.applyInspWidth()
-      }
-      const up = () => {
-        window.removeEventListener('mousemove', move)
-        window.removeEventListener('mouseup', up)
-        this.inspector.classList.remove('sp-noanim')
-        document.body.classList.remove('sp-col-resizing')
-        try { localStorage.setItem('bento-sp-insp', String(this.inspW)) } catch { /* storage can throw */ }
-      }
-      window.addEventListener('mousemove', move)
-      window.addEventListener('mouseup', up)
-    })
-
-    handle.addEventListener('dblclick', () => {
-      this.inspW = Editor.INSP_DEFAULT
-      this.applyInspWidth()
-      try { localStorage.setItem('bento-sp-insp', String(this.inspW)) } catch { /* storage can throw */ }
-    })
-    return handle
-  }
-
-  private applyInspWidth(): void {
-    this.inspector.style.setProperty('--sp-inspw', `${this.inspW}px`)
-  }
-
-  private syncInspChevron(): void {
-    if (!this.inspTab) return
-    const rtl = document.dir === 'rtl'
-    // points the way it will MOVE the panel
-    const closing = this.inspClosed === rtl
-    this.inspTab.innerHTML = closing ? ICONS.chevronRight : ICONS.chevronLeft
-    this.inspTab.title = this.inspClosed ? t('Show properties (])') : t('Hide properties (])')
-    this.inspTab.setAttribute('aria-label', this.inspTab.title)
-    this.inspTab.setAttribute('aria-expanded', String(!this.inspClosed))
-  }
-
-  /** Collapse or restore the properties panel. On a phone it is an overlay. */
-  toggleInsp(force?: boolean): void {
-    if (this.isDrawer()) {
-      const open = force !== undefined ? force : !this.inspector.classList.contains('sp-open')
-      this.inspector.classList.toggle('sp-open', open)
-      // The same scrim the page list gets, for the same reason: an overlay you
-      // can only close from the menu you opened it from is one people leave
-      // open over the page they wanted to read.
-      document.querySelector('.sp-scrim')?.remove()
-      if (open) {
-        const scrim = el('div', 'sp-scrim')
-        scrim.addEventListener('click', () => this.toggleInsp(false))
-        document.body.append(scrim)
-      }
-      return
-    }
-    this.inspector.classList.remove('sp-open')
-    this.inspClosed = force !== undefined ? !force : !this.inspClosed
-    this.inspector.classList.toggle('sp-pane-closed', this.inspClosed)
-    this.inspRz?.classList.toggle('sp-shut', this.inspClosed)
-    this.syncInspChevron()
-    // '0' means OPEN. Absent is closed, which is what a reader who has never
-    // touched this gets — see the constructor.
-    try { localStorage.setItem('bento-sp-insp-closed', this.inspClosed ? '1' : '0') } catch { /* storage can throw */ }
-  }
-
-  private syncPaneChevron(): void {
-    if (!this.paneTab) return
-    // points the way it will MOVE the panel, which is the only thing a chevron
-    // can usefully mean
-    const rtl = document.dir === 'rtl'
-    const closing = this.paneClosed !== rtl
-    this.paneTab.innerHTML = closing ? ICONS.chevronRight : ICONS.chevronLeft
-    this.paneTab.title = this.paneClosed ? t('Show the page list ([)') : t('Hide the page list ([)')
-    this.paneTab.setAttribute('aria-label', this.paneTab.title)
-    this.paneTab.setAttribute('aria-expanded', String(!this.paneClosed))
-  }
-
-  /** Collapse or restore the page list. On a phone it is a drawer instead. */
-  togglePane(force?: boolean): void {
-    if (this.isDrawer()) { this.toggleSidebar(force); return }
-    this.paneClosed = force !== undefined ? !force : !this.paneClosed
-    this.sidebar.classList.toggle('sp-pane-closed', this.paneClosed)
-    this.syncPaneChevron()
-    try { localStorage.setItem('bento-sp-pane-closed', this.paneClosed ? '1' : '0') } catch { /* storage can throw */ }
-  }
+  /** Collapse or restore the properties panel. Same shape as togglePane. */
+  toggleInsp(force?: boolean): void { this.setOpen(this.inspPanel, force) }
 
   private isDrawer(): boolean {
     return window.matchMedia('(max-width: 820px)').matches
+  }
+
+  /** A single shared backdrop for whichever panel is open as a phone
+   *  drawer: an overlay you can only close from the menu you opened it from
+   *  is one people leave open over the page they wanted to read. */
+  private syncDrawerScrim(panel: Panel): void {
+    this.scrim?.remove()
+    this.scrim = null
+    if (this.isDrawer() && !panel.collapsed) {
+      this.scrim = el('div', 'sp-scrim')
+      this.scrim.addEventListener('click', () => panel.collapse())
+      document.body.append(this.scrim)
+    }
   }
 
   /**
@@ -890,34 +745,13 @@ export class Editor {
 
   /**
    * Dismiss the PHONE DRAWER after navigating. On anything wider this does
-   * nothing, deliberately.
-   *
-   * Following a page link used to call `toggleSidebar(false)` directly, which
-   * reads as "close the sidebar" and is right on a phone — the drawer covers
-   * the page you just asked for. But above the drawer breakpoint
-   * `toggleSidebar` delegates to `togglePane`, so on a desktop it collapsed the
-   * page-list COLUMN on every click, and `togglePane` persists that to
-   * localStorage: the list stayed shut on the next open, and on every open
-   * after it. The column is not in the way of anything, and a list you have to
-   * reopen to use twice is not a list.
+   * nothing, deliberately — the column is not in the way of anything, and a
+   * list you have to reopen to use twice is not a list. (`togglePane` itself
+   * is now drawer-agnostic — the primitive tracks one `collapsed` flag
+   * either way — so the guard has to live here instead.)
    */
   private closeDrawer(): void {
-    if (this.isDrawer()) this.toggleSidebar(false)
-  }
-
-  private toggleSidebar(force?: boolean): void {
-    // Below the drawer breakpoint the panel is an overlay, not a column: the
-    // page needs the whole width, so collapsing to a 0px column would leave
-    // nothing to reopen it from.
-    if (!this.isDrawer()) { this.togglePane(force); return }
-    const open = force ?? !this.sidebar.classList.contains('sp-open')
-    this.sidebar.classList.toggle('sp-open', open)
-    document.querySelector('.sp-scrim')?.remove()
-    if (open) {
-      const scrim = el('div', 'sp-scrim')
-      scrim.addEventListener('click', () => this.toggleSidebar(false))
-      document.body.append(scrim)
-    }
+    if (this.isDrawer()) this.sidePanel.collapse()
   }
 
   /**

@@ -1694,23 +1694,18 @@ function fsTable(f: string): string {
   const css = fsp.readFileSync(new URL('../spaces/src/styles.css', import.meta.url), 'utf8')
   const ic = fsp.readFileSync(new URL('../spaces/src/icons.ts', import.meta.url), 'utf8')
 
-  ok(/makeResizer\(\)/.test(ed), 'the page list has a resizer strip')
-  ok(/col-resize/.test(css), '…that resizes')
-  ok(/dblclick[\s\S]{0,200}PANE_DEFAULT/.test(ed), '…double-click resets it to the default width')
-  ok(/PANE_MIN[\s\S]{0,400}PANE_MAX/.test(ed) || /Math\.min\(Editor\.PANE_MAX/.test(ed),
-    '…and the width is clamped')
-  ok(/localStorage\.setItem\('bento-sp-pane'/.test(ed),
+  // Resize, collapse-chevron-docked-to-the-edge, persistence and the drawer
+  // breakpoint are kernel/src/ui/panel.ts's now (guarded exhaustively by
+  // its own scripts/test-ui-panel.ts) — what is spaces' own to get right is
+  // the WIRING: the sidebar panel docks to 'start', is clamped, is the
+  // reader's (never the document's), and keeps this app's own 820px drawer
+  // breakpoint rather than the primitive's 700px default.
+  ok(/createPanel\(/.test(ed), 'the page list is the shared panel primitive')
+  ok(/side:\s*'start'/.test(ed), '…docked to the start edge')
+  ok(/minWidth:\s*150,\s*maxWidth:\s*420/.test(ed), '…and the width is clamped')
+  ok(/storageKey:\s*'bento-sp-panel-side'/.test(ed),
     'the width is the READER\'s — localStorage, never the document')
-
-  ok(/sp-pane-tab/.test(css) && /sp-pane-closed/.test(css), 'the panel collapses from a tab on the strip')
-  const tabRule = css.slice(css.indexOf('.sp-pane-tab {'), css.indexOf('}', css.indexOf('.sp-pane-tab {')))
-  ok(!/opacity:\s*0\b/.test(tabRule), 'the collapse chevron is visible without hovering')
-  ok(/\.sp-side\.sp-pane-closed \+ \.sp-resizer \.sp-pane-tab/.test(css),
-    '…and stays reachable when the panel is closed, docked to the edge')
-
-  // the drawer breakpoint keeps its overlay behaviour: a 0px column on a phone
-  // would leave nothing to reopen from
-  ok(/isDrawer\(\)[\s\S]{0,120}max-width: 820px/.test(ed), 'below 820px the panel is a drawer, not a column')
+  ok(/drawerBelow:\s*820/.test(ed), 'below 820px the panel is a drawer, not a column')
 
   // the suite's undo/redo, not a circular arrow that reads as "reload"
   ok(/M9 14 4 9l5-5/.test(ic) && /m15 14 5-5-5-5/.test(ic),
@@ -2857,28 +2852,21 @@ function fsTable(f: string): string {
   const editor = fsTable('editor.ts')
   const css = fsTable('styles.css')
 
-  // 1. CLOSED UNLESS THIS READER OPENED IT. The field initialises to true and
-  //    only the explicit '0' — written by toggleInsp — opens it, so an absent
-  //    key (a fresh file, a new browser, a locked-down origin that threw)
-  //    means closed.
-  ok(/private inspClosed = true/.test(editor),
+  // 1. CLOSED UNLESS THIS READER OPENED IT — kernel/src/ui/panel.ts's own
+  //    `collapsed` option now, not a hand-tracked field; persistence (so it
+  //    is chosen once, not every session) is the primitive's storageKey.
+  ok(/content:\s*this\.inspector,[\s\S]{0,120}collapsed:\s*true/.test(editor),
     'the properties panel is CLOSED by default')
-  ok(/localStorage\.getItem\('bento-sp-insp-closed'\) !== '0'/.test(editor),
-    "…and only an explicit '0' opens it, so an absent preference is still closed")
-  ok(/localStorage\.setItem\('bento-sp-insp-closed'/.test(editor),
+  ok(/storageKey:\s*'bento-sp-panel-insp'/.test(editor),
     'the open/closed state PERSISTS, so it is chosen once and not every session')
 
-  // 2. WHILE CLOSED IT TAKES NO WIDTH. `.sp-main` is `flex: 1 1 auto`, so a
-  //    closed panel that zeroes its basis, its inline padding and its border is
-  //    a panel the reading column cannot feel. Any one of the three left in
-  //    place is width off the page on every screen.
-  const shut = css.slice(css.indexOf('.sp-insp.sp-pane-closed'))
-  const rule = shut.slice(0, shut.indexOf('}') + 1)
-  ok(/flex-basis:\s*0/.test(rule), 'a closed properties panel has flex-basis 0')
-  ok(/padding-inline:\s*0/.test(rule), '…no inline padding')
-  ok(/border-inline-start-width:\s*0/.test(rule), '…and no border')
+  // 2. WHILE CLOSED IT TAKES NO WIDTH FOR THE PAGE — `.sp-main` stays
+  //    `flex: 1 1 auto`, so a closed panel's 16px dock strip (kernel's own
+  //    `.bkp-collapsed`, the chevron's home, not zero — a closed panel is
+  //    never fully gone, so there is always a way back in) is the only
+  //    width it ever costs the reading column.
   ok(/\.sp-main \{\s*\n?\s*flex: 1 1 auto/.test(css),
-    'the reading column is flex:1 1 auto, so the width a closed panel gives up goes back to it')
+    'the reading column is flex:1 1 auto, so a closed panel gives its width back to it')
 
   // 3. THE PANEL IS THE READER'S, NEVER THE DOCUMENT'S — the same rule the page
   //    list's width, the language and the reader width already follow. A panel
@@ -2887,12 +2875,10 @@ function fsTable(f: string): string {
     'nothing about the panel is written into the document')
 
   // 4. BELOW THE DRAWER BREAKPOINT IT IS AN OVERLAY, not a third column — the
-  //    bargain the page list already makes at the same 820px.
-  const phone = css.slice(css.indexOf('@media (max-width: 820px) {\n  .sp-insp-rz'))
-  ok(/\.sp-insp \{ display: none; \}/.test(phone.slice(0, 400)),
-    'below 820px the panel is absent until asked for')
-  ok(/\.sp-insp\.sp-open \{[^}]*position: fixed/.test(phone.slice(0, 800)),
-    '…and then it is a fixed overlay, never a column')
+  //    bargain the page list already makes at the same 820px, and both panels'
+  //    own 820px (not kernel/src/ui/panel.ts's 700px default).
+  ok(/content:\s*this\.inspector,[\s\S]{0,120}drawerBelow:\s*820/.test(editor),
+    'below 820px the panel is a drawer, not a column')
 
   // 5. THE ACCORDION IS THE SHARED KERNEL PRIMITIVE (dash/slides wrote the
   //    identical retrofit independently; this is now one of three callers,
