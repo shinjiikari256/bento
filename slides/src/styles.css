@@ -1511,9 +1511,7 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   cursor: pointer;
 }
 
-/* color + alpha pair, and gradient stop rows */
-.ed-coloralpha { display: flex; align-items: center; gap: 6px; }
-.ed-coloralpha input[type='number'] { width: 52px; }
+/* gradient stop rows */
 .ed-gradstop { display: flex; align-items: center; gap: 6px; }
 .ed-gradstop > input[type='number'] { width: 44px; }
 .ed-gradstop .ed-btn-icon { padding: 2px 6px; }
@@ -2804,12 +2802,3 @@ input.ed-toggle { width: 16px; height: 16px; cursor: pointer; }
 }
 .ed-gate-offer { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
 .ed-gate-acts { display: flex; justify-content: flex-end; margin-top: 4px; }
-/* ————— brand palette swatches beside a colour control ————— */
-.ed-colorref { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-.ed-swatches { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
-.ed-swatch {
-  width: 14px; height: 14px; padding: 0; border-radius: 3px; cursor: pointer;
-  border: 1px solid var(--line);
-}
-.ed-swatch:hover { transform: scale(1.15); }
-.ed-swatch.is-on { outline: 2px solid var(--blue); outline-offset: 1px; }

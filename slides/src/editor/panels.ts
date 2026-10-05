@@ -13,6 +13,8 @@ import { confirmDialog, promptDialog } from '../../../kernel/src/ui/promptdialog
 import '../../../kernel/src/ui/field.css'
 import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
 import '../../../kernel/src/ui/jsoneditor.css'
+import { createColorPicker, type ColorPickerPaletteEntry } from '../../../kernel/src/ui/colorpicker.ts'
+import '../../../kernel/src/ui/colorpicker.css'
 import { applyAccordion as kernelAccordion } from '../../../kernel/src/ui/accordion.ts'
 import '../../../kernel/src/ui/accordion.css'
 import { fieldize } from '../../../kernel/src/ui/field.ts'
@@ -2230,24 +2232,31 @@ export class PropsPanel {
   private color(
     value: string,
     onEdit: (v: string, final: boolean) => void,
-    /** when given, offer the deck's brand palette above the free picker.
+    /** when given, offer the deck's brand palette inside the picker's popover.
      *  `id: null` means the property belongs to the slide, not an element. */
     ref?: { id: string | null; path: string },
   ): HTMLElement {
-    const input = h('input', { type: 'color', value: /^#[0-9a-fA-F]{6}$/.test(value) ? value : parseColor(value).hex })
-    input.addEventListener('input', () => onEdit(input.value, false))
-    // A colour chosen by hand must CLEAR any palette reference on this path.
-    // Without that, the next theme edit silently overwrites a colour somebody
-    // picked deliberately — which reads as the app changing their work.
-    input.addEventListener('change', () => {
-      onEdit(input.value, true)
-      if (ref) this.setRef(ref, input.value, null)
+    const hex = /^#[0-9a-fA-F]{6}$/.test(value) ? value : parseColor(value).hex
+    const picker = createColorPicker(hex, (v, final) => {
+      onEdit(v, final)
+      // A colour chosen by hand must CLEAR any palette reference on this
+      // path. Without that, the next theme edit silently overwrites a
+      // colour somebody picked deliberately — which reads as the app
+      // changing their work.
+      if (final && ref) this.setRef(ref, v, null)
+    }, {
+      labels: this.colorPickerLabels(),
+      palette: ref ? this.themeSwatchesFor(ref) : undefined,
+      onPickPalette: ref ? (v, slot) => { onEdit(v, true); this.setRef(ref, v, slot) } : undefined,
     })
-    if (!ref) return input
-    const wrap = h('div.ed-colorref')
-    wrap.appendChild(this.paletteSwatches(ref, input))
-    wrap.appendChild(input)
-    return wrap
+    return picker.el
+  }
+
+  private colorPickerLabels() {
+    return {
+      choose: t('Choose a colour'), eyedropper: t('Pick a colour from the screen'),
+      theme: t('Theme'), recent: t('Recent'),
+    }
   }
 
   /** Write a colour and its palette reference together, as one undoable edit. */
@@ -2259,30 +2268,27 @@ export class PropsPanel {
   }
 
   /**
-   * The deck's brand colours as clickable swatches.
+   * The deck's brand colours, for the picker's "Theme" row.
    *
-   * Choosing one records WHERE the colour came from, so editing the theme later
-   * re-derives it — that is the whole difference between a deck that can be
-   * re-branded and one that has 400 hex literals in it.
+   * Choosing one records WHERE the colour came from (the slot), so editing
+   * the theme later re-derives it — that is the whole difference between a
+   * deck that can be re-branded and one that has 400 hex literals in it.
    */
-  private paletteSwatches(ref: { id: string | null; path: string }, input: HTMLInputElement): HTMLElement {
-    const row = h('div.ed-swatches')
+  private themeSwatchesFor(ref: { id: string | null; path: string }): ColorPickerPaletteEntry[] {
     const palette = paletteOf(this.store.doc)
     const holder = (ref.id ? this.store.element(ref.id) : this.store.slide) as never
     const current = holder ? refAt(holder, ref.path) : undefined
+    const entries: ColorPickerPaletteEntry[] = []
     for (const slot of PALETTE_SLOTS) {
       const base = palette[slot]
       if (!base) continue // hlink/folHlink are usually unset — don't show empties
       if (!slotIsSet(this.store.doc, slot)) continue // accent 2–6 unset: a copy of accent 1, not a choice
-      const b = h('button.ed-swatch', { type: 'button', style: { background: base }, title: slot })
-      if (current && current.split(' ')[0] === slot) b.classList.add('is-on')
-      b.addEventListener('click', () => {
-        input.value = /^#[0-9a-fA-F]{6}$/.test(base) ? base : parseColor(base).hex
-        this.setRef(ref, base, slot)
+      entries.push({
+        hex: /^#[0-9a-fA-F]{6}$/.test(base) ? base : parseColor(base).hex,
+        slot, active: !!current && current.split(' ')[0] === slot,
       })
-      row.appendChild(b)
     }
-    return row
+    return entries
   }
 
   /**
@@ -2336,42 +2342,27 @@ export class PropsPanel {
     }
   }
 
-  /** Color swatch + opacity %. Native color inputs have no alpha channel, so
-   *  the pair round-trips rgba()/#rrggbbaa strings losslessly. */
+  /** Color swatch with an alpha slider inside its own popover — the picker's
+   *  `alpha` option, which round-trips rgba()/#rrggbbaa losslessly. Used to
+   *  be a swatch + a sibling opacity-% number input (the picker itself had
+   *  no way to carry alpha); see docs/DECISIONS.md and colorpicker.ts's own
+   *  header for why that input is gone. */
   private colorAlpha(
     value: string,
     onEdit: (v: string, final: boolean) => void,
     ref?: { id: string | null; path: string },
   ): HTMLElement {
-    const wrap = h('div.ed-coloralpha')
-    const parsed = parseColor(value)
-    const col = h('input', { type: 'color', value: parsed.hex })
-    const alpha = h('input', {
-      type: 'number',
-      min: '0',
-      max: '100',
-      step: '1',
-      value: String(Math.round(parsed.a * 100)),
-      title: t('Opacity %'),
+    const picker = createColorPicker(value, (v, final) => {
+      onEdit(v, final)
+      // picking by hand clears the palette reference — see color() for why
+      if (final && ref) this.setRef(ref, v, null)
+    }, {
+      labels: this.colorPickerLabels(),
+      alpha: true,
+      palette: ref ? this.themeSwatchesFor(ref) : undefined,
+      onPickPalette: ref ? (v, slot) => { onEdit(v, true); this.setRef(ref, v, slot) } : undefined,
     })
-    const emit = (final: boolean) => {
-      const raw = parseFloat(alpha.value)
-      const a = Number.isFinite(raw) ? Math.min(Math.max(raw / 100, 0), 1) : 1
-      onEdit(combineColor(col.value, a), final)
-    }
-    col.addEventListener('input', () => emit(false))
-    // picking by hand clears the palette reference — see color() for why
-    col.addEventListener('change', () => {
-      emit(true)
-      if (ref) this.setRef(ref, combineColor(col.value, parseFloat(alpha.value) / 100 || 1), null)
-    })
-    alpha.addEventListener('change', () => emit(true))
-    wrap.append(col, alpha)
-    if (!ref) return wrap
-    const outer = h('div.ed-colorref')
-    outer.appendChild(this.paletteSwatches(ref, col))
-    outer.appendChild(wrap)
-    return outer
+    return picker.el
   }
 
   /** Weight picker with the familiar named weights; stores the numeric value. */
