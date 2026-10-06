@@ -33,6 +33,8 @@
 import { renderSlide } from '../render'
 import { createDialog } from '../../../kernel/src/ui/dialog.ts'
 import '../../../kernel/src/ui/dialog.css'
+import { fieldize } from '../../../kernel/src/ui/field.ts'
+import '../../../kernel/src/ui/field.css'
 import { t } from '../i18n'
 import type { BentoDoc, Slide } from '../model'
 import {
@@ -154,6 +156,7 @@ export function openExportImagesDialog(doc: BentoDoc, current: Slide, toast: (ms
     const span = document.createElement('span')
     span.textContent = label
     const sel = document.createElement('select')
+    fieldize(sel)
     for (const [v, text] of pairs) {
       const o = document.createElement('option')
       o.value = v; o.textContent = text; o.selected = v === value

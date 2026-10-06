@@ -9,6 +9,8 @@ import { MEDIA_EMBED_BUDGET, applyChartPalette, defaultChart, internAsset, morph
 import { CROP_MAX_SCALE, normalizeCrop } from '../crop'
 import { LANGS } from '../../../kernel/src/tokenize.ts'
 import { h } from '../../../kernel/src/dom.ts'
+import '../../../kernel/src/ui/field.css'
+import { fieldize } from '../../../kernel/src/ui/field.ts'
 import { resolveAsset } from '../render'
 import { measureElement } from '../measure'
 import { PALETTE_SLOTS, paletteOf, refAt, setColor, slotIsSet } from '../palette'
@@ -37,6 +39,7 @@ import { lsJson, lsSet } from '../../../kernel/src/storage.ts'
  * outside [A-Za-z0-9._-], so no stored morphId can ever contain '#'.
  */
 const UNPAIR = '#unpair'
+
 
 const ROW_TIPS: Record<string, string> = {
   'Page size': 'Deck-wide slide size. Elements keep their positions — changing size reframes the canvas, never rescales your art.',
@@ -2215,6 +2218,7 @@ export class PropsPanel {
     // rows without an entry get no tooltip — never a useless label echo
     const tip = ROW_TIPS[label]
     if (tip && !input.title) row.title = t(tip)
+    fieldize(input)
     row.append(span, input)
     this.host.appendChild(row)
     return row

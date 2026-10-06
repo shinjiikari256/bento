@@ -13,6 +13,8 @@ import {
   type ChartElement, type ShapeKind, type Slide, type SlideElement, type TableElement } from '../model'
 import { THEME_CHOICES, setTheme, themeChoice } from '../../../kernel/src/theme.ts'
 import { h } from '../../../kernel/src/dom.ts'
+import { fieldize } from '../../../kernel/src/ui/field.ts'
+import '../../../kernel/src/ui/field.css'
 import type { InPlaceOutcome } from '../update'
 import { APP_VERSION, applyUpdate, applyUpdateInPlace, autoCheckEnabled, canUpdateInPlace, checkForUpdates, compareVersions, offlineEnabled, sandboxed, setAutoCheck, setOffline } from '../update'
 import { CHART_PRESETS } from '../charts'
@@ -3580,6 +3582,7 @@ export class Editor {
     // choice, and the explicit options exist for the ones who do not.
     const themeRow = h('label.ed-about-auto')
     const themeSel = h('select')
+    fieldize(themeSel)
     for (const c of THEME_CHOICES) {
       const o = h('option', { value: c, textContent: c === 'auto' ? t('Match my system') : c === 'light' ? t('Light') : t('Dark') })
       if (c === themeChoice()) o.selected = true
