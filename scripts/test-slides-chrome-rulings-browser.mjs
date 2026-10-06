@@ -45,6 +45,8 @@ try {
   const closeAll = () => p.evaluate(() => {
     document.querySelectorAll('.ed-dropdown.open').forEach((d) => d.classList.remove('open'))
     document.querySelectorAll('.ed-about-overlay').forEach((o) => o.remove())
+    // the shared sheets close through their own Close (never a bare remove)
+    document.querySelectorAll('.bkd-overlay .bks-foot > .bks-btn:last-child').forEach((b) => b.click())
   })
   const openSave = () => p.evaluate(() => document.querySelector('.ed-split-caret').click())
 
@@ -118,15 +120,16 @@ try {
 
   // --- 2. D4 dialog titles ----------------------------------------------------
   console.log('\nD4: dialog titles 17px/650\n')
-  const title = () => p.evaluate(() => { const h = document.querySelector('.ed-about-overlay h2'); const c = getComputedStyle(h); return `${c.fontSize}/${c.fontWeight}` })
-  await p.evaluate(() => document.querySelector('.ed-btn-help').click())
+  const title = () => p.evaluate(() => { const h = document.querySelector('.bkd-title, .ed-about-overlay h2'); const c = getComputedStyle(h); return `${c.fontSize}/${c.fontWeight}` })
+  await p.evaluate(() => document.querySelector('.ed-topbar button[title="Keyboard shortcuts (?)"]').click())
   ok(await title() === '17px/650', `help sheet title ${await title()}`)
 
   // --- 3. D8 shortcuts ----------------------------------------------------------
   console.log('\nD8: help shortcuts in the interface face, right-aligned\n')
   const k = await p.evaluate(() => {
-    const kbd = document.querySelector('.ed-help-row kbd'), row = kbd.parentElement
-    const col = parseFloat(getComputedStyle(row).gridTemplateColumns)
+    // the shared sheet: label · keys, the keys flush with the row's end edge
+    const kbd = document.querySelector('.bks-keyrow kbd'), row = kbd.closest('.bks-keyrow')
+    const col = row.getBoundingClientRect().width
     return { font: getComputedStyle(kbd).fontFamily, ui: getComputedStyle(document.body).fontFamily, right: kbd.getBoundingClientRect().right - row.getBoundingClientRect().left, col }
   })
   ok(k.font === k.ui && !/mono/i.test(k.font), `shortcut face = interface face (${k.font.split(',')[0]})`)

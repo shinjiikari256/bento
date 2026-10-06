@@ -954,4 +954,13 @@ export const zhHant: Catalog = {
   "{n} pictures still uploading…": "{n} 張圖片上傳中…",
   "Not rendered: {what}": "未能呈現：{what}",
   "no space just inside the $ signs": "$ 符號內側不要緊貼空格",
+  "Settings": "設定",
+  "Updates": "更新",
+  "Settings — language, appearance and updates": "設定 — 語言、外觀與更新",
+  "About this deck": "關於此簡報",
+  "Keyboard shortcuts": "鍵盤快速鍵",
+  "Interface language": "介面語言",
+  "Close": "關閉",
+  "About bento/slides — version, licenses": "關於 bento/slides — 版本、授權",
+  "Keyboard shortcuts (?)": "鍵盤快速鍵 (?)",
 }

@@ -954,4 +954,13 @@ export const ja: Catalog = {
   "{n} pictures still uploading…": "画像{n}枚をアップロード中…",
   "Not rendered: {what}": "表示できません: {what}",
   "no space just inside the $ signs": "$ 記号のすぐ内側に空白を入れないでください",
+  "Settings": "設定",
+  "Updates": "更新",
+  "Settings — language, appearance and updates": "設定 — 言語、外観、アップデート",
+  "About this deck": "このプレゼンテーションについて",
+  "Keyboard shortcuts": "キーボードショートカット",
+  "Interface language": "表示言語",
+  "Close": "閉じる",
+  "About bento/slides — version, licenses": "bento/slides について — バージョン、ライセンス",
+  "Keyboard shortcuts (?)": "キーボードショートカット (?)",
 }

@@ -11,9 +11,8 @@ import {
   instantiateLayout, isLightBg, layoutElementIds, newDocId, parseDoc, readableInk, syncLinkedChart, uid,
   paginates, inLinearFlow,
   type ChartElement, type ShapeKind, type Slide, type SlideElement, type TableElement } from '../model'
-import { THEME_CHOICES, setTheme, themeChoice } from '../../../kernel/src/theme.ts'
+import { setTheme, themeChoice } from '../../../kernel/src/theme.ts'
 import { h } from '../../../kernel/src/dom.ts'
-import { fieldize } from '../../../kernel/src/ui/field.ts'
 import '../../../kernel/src/ui/field.css'
 import type { InPlaceOutcome } from '../update'
 import { APP_VERSION, applyUpdate, applyUpdateInPlace, autoCheckEnabled, canUpdateInPlace, checkForUpdates, compareVersions, offlineEnabled, sandboxed, setAutoCheck, setOffline } from '../update'
@@ -27,8 +26,13 @@ import { openCtxMenu, type CtxItem } from '../../../kernel/src/ui/ctxmenu.ts'
 import '../../../kernel/src/ui/ctxmenu.css'
 import { createPanel, type Panel } from '../../../kernel/src/ui/panel.ts'
 import '../../../kernel/src/ui/panel.css'
+import { fitTopbar, type TopbarFit } from '../../../kernel/src/ui/topbar.ts'
 import { promptDialog, confirmDialog } from '../../../kernel/src/ui/promptdialog.ts'
 import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
+import { appCardLinks, createSheet, openAppCard, openShortcuts, sheetSelect, themeSelect, type Sheet, type ShortcutGroup } from '../../../kernel/src/ui/sheet.ts'
+import '../../../kernel/src/ui/dialog.css'
+import '../../../kernel/src/ui/sheet.css'
+import '../../../kernel/src/ui/savebutton.css'
 import '../../../kernel/src/ui/jsoneditor.css'
 import { startPresentation } from '../present'
 // serializeFile (plain output) is deliberately NOT imported here: every path
@@ -151,7 +155,12 @@ export class Editor {
   private thumbSel: number[] = []
   private sidebar!: HTMLElement
   private props!: HTMLElement
+  /** The unsaved-changes hint. No longer painted (Save's colour is the
+   *  signal); it holds the text Save's tooltip shows while there is
+   *  something to save. */
   private dirtyDot!: HTMLElement
+  private saveGroup: HTMLElement | null = null
+  private saveTitle = ''
   private fileChip?: HTMLElement
   /** Name of a deck opened by DROP when no writable handle came with it. */
   private openedAs?: string
@@ -183,7 +192,11 @@ export class Editor {
     store.on('current', () => this.highlightSidebar())
     store.on('doc', () => this.scheduleThumbs())
     store.on('dirty', () => {
-      this.dirtyDot.classList.toggle('on', store.dirty)
+      this.saveGroup?.classList.toggle('bksv-dirty', store.dirty)
+      // while it is filled, Save's tooltip says what pressing it will do (the
+      // text the unsaved dot used to carry — see refreshDirtyHint)
+      const main = this.saveGroup?.querySelector<HTMLElement>('.bksv-main')
+      if (main) main.title = store.dirty ? this.dirtyDot.title : this.saveTitle
     })
     window.addEventListener('beforeunload', (ev) => {
       if (store.dirty) ev.preventDefault()
@@ -342,7 +355,7 @@ export class Editor {
       `<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>` +
       `</svg> <b>bento<span style="color:#FF9E8A">/</span>slides</b>`
     logo.title = t('About bento/slides — version, updates, licenses')
-    logo.addEventListener('click', () => this.openAbout())
+    logo.addEventListener('click', () => this.openAppInfo())
     const title = h('input.ed-title', {
       title: t('Deck title — shown in the tab, on {{title}} fields, and as the suggested file name'),
       value: this.store.doc.title,
@@ -399,7 +412,7 @@ export class Editor {
     const actions = div('ed-group ed-group-right')
     // the update chip sits beside the wordmark and exists ONLY when an
     // update is available (manual checks live in the About dialog)
-    this.updatesB = btn(ICONS.sync, '', () => this.openAbout(true), t('Check for updates'))
+    this.updatesB = btn(ICONS.sync, '', () => this.openSettings(true), t('Check for updates'))
     this.updatesB.style.display = 'none'
     setTimeout(async () => {
       // an embedded view (Teams, SharePoint) blocks every connection and its
@@ -420,24 +433,40 @@ export class Editor {
     }, 1500)
     const undoB = btn(ICONS.undo, '', () => this.store.undo(), t('Undo (⌘Z)'))
     const redoB = btn(ICONS.redo, '', () => this.store.redo(), t('Redo (⇧⌘Z)'))
+    // Undo/redo LOOK unavailable when they are — as in every Bento app
+    const syncHistory = () => { (undoB as HTMLButtonElement).disabled = !this.store.canUndo; (redoB as HTMLButtonElement).disabled = !this.store.canRedo }
+    syncHistory()
+    this.buildScope.signal.addEventListener('abort', this.store.on('doc', syncHistory))
     const saveB = btn(ICONS.save, t('Save'), () => this.save(false), canWriteInPlace()
       ? t('Save — rewrite this file in place (⌘S)')
       : t('Save — download an updated copy (⌘S). This browser can’t rewrite the open file.'))
-    saveB.appendChild(this.dirtyDot) // the amber unsaved-changes dot lives ON Save
-    const pdfB = btn(ICONS.pdf, '', () => this.exportPdf(), t('Export PDF (print)'))
-    const helpB = btn('<b class="ed-help-q">?</b>', '', () => this.openHelp(), t('Shortcuts & tips (?)'))
-    helpB.classList.add('ed-btn-help')
+    saveB.classList.add('bksv-main')
+    this.saveTitle = saveB.title
+    // ABOUT is the document, SETTINGS is the reader: what travels in the file
+    // (properties, its pictures) versus what stays in this browser (language,
+    // appearance, updates, offline, help). The wordmark is the APP's identity,
+    // so it opens the app's card — version and licenses — not either of these.
+    const aboutB = btn(ICONS.info, '', () => this.openDocInfo(), t('About this deck'))
+    // Keyboard shortcuts get their own door: the LAST icon in the bar, after
+    // About and Settings — the same three, in the same order, in every app.
+    const keysB = btn(ICONS.keyboard, '', () => this.openHelp(), t('Keyboard shortcuts (?)'))
+    const settingsB = btn(ICONS.gear, '', () => this.openSettings(), t('Settings — language, appearance and updates'))
+    settingsB.classList.add('ed-btn-settings')
     this.avatarsBox = div('ed-avatars')
-    // Intuitive grouping: LEFT = the document (identity · title · save-state ·
-    // undo/redo history) · CENTRE = insert tools · RIGHT = output & sharing
-    // (print · collaborators · Live · Save · more) with help pinned to the corner.
+    // LEFT = identity and the document (mark · update chip · slide list ·
+    // title · file) · CENTRE = insert tools · RIGHT = history first, then the
+    // properties panel, the people, Share, Save (print and import live in its
+    // menu), About and Settings in the corner.
     const history = div('ed-group ed-group-history')
     history.append(undoB, redoB)
-    const saveGroup = div('ed-split')
+    // the suite's Save (kernel/src/ui/savebutton.css): grey with nothing to
+    // save, ink-filled when there is — the colour IS the unsaved signal
+    const saveGroup = div('ed-split bksv')
+    saveGroup.classList.toggle('bksv-dirty', this.store.dirty)
+    this.saveGroup = saveGroup
     saveGroup.append(saveB, this.saveDropdown())
     const shareD = this.shareDropdown()
-    const langD = this.languageDropdown()
-    actions.append(pdfB, this.avatarsBox, shareD, saveGroup, langD, helpB)
+    actions.append(history, this.avatarsBox, shareD, saveGroup, aboutB, settingsB, keysB)
 
     // Phone chrome: two menus that stay EMPTY on a wide screen. Nothing is
     // duplicated — applyPhoneChrome moves the real buttons in and out, so every
@@ -464,24 +493,27 @@ export class Editor {
       }, t('More actions')),
       moreMenu)
     this.closeOnOutsidePress(moreD)
-    const slidesB = btn(ICONS.panelLeft, t('Slides'), () => this.togglePanel('left'), t('Slides — show or hide the slide list'))
-    slidesB.classList.add('ed-phone-only')
-    const formatB = btn(ICONS.panelRight, t('Format'), () => this.togglePanel('right'), t('Format — show or hide the properties panel'))
-    formatB.classList.add('ed-phone-only')
+    // The panel triggers are ALWAYS in the bar, at every width, beside the
+    // panel each one owns — the edge chevrons alone were easy to miss.
+    const slidesB = btn(ICONS.panelLeft, '', () => this.togglePanel('left'), t('Slides — show or hide the slide list'))
+    slidesB.classList.add('ed-panel-trigger')
+    const formatB = btn(ICONS.panelRight, '', () => this.togglePanel('right'), t('Format — show or hide the properties panel'))
+    formatB.classList.add('ed-panel-trigger')
+    actions.insertBefore(formatB, this.avatarsBox)
     const phoneTools = div('ed-phone-tools')
-    phoneTools.append(slidesB, insertD, history)
+    phoneTools.append(insertD)
 
     this.syncWindowTitle()
 
     this.phoneChrome = {
       insertD, insertMenu, moreD, moreMenu, slidesB, formatB, insert, actions, history,
       // order matters: this is the order they appear in the ⋯ menu
-      demote: [redoB, commentB, pdfB, shareD, langD, helpB],
-      // filled in once the bar is fully assembled (formatB lands last)
+      demote: [redoB, commentB, shareD, aboutB, settingsB, keysB],
+      // filled in once the bar is fully assembled
       authored: new Map(), homeOf: new Map(),
     }
 
-    bar.append(logo, this.updatesB, title, this.fileChip, phoneTools, insert, actions, moreD)
+    bar.append(logo, this.updatesB, slidesB, title, this.fileChip, phoneTools, insert, actions, moreD)
 
     // main area
     const main = div('ed-main')
@@ -533,8 +565,6 @@ export class Editor {
 
     this.root.append(bar, main)
 
-    actions.insertBefore(formatB, saveGroup)
-
     // The authored desktop layout, captured once the bar is fully assembled.
     // Unfolding REPLAYS this instead of guessing where each button belongs.
     // Guessing is what the old restore did — everything except demote[0] went
@@ -556,26 +586,27 @@ export class Editor {
     // leave the freshly authored DESKTOP bar in place — overflowing, with Save
     // off-screen again.
     this.phoneChromeOn = null
-    this.topbar = bar
-    this.fitTopbar()
-    // A ResizeObserver on the bar itself is the primary width signal. It fires
-    // for every viewport change (matchMedia change events do not fire at all
-    // under CDP-driven viewport changes, and a phone ROTATING is exactly this
-    // path); the plain resize listener is belt and braces on top. fitTopbar
-    // is idempotent, so the overlap costs a few reads.
-    const signal = this.buildScope.signal
-    this.barRO = new ResizeObserver(() => this.fitTopbar())
-    this.barRO.observe(bar)
-    window.addEventListener('resize', () => this.fitTopbar(), { signal })
-    // The bar's CONTENT changes width too, at a constant viewport (avatars
-    // join, the update chip appears, the file chip fills in, the "Saved" tag
-    // flashes), and each of these used to clip the end of the bar. fitTopbar
-    // drops the records its own mutations queue, so this cannot loop.
-    this.barMO = new MutationObserver(() => this.fitTopbar())
-    this.barMO.observe(bar, {
-      childList: true, subtree: true, characterData: true,
-      attributes: true, attributeFilter: ['style', 'hidden'],
+    // kernel/src/ui/topbar.ts measures the bar and re-fits on resize and on
+    // content changes (avatars join, the update chip appears, the "Saved" tag
+    // flashes). First ed-bar-compact hides the button labels, then
+    // ed-bar-tight drops the wordmark, then ed-bar-fold moves buttons into
+    // menus (applyPhoneChrome). Phones fold unconditionally — the 700px is the
+    // same width at which the panels become overlay drawers, and the folded
+    // bar belongs with them. The fold itself waits for REAL overflow: the
+    // first two tiers already rescue a squeezed title.
+    this.barFit?.destroy()
+    this.barFit = fitTopbar(bar, {
+      tiers: ['ed-bar-compact', 'ed-bar-tight', 'ed-bar-fold'],
+      title: bar.querySelector<HTMLElement>('.ed-title'),
+      titleMin: 120,
+      foldOnOverflowOnly: true,
+      foldBelow: 700,
+      onFold: (on) => this.applyPhoneChrome(on),
+      // re-fitting starts by unfolding, which reparents buttons and would slam
+      // shut a dropdown the user is reading; the next signal runs it again
+      hold: () => !!bar.querySelector('.ed-dropdown.open'),
     })
+    const signal = this.buildScope.signal
 
     // On a narrow phone the bar scrolls sideways, which makes it a clipping
     // container — so the menus hanging off ＋ and ⋯ are positioned against the
@@ -587,7 +618,7 @@ export class Editor {
     const bottomRO = new ResizeObserver(publishBarBottom)
     bottomRO.observe(bar)
     window.addEventListener('resize', publishBarBottom, { signal })
-    this.buildObservers.push(this.barRO, this.barMO, bottomRO)
+    this.buildObservers.push(bottomRO)
     publishBarBottom()
 
     this.wireDrawerDismiss()
@@ -743,63 +774,11 @@ export class Editor {
   }
 
   private phoneChromeOn: boolean | null = null
-  private topbar: HTMLElement | null = null
-  private barRO: ResizeObserver | null = null
-  private barMO: MutationObserver | null = null
+  private barFit: TopbarFit | null = null
   /** Scope of one build(): aborted by the next, so the window/document/store
    *  listeners the bar and its dropdowns register never outlive their DOM. */
   private buildScope = new AbortController()
   private buildObservers: (ResizeObserver | MutationObserver)[] = []
-
-  /**
-   * Size the topbar by MEASURING it, not by width breakpoints. Breakpoints
-   * in px were wrong here: browser zoom, OS text scaling, wider translations
-   * and live content (avatars, the update chip) all change how much room the
-   * same buttons need at the same viewport width, and each of those cases
-   * used to clip the end of the bar. Instead, start from the widest layout
-   * and step down a tier while the bar still overflows its own box. First
-   * ed-bar-compact hides the button labels, then ed-bar-tight drops the
-   * wordmark, then ed-bar-fold moves buttons into menus (applyPhoneChrome).
-   */
-  private fitTopbar() {
-    const bar = this.topbar
-    if (!bar || !bar.isConnected) return
-    const tiers = ['ed-bar-compact', 'ed-bar-tight', 'ed-bar-fold']
-    // Phones fold unconditionally. The 700px media query is also what turns
-    // the panels into overlay drawers, and the folded bar belongs with it.
-    if (window.innerWidth <= 700) {
-      bar.classList.add(...tiers)
-      this.applyPhoneChrome(true)
-      this.barMO?.takeRecords()
-      return
-    }
-    // Re-fitting starts by unfolding, which reparents buttons and would slam
-    // shut a dropdown the user is reading. Skip while one is open; the next
-    // resize or content change runs this again.
-    if (bar.querySelector('.ed-dropdown.open')) return
-    // scrollWidth counts content that sticks out of the padding box even with
-    // overflow visible, so "scrollWidth > clientWidth" IS the clipped-buttons
-    // condition (ed-root clips whatever leaks). The 1px slack absorbs
-    // subpixel rounding at fractional zoom levels.
-    const overflow = () => bar.scrollWidth - bar.clientWidth > 1
-    // The title input is the bar's only shrinkable item, so flexbox crushes
-    // it toward its 48px floor before anything overflows. Waiting for hard
-    // overflow would mean full button labels beside an unusable title, so
-    // step down while the title is squeezed badly, not only on true overflow.
-    const title = bar.querySelector<HTMLElement>('.ed-title')
-    const cramped = () => overflow() || (!!title && title.getBoundingClientRect().width < 120)
-    bar.classList.remove(...tiers)
-    this.applyPhoneChrome(false)
-    if (cramped()) bar.classList.add('ed-bar-compact')
-    if (cramped()) bar.classList.add('ed-bar-tight')
-    if (overflow()) {
-      bar.classList.add('ed-bar-fold')
-      this.applyPhoneChrome(true)
-    }
-    // the class flips and reparenting above queued mutation records of their
-    // own; drop them, or the observer re-runs this forever
-    this.barMO?.takeRecords()
-  }
 
   togglePanel(side: 'left' | 'right') {
     // the canvas wrap resizes; its ResizeObserver re-fits the stage
@@ -812,7 +791,7 @@ export class Editor {
    * That is the width at which "leave the panel open" stops being free.
    */
   private get panelsAreDrawers(): boolean {
-    // The 700px here is the SAME constant as fitTopbar()'s phone check and the
+    // The 700px here is the SAME constant as the topbar fit's `foldBelow` and the
     // `@media (max-width: 700px)` block that turns the panels into drawers —
     // this asks the panel question, not the topbar one. #239 replaced the bar's
     // width-breakpoint machinery (a matchMedia `phoneQuery`) with measuring, and
@@ -865,7 +844,7 @@ export class Editor {
       wrap.classList.toggle('open')
       if (wrap.classList.contains('open')) rebuild()
     }, t('Save as… — copy, new deck, password'))
-    trigger.classList.add('ed-split-caret')
+    trigger.classList.add('ed-split-caret', 'bksv-caret')
     const rebuild = () => {
       menu.textContent = ''
       this.buildSaveAsItems(menu, () => wrap.classList.remove('open'))
@@ -915,6 +894,7 @@ export class Editor {
         () => this.saveAsNewDeck())
       // the dialog explains itself; a tooltip here would say the same twice
       item(ICONS.image, t('Export slides as images…'), '', () => this.exportImages())
+      item(ICONS.pdf, t('Export PDF (print)'), '', () => this.exportPdf())
       if (isEncryptionActive()) {
         item(ICONS.lock, t('Change password…'),
           t('Pick a new password for this file — takes effect on the next save.'),
@@ -1700,39 +1680,6 @@ export class Editor {
   }
 
   /** Globe → locale picker. UI language follows the VIEWER, never the file. */
-  private languageDropdown(): HTMLElement {
-    const wrap = div('ed-dropdown')
-    const trigger = btn(ICONS.globe, '', () => wrap.classList.toggle('open'), t('Language'))
-    const menu = div('ed-menu ed-lang-menu')
-    // localeChoices(), NOT the frozen LOCALE_CHOICES const: installing a pack
-    // appends a language at runtime, and a static list could never show it.
-    for (const c of localeChoices()) {
-      const b = btn('', c.label, () => {
-        wrap.classList.remove('open')
-        setLocale(c.code)
-        // switching to (or away from) Arabic/Hebrew/… turns the chrome around
-        applyDirection()
-        this.build()
-        this.rebuildSidebar()
-      })
-      if (c.code === locale()) b.classList.add('ed-lang-on')
-      menu.appendChild(b)
-    }
-    menu.appendChild(div('ed-menu-sep'))
-    menu.appendChild(btn('', t('Manage languages…'), () => {
-      wrap.classList.remove('open')
-      void this.openLanguages()
-    }))
-    // end-anchored so the menu never overflows the window edge — as a class,
-    // not inline left/right, so it follows the chrome's direction (.ed-lang-menu
-    // in styles.css, alongside the Save menu's identical rule)
-    wrap.append(trigger, menu)
-    document.addEventListener('pointerdown', (ev) => {
-      if (!wrap.contains(ev.target as Node)) wrap.classList.remove('open')
-    }, { signal: this.buildScope.signal })
-    return wrap
-  }
-
   private shapeDropdown(): HTMLElement {
     const wrap = div('ed-dropdown')
     const trigger = btn(ICONS.shapes, t('Shape'), () => wrap.classList.toggle('open'))
@@ -2595,13 +2542,15 @@ export class Editor {
     }
   }
 
-  /** Keep the dirty dot's tooltip honest about the backstop — the file is still
+  /** Keep Save's unsaved tooltip honest about the backstop — the file is still
    *  stale, but the work is recoverable, and the user should be able to find
    *  that out by hovering the thing that is worrying them. */
   private refreshDirtyHint() {
     if (canWriteInPlace() || !this.lastBackupAt) return
     const when = new Date(this.lastBackupAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     this.dirtyDot.title = t('Unsaved changes — kept in this browser at {when} and offered back if you reopen. ⌘S downloads an updated copy.', { when })
+    const main = this.saveGroup?.querySelector<HTMLElement>('.bksv-main')
+    if (main && this.store.dirty) main.title = this.dirtyDot.title
   }
 
   private async checkRecovery() {
@@ -2867,34 +2816,14 @@ export class Editor {
   }
 
   /** Shortcuts + tips overlay (press ? or the topbar help button). */
+  /** Keyboard shortcuts — the suite's shared sheet; the list is slides'. */
   private openHelp() {
-    document.querySelector('.ed-about-overlay')?.remove()
-    const overlay = div('ed-about-overlay')
-    const box = div('ed-about ed-help-box')
-    const hEl = h('h2', { textContent: t('Shortcuts & tips') })
-    box.appendChild(hEl)
-    // Two explicit columns, placed by hand for balance + theme: LEFT = general
-    // shortcuts & tips, RIGHT = the line/curve/path pointer-editing features.
-    // (Auto column-count balanced poorly with these chunky, unsplittable sections.)
-    const cols = div('ed-help-cols')
-    box.appendChild(cols)
-    const colL = div('ed-help-col')
-    const colR = div('ed-help-col')
-    cols.append(colL, colR)
     const mod = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
-    const section = (col: HTMLElement, title: string, rows: Array<[string, string]>) => {
-      const sec = div('ed-help-sec')
-      const st = h('h3', { textContent: title }); sec.appendChild(st)
-      for (const [k, d] of rows) {
-        const r = div('ed-help-row')
-        r.innerHTML = `<kbd></kbd><span></span>`
-        r.querySelector('kbd')!.textContent = k
-        r.querySelector('span')!.textContent = d
-        sec.appendChild(r)
-      }
-      col.appendChild(sec)
+    const groups: ShortcutGroup[] = []
+    const section = (title: string, rows: Array<[string, string]>) => {
+      groups.push({ title, rows: rows.map(([k, d]) => ({ label: d, keys: [k] })) })
     }
-    section(colL, t('Editing'), [
+    section(t('Editing'), [
       [`${mod}S`, t('Save')],
       [`${mod}Z · ${mod}⇧Z`, t('Undo · redo')],
       [`${mod}C · ${mod}V`, t('Copy · paste — elements, or the whole slide when nothing is selected')],
@@ -2906,7 +2835,7 @@ export class Editor {
       ['C', t('Comment mode')],
       ['?', t('This help')],
     ])
-    section(colL, t('Canvas'), [
+    section(t('Canvas'), [
       [t('Space-drag'), t('Pan the canvas, including past the edges of the slide')],
       [t('Middle-drag'), t('Pan as well, if your mouse has a middle button')],
       [`${mod}-${t('scroll')}`, t('Zoom in and out')],
@@ -2914,21 +2843,21 @@ export class Editor {
       ['← · →', t('Walk the slides when nothing is selected; nudge the selection otherwise')],
       [`${mod}-${t('click')} · ⇧-${t('click')}`, t('Select several slides in the sidebar; drag any of them to move them all, Delete removes them')],
     ])
-    section(colR, t('Lines & curves'), [
+    section(t('Lines & curves'), [
       [t('Shape ▾'), t('Draw a line, curved line or connector — then drag on the canvas')],
       [t('Drag a point'), t('Move an endpoint or anchor; drag the body to move the whole line')],
       [t('Click a point'), t('Reveal its bézier handles for a precise curve')],
       [`${t('Alt')}-${t('drag')}`, t('Break a smooth point into a sharp corner')],
       [t('Double-click'), t('Add a point on the line; double-click a point to remove it')],
     ])
-    section(colR, t('Motion paths'), [
+    section(t('Motion paths'), [
       [t('Presenting ▸ Loop'), t('Give an element a motion-path loop, then Edit path on canvas')],
       [t('Drag points'), t('Shape the trajectory — the first point is the element’s rest spot')],
       [t('Click a point'), t('Reveal bézier handles; Alt-drag one for a sharp corner')],
       [t('Double-click'), t('Add a point on the path; double-click a point to remove it')],
       [t('Scroll a point'), t('Set how fast the element moves through that point')],
     ])
-    section(colL, t('Presenting'), [
+    section(t('Presenting'), [
       ['F5', t('Present')],
       ['F', t('Toggle fullscreen while presenting')],
       ['S', t('Speaker view — notes on a second screen if you have one')],
@@ -2940,31 +2869,22 @@ export class Editor {
       [t('Right-click ▸ Reveal in order'), t('Hide the selected elements until → is pressed, one after another in reading order — numbered badges on the canvas show the order')],
       ['Esc', t('End the show')],
     ])
-    const tips = div('ed-help-sec')
-    const tt = h('h3', { textContent: t('Good to know') }); tips.appendChild(tt)
-    const ul = h('ul.ed-help-tips')
+    const sh = openShortcuts({ title: t('Keyboard shortcuts'), closeLabel: t('Close'), groups })
+    const tips = sh.section(t('Good to know'))
     for (const tip of [
       t('Paste an image or text straight onto the canvas with ⌘V.'),
       t('Copy a slide (⌘C with nothing selected) and paste it into another Bento deck.'),
       t('Make a chart from a table and it stays linked — edit the table, the chart updates.'),
       t('Your work auto-saves; restore earlier versions from Save → Version history.'),
-    ]) { const li = h('li', { textContent: tip }); ul.appendChild(li) }
-    tips.appendChild(ul); colL.appendChild(tips)
-    const more = div('ed-help-more')
-    const link = h('a', {
+    ]) tips.appendChild(sh.note(tip))
+    const more = sh.note('')
+    more.appendChild(h('a', {
       href: 'https://bento.page/help',
       target: '_blank',
       rel: 'noopener',
       textContent: t('Full guide at bento.page/help →'),
-    })
-    more.appendChild(link)
-    box.appendChild(more)
-    overlay.appendChild(box)
-    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey, true) }
-    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') { ev.stopPropagation(); close() } }
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close() })
-    document.addEventListener('keydown', onKey, true)
-    document.body.appendChild(overlay)
+    }))
+    tips.appendChild(more)
   }
 
   private savedTimer = 0
@@ -3391,37 +3311,93 @@ export class Editor {
 
   // --- about & updates ------------------------------------------------------
 
-  /** About dialog: version, user-initiated update check, licenses. */
-  private openAbout(runCheck = false) {
-    document.querySelector('.ed-about-overlay')?.remove()
-    const overlay = div('ed-about-overlay')
-    const box = div('ed-about')
+  /**
+   * The four cards — the app (the mark), About (this deck), Settings (this
+   * reader) and Keyboard shortcuts — are the suite's shared sheet
+   * (kernel/src/ui/sheet.ts): the same layout, sections and footer in every
+   * Bento app. Only what goes in them is slides'.
+   */
+  private sheet(title: string): Sheet {
+    return createSheet({ title, closeLabel: t('Close') })
+  }
 
-    const head = div('ed-about-head')
-    // The logo/wordmark links home (new tab) — a gentle route back to the site.
-    head.innerHTML =
-      `<a class="ed-about-logo" href="https://bento.page" target="_blank" rel="noopener">` +
-      `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">` +
-      `<rect width="32" height="32" rx="7" fill="#16273E"/>` +
-      `<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>` +
-      `<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>` +
-      `<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>` +
-      `</svg><div><b>bento<span style="color:#FF9E8A">/</span>slides</b><span>v${APP_VERSION} · format v${FORMAT_VERSION}</span></div>` +
-      `</a>`
-    head.querySelector('a')?.setAttribute('title', t('Visit bento.page (opens in a new tab)'))
-    box.appendChild(head)
+  /** The mark's card: which app this is, which version, what it is made of. */
+  private openAppInfo() {
+    openAppCard({
+      app: 'slides', version: APP_VERSION, format: FORMAT_VERSION,
+      title: t('About bento/slides — version, licenses'), closeLabel: t('Close'),
+      promoHtml: t('New to Bento? Find templates, the gallery and the AI editing guide at {home} — or ⭐ it on {gh}.', appCardLinks),
+      notes: [
+        t('Checks contact the release server and send nothing about you or this document — no ids, no telemetry.'),
+        t('Includes reveal.js, Moveable, Selecto (MIT) · Fraunces + Instrument Sans typefaces (OFL-1.1) — full notices travel in this file’s source.'),
+      ],
+    })
+  }
 
-    // Engagement nudge back to the site (templates / gallery / agent guide).
-    const promo = div('ed-about-promo')
-    promo.innerHTML = t(
-      'New to Bento? Find templates, the gallery and the AI editing guide at {home} — or ⭐ it on {gh}.',
-      {
-        home: '<a href="https://bento.page" target="_blank" rel="noopener">bento.page</a>',
-        gh: '<a href="https://github.com/nyblnet/bento" target="_blank" rel="noopener">GitHub</a>',
-      },
-    )
-    box.appendChild(promo)
+  /** About: the DECK — what travels inside the file. */
+  private openDocInfo() {
+    const sh = this.sheet(t('About this deck'))
+    // Document properties → fillable {{author}} {{company}} {{subject}} {{event}} fields
+    const props = sh.section(t('Document properties'))
+    const ensureMeta = () => (this.store.doc.meta ??= {})
+    const metaField = (label: string, get: () => string, set: (v: string) => void) => {
+      const inp = h('input.bks-input', { type: 'text', value: get() })
+      inp.addEventListener('change', () => this.store.commit(() => set(inp.value.trim())))
+      props.appendChild(sh.row(label, inp))
+    }
+    metaField(t('Title'), () => this.store.doc.title, (v) => { this.store.doc.title = v || 'Untitled' })
+    metaField(t('Author'), () => this.store.doc.meta?.author ?? '', (v) => { ensureMeta().author = v })
+    metaField(t('Company'), () => this.store.doc.meta?.company ?? '', (v) => { ensureMeta().company = v })
+    metaField(t('Subject'), () => this.store.doc.meta?.subject ?? '', (v) => { ensureMeta().subject = v })
+    metaField(t('Event'), () => this.store.doc.meta?.event ?? '', (v) => { ensureMeta().event = v })
+    metaField(t('Keywords'), () => this.store.doc.meta?.keywords ?? '', (v) => { ensureMeta().keywords = v })
+    const hint = sh.note('')
+    hint.innerHTML = t('Type <b>{{author}}</b>, <b>{{company}}</b>, <b>{{subject}}</b> or <b>{{event}}</b> in any text box and it fills in from here — everywhere at once. Handy for title slides and footers.')
+    props.appendChild(hint)
 
+    // the explicit pass over pictures already in the deck (editor/compressdeck.ts):
+    // dry run → the real numbers in a confirmation → one undo step
+    const compressNote = sh.note('')
+    const compressBtn = sh.button(t('Compress pictures in this deck…'), () => {
+      void this.compressDeckPictures(compressBtn, compressNote, () => sh.close())
+    })
+    compressBtn.title = t('Re-encodes every photo already in the deck at up to 2560 px; screenshots and logos stay sharp. Undo restores them until you save.')
+    sh.body.append(sh.actions(compressBtn), compressNote)
+
+    sh.foot(sh.button(t('Settings'), () => { sh.close(); this.openSettings() }))
+    sh.open()
+  }
+
+  /**
+   * Settings: the READER — kept in this browser, never written into the file,
+   * so the same deck can be English and light here and Japanese and dark on
+   * someone else's screen. The suite's order: Language, Appearance, Updates
+   * (with the offline switch), then this app's own preferences; the way into
+   * Keyboard shortcuts sits in the footer.
+   */
+  private openSettings(runCheck = false) {
+    const sh = this.sheet(t('Settings'))
+    const close = () => sh.close()
+
+    // Language — localeChoices(), not the frozen LOCALE_CHOICES: an installed
+    // pack appends a language at runtime.
+    const lang = sh.section(t('Language'))
+    lang.appendChild(sh.row(t('Interface language'), sheetSelect(
+      localeChoices().map((c) => ({ value: c.code, label: c.label })), locale(), (v) => {
+        setLocale(v)
+        // switching to (or away from) Arabic/Hebrew/… turns the chrome around
+        applyDirection()
+        this.build()
+        this.rebuildSidebar()
+        this.openSettings()
+      })))
+    lang.appendChild(sh.actions(sh.button(t('Manage languages…'), () => { close(); void this.openLanguages() })))
+
+    // Appearance — "Match my system" is first and the default.
+    sh.section(t('Appearance')).appendChild(sh.row(t('Theme'), themeSelect(
+      { auto: t('Match my system'), light: t('Light'), dark: t('Dark') }, themeChoice(), (v) => setTheme(v))))
+
+    const upSec = sh.section(t('Updates'))
     const status = div('ed-about-status')
     status.textContent =
       sandboxed()
@@ -3432,8 +3408,7 @@ export class Editor {
           ? t("Launch check couldn't reach the release server ({m}). Check manually below.", { m: this.lastAutoCheck.message })
           : t('This file carries its own app — it works offline, forever, as is.')
 
-    const row = div('ed-about-row')
-    const checkB = h('button.ed-btn', { textContent: t('Check for updates'), disabled: sandboxed() }) // nothing to check from inside an embedded view
+    const checkB = h('button.bks-btn', { textContent: t('Check for updates'), disabled: sandboxed() }) // nothing to check from inside an embedded view
     checkB.addEventListener('click', async () => {
       checkB.disabled = true
       status.textContent = t('Checking…')
@@ -3491,7 +3466,7 @@ export class Editor {
               ? t('This window is still running v{v} — reload to finish. A v{v} backup was downloaded.', { v: APP_VERSION })
               : t("This window is still running v{v}. If you overwrote the file that's open here, reload; otherwise open the file you saved.", { v: APP_VERSION })
           after.appendChild(note)
-          const reloadB = h('button.ed-btn.ed-btn-primary', { textContent: t('Reload into new version') })
+          const reloadB = h('button.bks-btn.bks-primary', { textContent: t('Reload into new version') })
           reloadB.addEventListener('click', () => {
             this.store.setDirty(false) // disk already holds this exact document
             // Hand a note to the version we are about to become. sessionStorage
@@ -3510,7 +3485,7 @@ export class Editor {
         // them: the per-version release page, which publish-site.mjs creates
         // for every release, so the link cannot dangle. First in the action
         // row deliberately: reading before deciding is the point.
-        const notesLink = h('a.ed-btn', {
+        const notesLink = h('a.bks-btn', {
           href: `https://github.com/nyblnet/bento/releases/tag/v${release.version}`,
           target: '_blank',
           rel: 'noopener',
@@ -3519,7 +3494,7 @@ export class Editor {
         })
         actions.appendChild(notesLink)
 
-        const inPlaceB = h('button.ed-btn.ed-btn-primary', {
+        const inPlaceB = h('button.bks-btn.bks-primary', {
           textContent: canUpdateInPlace() ? t('Update this file') : t('Update this file…'),
           title: canUpdateInPlace()
             ? t('Downloads a backup of the current version, then rewrites this file on disk as the new version — document untouched.')
@@ -3537,7 +3512,7 @@ export class Editor {
         })
         actions.appendChild(inPlaceB)
 
-        const getB = h('button.ed-btn', {
+        const getB = h('button.bks-btn', {
           textContent: t('Download updated copy'),
           title: t('Downloads the new version with this document inside. The file you have now is not touched.'),
         })
@@ -3557,64 +3532,16 @@ export class Editor {
         card.appendChild(actions)
       }
     })
-    row.appendChild(checkB)
-    box.append(row, status)
-
-    // Appearance — a VIEWER preference, so it sits with the others (language,
-    // auto-update) rather than anywhere near the document's own settings.
-    // "Auto" is first and is the default: most people want their machine's
-    // choice, and the explicit options exist for the ones who do not.
-    const themeRow = h('label.ed-about-auto')
-    const themeSel = h('select')
-    fieldize(themeSel)
-    for (const c of THEME_CHOICES) {
-      const o = h('option', { value: c, textContent: c === 'auto' ? t('Match my system') : c === 'light' ? t('Light') : t('Dark') })
-      if (c === themeChoice()) o.selected = true
-      themeSel.appendChild(o)
-    }
-    themeSel.addEventListener('change', () => setTheme(themeSel.value as never))
-    themeRow.append(document.createTextNode(t('Appearance') + ' '), themeSel)
-    box.appendChild(themeRow)
-
-    const autoRow = h('label.ed-about-auto')
-    const autoCb = h('input', { type: 'checkbox', checked: autoCheckEnabled() })
-    autoCb.addEventListener('change', () => setAutoCheck(autoCb.checked))
-    autoRow.append(autoCb, document.createTextNode(' ' + t('Check for updates automatically at launch')))
-    box.appendChild(autoRow)
-
-    // photos shrink at insert (editor/shrink.ts) — an authoring preference for
-    // this browser, like the update check; never in the document
-    const shrinkRow = h('label.ed-about-auto')
-    const shrinkCb = h('input', { type: 'checkbox', checked: shrinkEnabled() })
-    shrinkCb.addEventListener('change', () => setShrinkEnabled(shrinkCb.checked))
-    shrinkRow.append(shrinkCb, document.createTextNode(' ' + t('Shrink photos on insert (2560 px, screenshots and logos stay sharp)')))
-    shrinkRow.title = t('A pasted phone photo is stored at slide resolution instead of full size. Off: pictures are stored exactly as they come.')
-    box.appendChild(shrinkRow)
-
-    // the explicit pass over pictures already in the deck (editor/compressdeck.ts):
-    // dry run → the real numbers in a confirmation → one undo step
-    const compressRow = h('div.ed-about-auto')
-    const compressBtn = h('button.ed-btn', {
-      textContent: t('Compress pictures in this deck…'),
-      title: t('Re-encodes every photo already in the deck at up to 2560 px; screenshots and logos stay sharp. Undo restores them until you save.'),
-    })
-    const compressNote = h('span.ed-hint')
-    compressBtn.addEventListener('click', () => { void this.compressDeckPictures(compressBtn, compressNote, overlay) })
-    compressRow.append(compressBtn, compressNote)
-    box.appendChild(compressRow)
-
+    upSec.append(sh.actions(checkB), status)
+    upSec.appendChild(sh.check(t('Check for updates automatically at launch'), autoCheckEnabled(), (on) => setAutoCheck(on)))
     // the hard no-network switch: blocks update checks AND online
     // collaboration for this browser. Same-machine tab sync is not
     // networking and stays on.
-    const offRow = h('label.ed-about-auto')
-    const offCb = h('input', { type: 'checkbox', checked: offlineEnabled() })
-    offCb.addEventListener('change', () => {
-      // setOffline reports whether the preference PERSISTED. It holds for this
-      // session either way (net.ts keeps it in memory), but a switch that
-      // silently forgets itself on reload has to say so — it used to show
-      // "on" over a setting that had never been stored.
-      const stuck = setOffline(offCb.checked)
-      if (offCb.checked) {
+    upSec.appendChild(sh.check(t('Offline mode — block all network features (updates, online collaboration)'), offlineEnabled(), (on) => {
+      // setOffline reports whether the preference PERSISTED — a switch that
+      // silently forgets itself on reload has to say so.
+      const stuck = setOffline(on)
+      if (on) {
         if (this.session) disconnectOnline(this.session)
       } else {
         this.tryJoin() // re-enabling network re-connects only if share-eligible
@@ -3623,66 +3550,27 @@ export class Editor {
       this.toast(
         !stuck
           ? t('Offline mode is on for this tab, but could not be saved — this browser is blocking site data, so it will not survive a reload')
-          : offCb.checked
+          : on
             ? t('Offline mode on — nothing leaves this computer')
             : t('Offline mode off — online features re-enabled'),
       )
-    })
-    offRow.append(offCb, document.createTextNode(' ' + t('Offline mode — block all network features (updates, online collaboration)')))
-    box.appendChild(offRow)
+    }))
 
-    // Document properties → fillable {{author}} {{company}} {{subject}} {{event}} fields
-    const metaWrap = div('ed-about-row ed-about-meta-wrap')
-    const metaTitle = h('div.ed-about-h', { textContent: t('Document properties') })
-    metaWrap.appendChild(metaTitle)
-    const metaHint = h('p.ed-hint', { innerHTML: t('Type <b>{{author}}</b>, <b>{{company}}</b>, <b>{{subject}}</b> or <b>{{event}}</b> in any text box and it fills in from here — everywhere at once. Handy for title slides and footers.') })
-    metaWrap.appendChild(metaHint)
-    const ensureMeta = () => (this.store.doc.meta ??= {})
-    const metaField = (label: string, get: () => string, set: (v: string) => void) => {
-      const row = div('ed-about-meta')
-      const l = h('label', { textContent: label })
-      const inp = h('input', { type: 'text', value: get() })
-      inp.addEventListener('change', () => this.store.commit(() => set(inp.value.trim())))
-      row.append(l, inp)
-      metaWrap.appendChild(row)
-    }
-    metaField(t('Title'), () => this.store.doc.title, (v) => { this.store.doc.title = v || 'Untitled' })
-    metaField(t('Author'), () => this.store.doc.meta?.author ?? '', (v) => { ensureMeta().author = v })
-    metaField(t('Company'), () => this.store.doc.meta?.company ?? '', (v) => { ensureMeta().company = v })
-    metaField(t('Subject'), () => this.store.doc.meta?.subject ?? '', (v) => { ensureMeta().subject = v })
-    metaField(t('Event'), () => this.store.doc.meta?.event ?? '', (v) => { ensureMeta().event = v })
-    metaField(t('Keywords'), () => this.store.doc.meta?.keywords ?? '', (v) => { ensureMeta().keywords = v })
-    box.appendChild(metaWrap)
+    // photos shrink at insert (editor/shrink.ts) — an authoring preference for
+    // this browser, like the update check; never in the document
+    const edit = sh.section(t('Editing'))
+    const shrink = sh.check(t('Shrink photos on insert (2560 px, screenshots and logos stay sharp)'), shrinkEnabled(), (on) => setShrinkEnabled(on))
+    shrink.title = t('A pasted phone photo is stored at slide resolution instead of full size. Off: pictures are stored exactly as they come.')
+    edit.appendChild(shrink)
 
-    const fine = div('ed-about-fine')
-    fine.innerHTML =
-      `${t('Checks contact the release server and send nothing about you or this document — no ids, no telemetry.')}<br>` +
-      t('Includes reveal.js, Moveable, Selecto (MIT) · Fraunces + Instrument Sans typefaces (OFL-1.1) — full notices travel in this file’s source.')
-    box.appendChild(fine)
-
-    overlay.appendChild(box)
-    const close = () => {
-      overlay.remove()
-      document.removeEventListener('keydown', onKey, true)
-    }
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') {
-        ev.stopPropagation()
-        close()
-      }
-    }
-    overlay.addEventListener('click', (ev) => {
-      if (ev.target === overlay) close()
-    })
-    document.addEventListener('keydown', onKey, true)
-    document.body.appendChild(overlay)
+    sh.open()
     if (runCheck || this.updateFound) checkB.click()
   }
 
   /** About ▸ Compress pictures in this deck…: every picture runs through the
    *  insert-time shrink rules; the confirmation states the measured total; one
    *  store commit applies it. Nothing is written until Compress is clicked. */
-  private async compressDeckPictures(btn: HTMLButtonElement, note: HTMLElement, aboutOverlay: HTMLElement) {
+  private async compressDeckPictures(btn: HTMLButtonElement, note: HTMLElement, closeAbout: () => void) {
     if (this.store.readOnly) return
     btn.disabled = true
     const doc = this.store.doc
@@ -3711,7 +3599,7 @@ export class Editor {
       dlg.close()
       let applied = 0
       this.store.commit(() => { applied = applyCompress(this.store.doc, run) })
-      aboutOverlay.remove()
+      closeAbout()
       this.toast(t('{n} pictures compressed — {before} → {after}', { n: String(applied), before: fmtBytes(run.before), after: fmtBytes(run.after) }))
     })
     dlg.open()

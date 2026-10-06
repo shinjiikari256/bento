@@ -960,4 +960,13 @@ export const PACKED: Record<string, ReadonlyArray<string | 0>> = {
   "{n} pictures still uploading…": ["画像{n}枚をアップロード中…","{n} 张图片上传中…","{n} 張圖片上傳中…","{n} imágenes subiéndose…","{n} images en cours d’envoi…","{n} Bilder werden noch hochgeladen…","{n} immagini in caricamento…","{n} imagens a enviar…"],
   "Not rendered: {what}": ["表示できません: {what}","未能渲染：{what}","未能呈現：{what}","Sin representar: {what}","Non rendu : {what}","Nicht gerendert: {what}","Non visualizzata: {what}","Não renderizada: {what}"],
   "no space just inside the $ signs": ["$ 記号のすぐ内側に空白を入れないでください","$ 符号内侧不要紧挨空格","$ 符號內側不要緊貼空格","sin espacio justo dentro de los signos $","pas d’espace juste à l’intérieur des signes $","kein Leerzeichen direkt innerhalb der $-Zeichen","nessuno spazio subito dentro i segni $","sem espaço logo dentro dos sinais $"],
+  "Settings": ["設定","设置","設定","Ajustes","Réglages","Einstellungen","Impostazioni","Configurações"],
+  "Updates": ["更新","更新","更新","Actualizaciones","Mises à jour","Updates","Aggiornamenti","Atualizações"],
+  "Settings — language, appearance and updates": ["設定 — 言語、外観、アップデート","设置 — 语言、外观和更新","設定 — 語言、外觀與更新","Ajustes: idioma, apariencia y actualizaciones","Réglages — langue, apparence et mises à jour","Einstellungen — Sprache, Erscheinungsbild und Updates","Impostazioni — lingua, aspetto e aggiornamenti","Configurações — idioma, aparência e atualizações"],
+  "About this deck": ["このプレゼンテーションについて","关于此演示文稿","關於此簡報","Acerca de esta presentación","À propos de cette présentation","Über diese Präsentation","Informazioni su questa presentazione","Sobre esta apresentação"],
+  "Keyboard shortcuts": ["キーボードショートカット","键盘快捷键","鍵盤快速鍵","Atajos de teclado","Raccourcis clavier","Tastenkürzel","Scorciatoie da tastiera","Atalhos de teclado"],
+  "Interface language": ["表示言語","界面语言","介面語言","Idioma de la interfaz","Langue de l’interface","Sprache der Oberfläche","Lingua dell’interfaccia","Idioma da interface"],
+  "Close": ["閉じる","关闭","關閉","Cerrar","Fermer","Schließen","Chiudi","Fechar"],
+  "About bento/slides — version, licenses": ["bento/slides について — バージョン、ライセンス","关于 bento/slides — 版本、许可证","關於 bento/slides — 版本、授權","Acerca de bento/slides: versión, licencias","À propos de bento/slides — version, licences","Über bento/slides — Version, Lizenzen","Informazioni su bento/slides — versione, licenze","Sobre o bento/slides — versão, licenças"],
+  "Keyboard shortcuts (?)": ["キーボードショートカット (?)","键盘快捷键 (?)","鍵盤快速鍵 (?)","Atajos de teclado (?)","Raccourcis clavier (?)","Tastenkürzel (?)","Scorciatoie da tastiera (?)","Atalhos de teclado (?)"],
 }

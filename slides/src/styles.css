@@ -224,23 +224,9 @@ option { background: var(--field); color: var(--ink); }
 .ed-filechip[hidden] { display: none; }
 .ed-topbar.ed-bar-compact .ed-filechip { display: none; }
 
-/* unsaved-changes dot — badges the SAVE button's corner (amber when dirty) */
-.ed-dirty {
-  position: absolute;
-  top: 3px; inset-inline-end: 3px;
-  width: 7px; height: 7px; border-radius: 50%;
-  background: transparent; pointer-events: none;
-}
-/* Save is ink-filled (D1), and in dark theme --ink is near-white: the amber dot
-   alone measured 1.7:1 on it. A ring in the brand navy (the logo mark's tile)
-   is dark in BOTH themes — on light it merges into the ink fill, on dark it
-   parts the dot from it. A --surface ring failed the other way: white beside
-   amber is 2.0:1 in light. Dot:ring and ring:fill both clear 3:1
-   (scripts/test-slides-topbar-browser.mjs). */
-.ed-dirty.on { background: var(--accent); box-shadow: 0 0 0 1.5px #16273e; }
-.ed-split > .ed-btn:first-child { position: relative; }
-
 .ed-group { display: flex; align-items: center; gap: 6px; }
+/* a dead bar control (undo with nothing to undo): the suite's 0.35 */
+.ed-topbar .ed-btn[disabled] { opacity: 0.35; cursor: default; }
 .ed-group-right { margin-inline-start: auto; }
 
 .ed-btn {
@@ -297,7 +283,7 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
    move --slide-shadow makes for the canvas. */
 :root[data-theme="dark"] .ed-menu { box-shadow: 0 8px 24px rgb(0 0 0 / 0.5); }
 /* DIRECT child, not any descendant. Phone chrome demotes whole dropdown
-   widgets (Share, Language) into the ⋯ menu, so a descendant selector opened
+   widgets (Share) into the ⋯ menu, so a descendant selector opened
    their menus too — ⋯ came up with the entire language list already unrolled
    inside it. Every .ed-menu is appended straight onto its own .ed-dropdown, so
    scoping to `>` is exact. */
@@ -689,15 +675,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   color: var(--muted);
   margin: 4px 0 6px;
 }
-.ed-about-auto {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  color: var(--muted);
-  cursor: pointer;
-  user-select: none;
-}
 
 /* About actions: buttons must read against the white box without hover */
 .ed-about .ed-btn-primary {
@@ -744,32 +721,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   max-height: 88vh;
   overflow-y: auto;
 }
-.ed-about-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.ed-about-head b { font-size: 15px; display: block; }
-.ed-about-head span { font-size: 11.5px; color: var(--muted); }
-/* logo/wordmark links home — keep it looking like the logo, not a link */
-.ed-about-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: inherit;
-  text-decoration: none;
-  border-radius: 8px;
-}
-.ed-about-logo:hover { opacity: 0.82; }
-/* engagement line back to the site */
-.ed-about-promo {
-  font-size: 12.5px;
-  color: var(--muted);
-  line-height: 1.5;
-  margin: -2px 0 2px;
-}
-.ed-about-promo a { color: var(--blue); text-decoration: none; }
-.ed-about-promo a:hover { text-decoration: underline; }
 .ed-about-row { display: flex; gap: 8px; }
 .ed-about-status {
   min-height: 18px;
@@ -1005,36 +956,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   outline-offset: 3px;
   border-radius: 999px;
 }
-
-/* --- help overlay + help button ------------------------------------------- */
-.ed-btn-help .ed-help-q { font-size: 15px; font-weight: 800; line-height: 1; }
-/* The glyph is narrower and shorter than a 16px icon, so without a floor the
-   button came out 28×29 beside 36×30 neighbours. */
-.ed-btn-help { min-width: 36px; min-height: 30px; justify-content: center; }
-.ed-help-box { width: 700px; max-width: 92vw; }
-/* two hand-placed columns so the (now longer) list stays short vertically */
-.ed-help-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; align-items: start; }
-.ed-help-col { min-width: 0; }
-.ed-help-sec { margin: 0 0 14px; }
-/* one column when there isn't room for two (narrow / phone) */
-@media (max-width: 560px) { .ed-help-cols { grid-template-columns: 1fr; } }
-.ed-help-sec h3 {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--muted); margin: 0 0 6px;
-}
-.ed-help-row { display: grid; grid-template-columns: 128px 1fr; gap: 12px; align-items: baseline; padding: 3px 0; font-size: 13px; }
-/* D8: shortcuts in the interface face, not monospace, right-aligned against
-   what they do — the column reads as a list of keys, as a menu's does */
-.ed-help-row kbd {
-  font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
-  background: var(--chrome-2); border: 1px solid var(--line);
-  border-radius: 5px; padding: 2px 6px; color: var(--ink); white-space: nowrap; justify-self: end;
-}
-.ed-help-tips { margin: 4px 0 0; padding-inline-start: 18px; font-size: 13px; line-height: 1.5; color: var(--ink); }
-.ed-help-tips li { margin: 3px 0; }
-.ed-help-more { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line, rgba(30,42,58,0.12)); text-align: center; }
-.ed-help-more a { color: var(--accent); font-weight: 600; font-size: 13px; text-decoration: none; }
-.ed-help-more a:hover { text-decoration: underline; }
 
 /* --- live viewer (read-only collaborator) -------------------------------- */
 .ed-reader .ed-insert { display: none; }        /* no add-content tools */
@@ -1878,42 +1799,17 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 
 /* divider usable in any dropdown menu */
 .ed-menu-sep { height: 1px; background: var(--line); margin: 3px 2px; }
-.ed-lang-on { font-weight: 700; }
-.ed-lang-on::after { content: ' ✓'; color: var(--accent-ink); }
 
-/* Save is a split button: [ Save |▾] one visual unit. The caret button is
-   NESTED inside the .ed-dropdown wrapper, so stretch through the wrapper. */
-.ed-split { display: inline-flex; align-items: stretch; }
-/* PRIMARY (maintainer ruling D1, both apps): saving is the act every session
-   ends with, so Save and its caret are one ink-filled unit — the same inverse
-   pairing as .ed-btn-primary (--surface on --ink: 14.5:1 light, 12.6:1 dark). */
-.ed-split > .ed-btn:first-child {
-  border-start-start-radius: 8px;
-  border-end-start-radius: 8px;
-  border-start-end-radius: 0;
-  border-end-end-radius: 0;
-  border: 1px solid var(--ink);
-  border-inline-end: none;
-  background: var(--ink);
-  color: var(--surface);
-}
-.ed-split .ed-dropdown { display: flex; align-items: stretch; }
-.ed-split-caret {
-  height: 100%;
-  display: inline-flex;
-  align-items: center;
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
-  border-start-end-radius: 8px;
-  border-end-end-radius: 8px;
-  border: 1px solid var(--ink);
-  /* a hairline in the text colour divides the two halves on the ink */
-  border-inline-start-color: color-mix(in srgb, var(--surface) 35%, var(--ink));
-  background: var(--ink);
-  color: var(--surface);
-  padding: 6px 7px;
-}
-.ed-split .ed-btn:hover { background: var(--ink-2); border-color: var(--ink-2); }
+/* Save is the suite's shared split button (kernel/src/ui/savebutton.css):
+   grey while there is nothing to save, ink-filled when there is. The caret
+   lives inside an .ed-dropdown wrapper, so stretch through it. */
+.bksv .ed-dropdown { display: flex; align-items: stretch; }
+/* the label stays at the compact tier — Save is the one control named, not
+   guessed (the fold, below, is where it finally goes) */
+.ed-topbar.ed-bar-compact .bksv > .bksv-main > span { display: inline; }
+/* …and so does Share: the two named controls of every Bento bar */
+.ed-topbar.ed-bar-compact .ed-btn.ed-btn-share > span { display: inline; }
+.ed-topbar.ed-bar-fold .ed-btn.ed-btn-share > span { display: none; }
 .ed-caret { font-size: 10px; line-height: 1; }
 
 /* quiet divider between share actions and advanced session controls */
@@ -2111,20 +2007,7 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   white-space: normal;
   text-align: start;
 }
-.ed-about-meta-wrap { flex-direction: column; align-items: stretch; gap: 5px; }
 .ed-about-h { font-weight: 700; font-size: 13px; margin: 2px 0; }
-.ed-about-meta { display: flex; align-items: center; gap: 8px; }
-.ed-about-meta label { flex: 0 0 80px; font-size: 12px; color: var(--ink-2); }
-.ed-about-meta input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  font-size: 13px;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--field);
-}
 
 /* collaborate popover: your-name field */
 .ed-share-name {
@@ -2145,7 +2028,7 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 }
 
 /* --- responsive topbar: labels give way, never a scrollbar ----------------
-   The tiers are CLASSES, not width breakpoints. editor.ts fitTopbar()
+   The tiers are CLASSES, not width breakpoints. editor.ts (kernel fitTopbar)
    MEASURES the bar and steps down a tier while it still overflows. Width
    breakpoints were wrong here because the same buttons need a different
    amount of room at the same viewport width (OS text scaling, browser zoom,
@@ -2201,11 +2084,8 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
    set of buttons and is the least-used half. The list it opens is not lost —
    editor.ts appends it to the bottom of ⋯ while the fold is on. */
 .ed-topbar.ed-bar-fold .ed-split-caret { display: none; }
-.ed-topbar.ed-bar-fold .ed-split > .ed-btn:first-child {
-  border-start-end-radius: 8px;
-  border-end-end-radius: 8px;
-  border-inline-end: 1px solid var(--ink);
-}
+.ed-topbar.ed-bar-fold .bksv > .bksv-main { border-radius: 8px; }
+.ed-topbar.ed-bar-fold .bksv > .bksv-main > span { display: none; }
 /* ⋯ carries the demoted buttons AND that list, so it can outgrow the
    screen in BOTH directions.
    Down: without a bound it runs off the bottom, and a dropdown is absolutely
@@ -2266,6 +2146,7 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   }
   /* HIG touch targets — a 36px icon is a mis-tap on glass */
   .ed-topbar .ed-btn { min-width: 44px; min-height: 44px; justify-content: center; }
+  .ed-topbar .bksv > .bksv-main, .ed-topbar .bksv .bksv-caret { min-height: 44px; }
   /* the wordmark is a button too (About), and on a phone it is the mark alone */
   .ed-topbar .ed-logo { min-width: 44px; min-height: 44px; justify-content: center; }
   /* menu rows are text, not targets — and read from the start edge; the
@@ -2308,7 +2189,7 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
      (or any iPhone with Display Zoom on) is 320px wide. `.ed-root` sets
      `overflow: hidden` so a wide bar can never turn into DOCUMENT scroll, and
      the consequence was that the overflow was simply CUT OFF: ⋯ — which on a
-     phone carries Redo, Comment, PDF, Share, Language, Help and the whole
+     phone carries Redo, Comment, Share, About, Settings and the whole
      save-as list — hung 36px off the edge and could not be reached at all.
      So the bar scrolls itself. The clipped button is now a partly-visible one,
      which is its own affordance, and the fix keeps scaling if the bar ever
@@ -2337,8 +2218,8 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 
 /* menus that hang off a topbar control at the END of the bar open toward the
    bar's start, so they can never overflow the window edge — in either
-   direction (the language menu sets the same anchoring from JS). */
-.ed-save-menu, .ed-lang-menu {
+   direction. */
+.ed-save-menu {
   inset-inline-end: 0;
   inset-inline-start: auto;
 }

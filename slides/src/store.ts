@@ -160,6 +160,10 @@ export class Store {
     if (event !== 'doc') this.emit(event)
   }
 
+  /** whether Undo/Redo would do anything — the bar dims them when not */
+  get canUndo(): boolean { return this.undoStack.length > 0 }
+  get canRedo(): boolean { return this.redoStack.length > 0 }
+
   undo() { this.restore(this.undoStack, this.redoStack) }
   redo() { this.restore(this.redoStack, this.undoStack) }
 

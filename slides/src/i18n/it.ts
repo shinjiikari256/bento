@@ -954,4 +954,13 @@ export const it: Catalog = {
   "{n} pictures still uploading…": "{n} immagini in caricamento…",
   "Not rendered: {what}": "Non visualizzata: {what}",
   "no space just inside the $ signs": "nessuno spazio subito dentro i segni $",
+  "Settings": "Impostazioni",
+  "Updates": "Aggiornamenti",
+  "Settings — language, appearance and updates": "Impostazioni — lingua, aspetto e aggiornamenti",
+  "About this deck": "Informazioni su questa presentazione",
+  "Keyboard shortcuts": "Scorciatoie da tastiera",
+  "Interface language": "Lingua dell’interfaccia",
+  "Close": "Chiudi",
+  "About bento/slides — version, licenses": "Informazioni su bento/slides — versione, licenze",
+  "Keyboard shortcuts (?)": "Scorciatoie da tastiera (?)",
 }

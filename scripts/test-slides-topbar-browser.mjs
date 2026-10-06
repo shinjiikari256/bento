@@ -8,12 +8,13 @@
 // parity pass, #567):
 //   1. every bar control sits on the 30px row at desktop width — the ? button
 //      was 28×29, sized by its glyph — and clears 44×44 on a phone;
-//   2. the wordmark is a BUTTON with a name: focusable, and Enter opens About.
+//   2. the wordmark is a BUTTON with a name: focusable, and Enter opens the
+//      app's card (version, licenses).
 //      It was a click-only 20×20 div on a phone;
-//   3. Save is primary (maintainer ruling D1): its fill is the theme's --ink
-//      and its text --surface, in both themes, reaching 4.5:1; the unsaved dot
-//      stays visible on that fill — 3:1 against the ring that borders it (in
-//      dark theme the amber dot straight on near-white ink is 1.7:1);
+//   3. Save is the suite's shared button (kernel/src/ui/savebutton.css): grey
+//      while there is nothing to save, and once there is, filled with the
+//      theme's --ink (ruling D1) with text reaching 4.5:1, in both themes —
+//      its colour IS the unsaved signal;
 //   4. build() runs again on every language switch, and each run used to add a
 //      window resize listener, a ResizeObserver and eight document pointerdown
 //      listeners. After N rebuilds the counts equal the counts after one.
@@ -53,7 +54,7 @@ try {
   p.on('dialog', (d) => d.accept())
   await p.route(/^https?:/, (r) => r.abort())
   await p.goto(new URL('../slides/dist-single/Bento_Slides.bento.html', import.meta.url).href)
-  await p.waitForFunction(() => window.bento?.doc && document.querySelector('.ed-topbar .ed-btn-help'))
+  await p.waitForFunction(() => window.bento?.doc && document.querySelector('.ed-topbar .ed-btn-settings'))
   await p.evaluate(() => { try { localStorage.setItem('bento-slideshow-started', '1') } catch {} })
 
   // --- 1. the grid -----------------------------------------------------------
@@ -64,7 +65,7 @@ try {
       if (el.closest('.ed-menu')) continue
       const r = el.getBoundingClientRect()
       if (!r.width || getComputedStyle(el).display === 'none') continue
-      out.push({ name: el.title || el.textContent.trim() || el.className, w: +r.width.toFixed(1), h: +r.height.toFixed(1), help: el.classList.contains('ed-btn-help'), logo: el.classList.contains('ed-logo') })
+      out.push({ name: el.title || el.textContent.trim() || el.className, w: +r.width.toFixed(1), h: +r.height.toFixed(1), settings: el.classList.contains('ed-btn-settings'), logo: el.classList.contains('ed-logo') })
     }
     return out
   })
@@ -72,8 +73,8 @@ try {
   const btns = wide.filter((b) => !b.logo)
   const off = btns.filter((b) => Math.abs(b.h - 30) > 0.5)
   ok(btns.length >= 12 && off.length === 0, `${btns.length} buttons, all 30px tall${off.length ? ' — off: ' + off.map((b) => `${b.name} ${b.w}×${b.h}`).join(', ') : ''}`)
-  const help = wide.find((b) => b.help)
-  ok(help && Math.abs(help.w - 36) <= 0.5 && Math.abs(help.h - 30) <= 0.5, `? is 36×30 like its icon neighbours (${help?.w}×${help?.h})`)
+  const gear = wide.find((b) => b.settings)
+  ok(gear && Math.abs(gear.w - 36) <= 0.5 && Math.abs(gear.h - 30) <= 0.5, `Settings is 36×30 like its icon neighbours (${gear?.w}×${gear?.h})`)
 
   console.log('\ngrid: 44px touch targets (390)\n')
   await p.setViewportSize({ width: 390, height: 844 })
@@ -93,41 +94,39 @@ try {
   if (named) await logo.focus()
   ok(await p.evaluate(() => document.activeElement?.classList.contains('ed-logo')), 'it takes focus')
   if (named) await p.keyboard.press('Enter')
-  ok(await p.locator('.ed-about-overlay').count() > 0, 'Enter opens About')
+  ok(await p.locator('.bkd-overlay').count() > 0, 'Enter opens the app card')
   await p.keyboard.press('Escape')
-  await p.evaluate(() => document.querySelectorAll('.ed-about-overlay').forEach((o) => o.remove()))
+  await p.keyboard.press('Escape')
   await p.setViewportSize({ width: 1440, height: 900 })
   await p.waitForFunction(() => !document.querySelector('.ed-topbar')?.classList.contains('ed-bar-fold'))
 
   // --- 3. Save is primary, both themes ---------------------------------------
-  console.log('\nSave: primary (D1) in both themes\n')
-  // one edit makes the deck dirty, so the unsaved dot is on
+  console.log('\nSave: grey when clean, ink-filled when dirty, both themes\n')
+  const fill = () => p.evaluate(() => getComputedStyle(document.querySelector('.bksv > .bksv-main')).backgroundColor)
+  const inkNow = () => p.evaluate(() => { const d = document.createElement('div'); d.style.color = 'var(--ink)'; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c })
+  ok(!(await p.evaluate(() => document.querySelector('.bksv').classList.contains('bksv-dirty'))) && (await fill()) !== (await inkNow()),
+    `nothing to save: Save is not filled (${await fill()})`)
+  // one edit makes the deck dirty, so Save fills
   await p.locator('.ed-title').fill('Topbar rig')
   await p.locator('.ed-title').press('Tab')
   for (const theme of ['light', 'dark']) {
     await p.evaluate((th) => { document.documentElement.dataset.theme = th }, theme)
+    await p.waitForTimeout(300) // Save's colour eases over 0.15s
     const m = await p.evaluate(() => {
       const probe = (v) => { const d = document.createElement('div'); d.style.color = `var(${v})`; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c }
-      const save = document.querySelector('.ed-split > .ed-btn:first-child')
-      const caret = document.querySelector('.ed-split-caret')
-      const dot = document.querySelector('.ed-dirty')
+      const save = document.querySelector('.bksv > .bksv-main')
+      const caret = document.querySelector('.bksv .bksv-caret')
       const cs = getComputedStyle(save)
-      const ring = getComputedStyle(dot).boxShadow.match(/rgba?\([^)]*\)/)?.[0] ?? ''
       return {
-        ink: probe('--ink'), surface: probe('--surface'),
+        ink: probe('--ink'),
         bg: cs.backgroundColor, fg: cs.color, caretBg: getComputedStyle(caret).backgroundColor,
-        dotOn: dot.classList.contains('on'), dot: getComputedStyle(dot).backgroundColor, ring,
+        dirty: document.querySelector('.bksv').classList.contains('bksv-dirty'),
       }
     })
+    ok(m.dirty, `${theme}: an edit marks Save dirty`)
     ok(m.bg === m.ink && m.caretBg === m.ink, `${theme}: Save and its caret are filled with --ink (${m.bg})`)
-    ok(m.fg === m.surface, `${theme}: Save's text is --surface (${m.fg})`)
     const c = contrast(m.fg, m.bg)
     ok(c >= 4.5, `${theme}: Save label ${c.toFixed(2)}:1 ≥ 4.5`)
-    ok(m.dotOn, `${theme}: the unsaved dot is on after an edit`)
-    // the dot's edge is its ring, so that is the pair the eye separates; the
-    // bare dot-on-fill figure is printed for the record
-    const dr = m.ring ? contrast(m.dot, m.ring) : 0
-    ok(dr >= 3, `${theme}: unsaved dot ${dr.toFixed(2)}:1 against its ring ≥ 3 (bare on the fill it would be ${contrast(m.dot, m.bg).toFixed(2)}:1)`)
   }
   await p.evaluate(() => { delete document.documentElement.dataset.theme })
 
@@ -144,12 +143,17 @@ try {
     pointerdown: await listeners('document', 'pointerdown'),
     observers: await p.evaluate(() => window.__barObservers()),
   })
+  // the language picker lives in Settings: pick by option LABEL, then Esc
   const switchTo = (label) => p.evaluate((l) => {
-    const b = [...document.querySelectorAll('.ed-lang-menu .ed-btn')].find((x) => x.textContent.trim() === l)
-    if (!b) throw new Error('no language ' + l)
-    b.click()
+    document.querySelector('.ed-btn-settings').click()
+    const sel = document.querySelector('.bkd-card select')
+    const o = [...sel.options].find((x) => x.textContent.trim() === l)
+    if (!o) throw new Error('no language ' + l)
+    sel.value = o.value
+    sel.dispatchEvent(new Event('change'))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
   }, label)
-  const other = await p.evaluate(() => [...document.querySelectorAll('.ed-lang-menu .ed-btn')].map((x) => x.textContent.trim()).find((l) => l && l !== 'English' && !l.includes('…')))
+  const other = 'Deutsch'
   await switchTo('English') // one rebuild, so both samples are post-rebuild
   const one = await snapshot()
   const N = 6

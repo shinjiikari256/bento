@@ -67,11 +67,21 @@ try {
   ok(!(await p.evaluate(() => document.querySelector('.ed-save-menu')?.closest('.ed-dropdown')?.classList.contains('open'))), 'the menu closes')
 
   console.log('\ntranslated\n')
-  await p.evaluate(() => [...document.querySelectorAll('.ed-lang-menu .ed-btn')].find((b) => b.textContent.trim() === 'Deutsch').click())
+  // the language picker lives in Settings: pick by option LABEL, then Esc
+  const setLang = (label) => p.evaluate((l) => {
+    document.querySelector('.ed-btn-settings').click()
+    const sel = document.querySelector('.bkd-card select')
+    const o = [...sel.options].find((x) => x.textContent.trim() === l)
+    if (!o) throw new Error('no language ' + l)
+    sel.value = o.value
+    sel.dispatchEvent(new Event('change'))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+  }, label)
+  await setLang('Deutsch')
   await p.evaluate(() => document.querySelector('.ed-split-caret').click())
   const de = await p.evaluate(() => [...document.querySelectorAll('.ed-save-menu > .ed-btn')].map((b) => b.textContent.trim()))
   ok(de.some((x) => x.startsWith('PowerPoint importieren')), 'German shows "PowerPoint importieren…"')
-  await p.evaluate(() => [...document.querySelectorAll('.ed-lang-menu .ed-btn')].find((b) => b.textContent.trim() === 'English').click())
+  await setLang('English')
 
   ok(errors.length === 0, `no page errors${errors.length ? ': ' + errors.join('; ') : ''}`)
 } finally { await browser.close() }

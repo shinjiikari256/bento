@@ -954,4 +954,13 @@ export const de: Catalog = {
   "{n} pictures still uploading…": "{n} Bilder werden noch hochgeladen…",
   "Not rendered: {what}": "Nicht gerendert: {what}",
   "no space just inside the $ signs": "kein Leerzeichen direkt innerhalb der $-Zeichen",
+  "Settings": "Einstellungen",
+  "Updates": "Updates",
+  "Settings — language, appearance and updates": "Einstellungen — Sprache, Erscheinungsbild und Updates",
+  "About this deck": "Über diese Präsentation",
+  "Keyboard shortcuts": "Tastenkürzel",
+  "Interface language": "Sprache der Oberfläche",
+  "Close": "Schließen",
+  "About bento/slides — version, licenses": "Über bento/slides — Version, Lizenzen",
+  "Keyboard shortcuts (?)": "Tastenkürzel (?)",
 }

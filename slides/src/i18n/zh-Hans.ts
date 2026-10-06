@@ -954,4 +954,13 @@ export const zhHans: Catalog = {
   "{n} pictures still uploading…": "{n} 张图片上传中…",
   "Not rendered: {what}": "未能渲染：{what}",
   "no space just inside the $ signs": "$ 符号内侧不要紧挨空格",
+  "Settings": "设置",
+  "Updates": "更新",
+  "Settings — language, appearance and updates": "设置 — 语言、外观和更新",
+  "About this deck": "关于此演示文稿",
+  "Keyboard shortcuts": "键盘快捷键",
+  "Interface language": "界面语言",
+  "Close": "关闭",
+  "About bento/slides — version, licenses": "关于 bento/slides — 版本、许可证",
+  "Keyboard shortcuts (?)": "键盘快捷键 (?)",
 }

@@ -538,7 +538,7 @@ names provisional.
   F toggle (denied requests degrade to tab-fill — that IS the testing/
   sharing mode). Topbar is responsive by HIDING TEXT rather than
   scrolling — and by MEASURING, not width breakpoints (zoom/OS text scale/
-  locale width made px queries clip the bar): editor.ts fitTopbar() steps down
+  locale width made px queries clip the bar): the kernel fitTopbar (kernel/src/ui/topbar.ts) steps down
   tier classes while the bar overflows (ed-bar-compact hides labels,
   ed-bar-tight the wordmark, ed-bar-fold folds into menus via
   applyPhoneChrome), driven by a Resize- + MutationObserver on the bar.
@@ -547,7 +547,7 @@ names provisional.
   the mark and the title — and an iPhone SE (or any iPhone with Display Zoom
   on) is 320px. `.ed-root` is `overflow: hidden` so a wide bar can never become
   document scroll, so the excess was simply CUT OFF: ⋯ — which on a phone
-  carries Redo, Comment, PDF, Share, Language, Help and the whole save-as list
+  carries Redo, Comment, Share, About, Settings and the whole save-as list
   — sat at x=356 on a 320px screen and could not be reached at all (measured,
   not inferred). Hiding text is still the strategy and still does all the work;
   scrolling is only the floor beneath it, for the widths where the fold has
@@ -560,7 +560,12 @@ names provisional.
   flush to the screen edge when collapsed); phones (<700px) boot with
   both panels collapsed (canvas-first; chevrons/[/] bring them back).
   Update chip sits beside the wordmark and exists ONLY when an update
-  is found. Present lives as FLOATING buttons at the canvas's BOTTOM-LEFT
+  is found. Bar zones: LEFT mark (→ the APP's card: version, licenses) ·
+  update chip · slide-list trigger · title · file chip; CENTRE insert tools;
+  RIGHT undo/redo · Format trigger · people · Share · Save (its menu holds
+  print/PDF, save-as, JSON, import) · About (the DECK: properties, picture
+  compression) · Settings (gear; the READER: language, appearance,
+  updates, offline, help) — the plan-1 item-11 layout shared by all apps. Present lives as FLOATING buttons at the canvas's BOTTOM-LEFT
   (zoombar owns the right corner): big round FAB = fullscreen present,
   small one BESIDE it (never above — it would cover the slide) =
   tab-fill mode (testing/window-sharing); both call editor.present(
