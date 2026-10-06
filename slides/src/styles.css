@@ -263,32 +263,18 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 }
 .ed-btn-primary:hover { background: var(--ink-2); }
 
-.ed-dropdown { position: relative; }
-.ed-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 4px);
-  inset-inline-start: 0;
-  flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgb(20 30 45 / 0.14);
-  padding: 4px;
-  z-index: 50;
-  min-width: 150px;
-}
+/* The bar's dropdowns are the suite's menu (kernel/src/ui/menu.ts + .css):
+   the panel's position, surface, border, radius and open/closed state live
+   there, the same in all four apps. `.ed-dropdown` / `.ed-menu` stay on them
+   as slides' hooks — the fold below and applyPhoneChrome key on those. */
 /* The light shadow is navy at 14%, which on the dark chrome is a navy smudge
    on navy and lifts nothing off the page. Dark gets black, deeper — the same
    move --slide-shadow makes for the canvas. */
 :root[data-theme="dark"] .ed-menu { box-shadow: 0 8px 24px rgb(0 0 0 / 0.5); }
-/* DIRECT child, not any descendant. Phone chrome demotes whole dropdown
-   widgets (Share) into the ⋯ menu, so a descendant selector opened
-   their menus too — ⋯ came up with the entire language list already unrolled
-   inside it. Every .ed-menu is appended straight onto its own .ed-dropdown, so
-   scoping to `>` is exact. */
-.ed-dropdown.open > .ed-menu { display: flex; }
 .ed-menu .ed-btn { justify-content: flex-start; width: 100%; }
+/* the rows of a list are drawn as the kernel's (.bkm-item): the same gap and
+   padding, no border — slides' buttons on loan to ＋ and ⋯ included */
+.ed-menu:not(.bkm-panel) > .ed-btn { gap: 9px; padding: 7px 9px; border-width: 0; }
 
 /* ————— main layout ————— */
 
@@ -1747,8 +1733,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   max-width: 290px;
   padding: 12px;
   gap: 7px;
-  inset-inline-end: 0;
-  inset-inline-start: auto;
 }
 .ed-share-label {
   font-size: 10.5px;
@@ -1786,7 +1770,8 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 /* Save is the suite's shared split button (kernel/src/ui/savebutton.css):
    grey while there is nothing to save, ink-filled when there is. The caret
    lives inside an .ed-dropdown wrapper, so stretch through it. */
-.bksv .ed-dropdown { display: flex; align-items: stretch; }
+.bksv .ed-dropdown,
+.ed-present-pill > .ed-dropdown { display: flex; align-items: stretch; }
 /* the label stays at the compact tier — Save is the one control named, not
    guessed (the fold, below, is where it finally goes) */
 .ed-topbar.ed-bar-compact .bksv > .bksv-main > span { display: inline; }
@@ -2099,6 +2084,9 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
    A floating child cannot escape a scroll container, so it stops floating:
    inside ⋯ these render as a section of the list, scrolling with it and
    taking its width. Nothing can be clipped because nothing overhangs. */
+/* …under its own trigger, as a row of the list: the kernel's wrapper is an
+   inline-flex ROW, which put the panel beside the Share button */
+.ed-topbar.ed-bar-fold .ed-menu .ed-dropdown { display: flex; flex-direction: column; align-items: stretch; }
 .ed-topbar.ed-bar-fold .ed-menu .ed-menu {
   position: static;
   min-width: 0;
@@ -2191,7 +2179,10 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
      already pins these menus to the end of the screen rather than to their
      trigger. The only thing they still need from the layout is where the bar
      ends, which editor.ts publishes as --ed-bar-bottom. */
-  .ed-topbar .ed-dropdown.open > .ed-menu {
+  /* top-level menus only: a dropdown demoted INTO ⋯ renders as a section of
+     that list (static, below), and pinning it here laid Share's panel,
+     see-through, over the very list holding it */
+  .ed-topbar .ed-dropdown.bkm-open > .ed-menu:not(.ed-menu .ed-menu) {
     position: fixed;
     top: calc(var(--ed-bar-bottom, 56px) + 4px);
     inset-inline-end: max(6px, env(safe-area-inset-right), var(--tray-safe-right, 0px));
@@ -2199,13 +2190,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
   }
 }
 
-/* menus that hang off a topbar control at the END of the bar open toward the
-   bar's start, so they can never overflow the window edge — in either
-   direction. */
-.ed-save-menu {
-  inset-inline-end: 0;
-  inset-inline-start: auto;
-}
 .ed-save-menu { min-width: 190px; }
 .ed-save-menu .ed-btn { font-size: 12.5px; }
 /* D2 (revised 2026-09-26): Save as and Share keep one-line rows and put each

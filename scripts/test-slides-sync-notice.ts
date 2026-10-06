@@ -47,7 +47,7 @@ ok(/pending === 1 \? t\('1 picture is still uploading; it will follow\.'\) : t\(
 console.log('\nthe popover poll\n')
 const panel = editor.slice(editor.indexOf('private renderSharePanel()'), editor.indexOf('private shareTransports') > 0 ? editor.indexOf('private shareTransports') : editor.indexOf('private renderSharePanel()') + 20000)
 ok(/if \(this\.uploadPoll !== null\) \{ clearInterval\(this\.uploadPoll\); this\.uploadPoll = null \}/.test(panel), 'a rebuild clears the previous poll first')
-ok(/if \(!this\.shareWrap\.classList\.contains\('open'\)\) \{ if \(this\.uploadPoll !== null\) clearInterval\(this\.uploadPoll\); this\.uploadPoll = null; return \}/.test(panel), 'the poll stops itself when the popover is closed')
+ok(/if \(!this\.shareMenu\.isOpen\) \{ if \(this\.uploadPoll !== null\) clearInterval\(this\.uploadPoll\); this\.uploadPoll = null; return \}/.test(panel), 'the poll stops itself when the popover is closed')
 ok(/this\.uploadPoll = window\.setInterval\(tick, 1000\)/.test(panel), 'polled once a second')
 ok(/uploading\.hidden = k === 0/.test(panel), 'hidden at zero')
 ok(/k === 1 \? t\('1 picture still uploading…'\) : t\('\{n\} pictures still uploading…', \{ n: k \}\)/.test(panel), 'singular and plural, the existing pattern')

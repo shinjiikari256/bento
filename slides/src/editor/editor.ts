@@ -27,6 +27,8 @@ import '../../../kernel/src/ui/ctxmenu.css'
 import { createPanel, type Panel } from '../../../kernel/src/ui/panel.ts'
 import '../../../kernel/src/ui/panel.css'
 import { fitTopbar, type TopbarFit } from '../../../kernel/src/ui/topbar.ts'
+import { closeAllMenus, createMenu, type Menu, type MenuOpts } from '../../../kernel/src/ui/menu.ts'
+import '../../../kernel/src/ui/menu.css'
 import { promptDialog, confirmDialog } from '../../../kernel/src/ui/promptdialog.ts'
 import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
 import { BENTO_MARK_SVG } from '../../../kernel/src/ui/mark.ts'
@@ -174,6 +176,7 @@ export class Editor {
   private avatarsBox!: HTMLElement
   private shareB!: HTMLElement
   private shareWrap!: HTMLElement
+  private shareMenu!: Menu
   /** the popover's "pictures still uploading" poll — runs only while it is open */
   private uploadPoll: number | null = null
   private session: import('../sync/session').SyncSession | null = null
@@ -236,7 +239,7 @@ export class Editor {
     session.onPeers(() => {
       this.renderAvatars()
       this.canvas.setRemotePeers(session.peers())
-      if (this.shareWrap.classList.contains('open')) this.renderSharePanel()
+      if (this.shareMenu.isOpen) this.renderSharePanel()
       toasts.update(session.peers())
     })
     // the relay refused something (too big, room full, throttled) — the user
@@ -283,7 +286,7 @@ export class Editor {
     this.shareB.title = tr.status === 'open'
       ? t('Live — this deck is being shared')
       : t('Connecting to the live session…')
-    if (this.shareWrap.classList.contains('open')) this.renderSharePanel()
+    if (this.shareMenu.isOpen) this.renderSharePanel()
   }
 
   private renderAvatars() {
@@ -318,8 +321,7 @@ export class Editor {
         title: t('{n} more — click to see everyone', { n: extra }),
       })
       more.addEventListener('click', () => {
-        this.shareWrap.classList.add('open')
-        this.renderSharePanel()
+        this.shareMenu.open()
       })
       this.avatarsBox.appendChild(more)
     }
@@ -472,27 +474,18 @@ export class Editor {
     // duplicated — applyPhoneChrome moves the real buttons in and out, so every
     // listener, tooltip and live reference (dirtyDot, updatesB, the comment
     // button's armed state) keeps working wherever the button currently sits.
-    const insertMenu = div('ed-menu')
-    const insertD = div('ed-dropdown ed-phone-only')
-    insertD.append(
-      btn(ICONS.plus, t('Insert'), () => insertD.classList.toggle('open'), t('Insert — text, shapes, images, media, tables, charts')),
-      insertMenu)
-    // These two were the only dropdowns in the bar without an outside-press
-    // dismissal, and they are the two that exist ONLY on a phone — so the menus
-    // hardest to escape were the ones a thumb could not escape at all. Picking
-    // an item closes them; anything else left them standing over the canvas.
-    this.closeOnOutsidePress(insertD)
-    const moreMenu = div('ed-menu')
-    const moreD = div('ed-dropdown ed-phone-only')
-    moreD.append(
-      btn('<b>⋯</b>', t('More'), () => {
-        // Fill BEFORE opening: the save-as list reflects live state (is this
-        // file encrypted?) and must be current the moment it becomes visible.
-        if (!moreD.classList.contains('open')) this.fillPhoneSaveAs(moreMenu, moreD)
-        moreD.classList.toggle('open')
-      }, t('More actions')),
-      moreMenu)
-    this.closeOnOutsidePress(moreD)
+    const insertM = this.dropdown(ICONS.plus, t('Insert'), t('Insert — text, shapes, images, media, tables, charts'),
+      { className: 'ed-phone-only', closeOnPick: true })
+    const insertD = insertM.root
+    const insertMenu = insertM.menu
+    const moreM: Menu = this.dropdown('<b>⋯</b>', t('More'), t('More actions'), {
+      className: 'ed-phone-only', alignEnd: true, closeOnPick: true,
+      // the save-as list reflects live state (is this file encrypted?) and
+      // must be current the moment it becomes visible
+      onOpen: () => this.fillPhoneSaveAs(moreM.menu, moreM.close),
+    })
+    const moreD = moreM.root
+    const moreMenu = moreM.menu
     // The panel triggers are ALWAYS in the bar, at every width, beside the
     // panel each one owns — the edge chevrons alone were easy to miss.
     const slidesB = btn(ICONS.panelLeft, '', () => this.togglePanel('left'), t('Slides — show or hide the slide list'))
@@ -506,7 +499,7 @@ export class Editor {
     this.syncWindowTitle()
 
     this.phoneChrome = {
-      insertD, insertMenu, moreD, moreMenu, slidesB, formatB, insert, actions, history,
+      insertD, insertMenu, insertM, moreD, moreMenu, moreM, slidesB, formatB, insert, actions, history,
       // order matters: this is the order they appear in the ⋯ menu
       demote: [redoB, commentB, shareD, aboutB, settingsB, keysB],
       // filled in once the bar is fully assembled
@@ -521,7 +514,7 @@ export class Editor {
     const canvasWrap = div('ed-canvas-wrap')
     // presenting lives in ONE split pill beside the zoom control: the main
     // half starts the fullscreen show; its menu holds tab-fill and speaker view.
-    const pill = div('ed-dropdown ed-present-pill')
+    const pill = div('ed-present-pill')
     const showB = btn(ICONS.slideshow, t('Slideshow'), () => this.present(false, true),
       t('Start the slideshow fullscreen — F toggles fullscreen, S opens speaker view, Esc ends'))
     showB.classList.add('ed-pill-main')
@@ -536,20 +529,14 @@ export class Editor {
       if ((e as AnimationEvent).animationName !== 'ed-runner-fade') return
       pill.classList.remove('ed-hint-pulse')
     })
-    const caret = btn('<span class="ed-caret" aria-hidden="true">▴</span>', '', () => pill.classList.toggle('open'),
-      t('More ways to present'))
-    caret.classList.add('ed-pill-caret')
-    const pmenu = div('ed-menu')
+    const pm = this.dropdown('<span class="ed-caret" aria-hidden="true">▴</span>', '', t('More ways to present'),
+      { triggerClass: 'ed-pill-caret', alignEnd: true })
     const pItem = (icon: string, label: string, title: string, onClick: () => void) => {
-      const b = btn(icon, label, () => { pill.classList.remove('open'); onClick() }, title)
-      pmenu.appendChild(b)
+      pm.menu.appendChild(btn(icon, label, () => { pm.close(); onClick() }, title))
     }
     pItem(ICONS.window, t('Present in this tab'), t('Fills this tab instead of going fullscreen — handy for testing or sharing a window'), () => this.present(false, false))
     pItem(ICONS.presenter, t('Open speaker view'), t('Notes, controls and slide thumbnails in a separate window — drag it to a second screen. On macOS, open it before going fullscreen.'), () => this.openSpeakerView())
-    pill.append(showB, caret, pmenu)
-    document.addEventListener('pointerdown', (ev) => {
-      if (!pill.contains(ev.target as Node)) pill.classList.remove('open')
-    }, { signal: this.buildScope.signal })
+    pill.append(showB, pm.root)
     // shared bottom-right cluster: [Slideshow pill] [zoom pill] — the canvas
     // appends its zoombar to canvasWrap; we adopt it into the cluster below.
     const corner = div('ed-corner-br')
@@ -604,7 +591,7 @@ export class Editor {
       onFold: (on) => this.applyPhoneChrome(on),
       // re-fitting starts by unfolding, which reparents buttons and would slam
       // shut a dropdown the user is reading; the next signal runs it again
-      hold: () => !!bar.querySelector('.ed-dropdown.open'),
+      hold: () => !!bar.querySelector('.bkm-open'),
     })
     const signal = this.buildScope.signal
 
@@ -691,8 +678,8 @@ export class Editor {
 
   /** Collapse/expand the slide list or the properties panel. */
   private phoneChrome: {
-    insertD: HTMLElement; insertMenu: HTMLElement
-    moreD: HTMLElement; moreMenu: HTMLElement
+    insertD: HTMLElement; insertMenu: HTMLElement; insertM: Menu
+    moreD: HTMLElement; moreMenu: HTMLElement; moreM: Menu
     slidesB: HTMLElement; formatB: HTMLElement
     insert: HTMLElement; actions: HTMLElement; history: HTMLElement
     demote: HTMLElement[]
@@ -768,8 +755,8 @@ export class Editor {
           if (child.parentElement === group) group.appendChild(child)
         }
       }
-      p.moreD.classList.remove('open')
-      p.insertD.classList.remove('open')
+      p.moreM.close()
+      p.insertM.close()
     }
   }
 
@@ -805,13 +792,36 @@ export class Editor {
     ;(side === 'left' ? this.sidePanel : this.propsPanel).collapse()
   }
 
-  /** Dismiss an open dropdown when a press lands outside it — the behaviour the
-   *  bar's other menus already wire up one by one. */
-  private closeOnOutsidePress(wrap: HTMLElement) {
-    document.addEventListener('pointerdown', (ev) => {
-      if (!wrap.contains(ev.target as Node)) wrap.classList.remove('open')
-    }, { signal: this.buildScope.signal })
+  /**
+   * One of the bar's dropdowns, on the suite's menu (kernel/src/ui/menu.ts):
+   * one open at a time, Esc and arrow keys, an outside press closes it, it stays
+   * on screen, and a menu nested inside another (a demoted Share inside ⋯)
+   * leaves its holder open. The wrapper and the list keep slides' own classes
+   * (`.ed-dropdown`, `.ed-menu`), which the fold's CSS and applyPhoneChrome key
+   * on. Each is destroyed with the build that made it.
+   *
+   * `closeOnPick`: the list holds REAL toolbar buttons on loan (＋ and ⋯ on a
+   * phone), which close nothing themselves — a press on one closes the menu.
+   */
+  private dropdown(face: string, label: string, tip: string,
+    o: Pick<MenuOpts, 'alignEnd' | 'panel' | 'fill' | 'onOpen'> & { className?: string; triggerClass?: string; menuClass?: string; closeOnPick?: boolean } = {}): Menu {
+    const m = createMenu('', tip, {
+      className: 'ed-dropdown' + (o.className ? ' ' + o.className : ''),
+      triggerClass: 'ed-btn' + (o.triggerClass ? ' ' + o.triggerClass : ''),
+      menuClass: 'ed-menu' + (o.menuClass ? ' ' + o.menuClass : ''),
+      alignEnd: o.alignEnd, panel: o.panel, fill: o.fill, onOpen: o.onOpen,
+    })
+    m.trigger.innerHTML = label ? `${face}<span>${label}</span>` : face
+    if (o.closeOnPick) {
+      m.menu.addEventListener('click', (ev) => {
+        const b = (ev.target as Element | null)?.closest('button')
+        if (b && b.closest('.bkm-menu') === m.menu && !b.classList.contains('bkm-trigger')) m.close()
+      })
+    }
+    this.buildScope.signal.addEventListener('abort', () => m.destroy())
+    return m
   }
+
 
   /**
    * Tapping away from a drawer dismisses it — the gesture every sheet on a
@@ -838,23 +848,13 @@ export class Editor {
   // --- Save dropdown: copy / new deck / template -----------------------------
 
   private saveDropdown(): HTMLElement {
-    const wrap = div('ed-dropdown')
-    const menu = div('ed-menu ed-save-menu')
-    const trigger = btn('<span class="ed-caret" aria-hidden="true">▾</span>', '', () => {
-      wrap.classList.toggle('open')
-      if (wrap.classList.contains('open')) rebuild()
-    }, t('Save as… — copy, new deck, password'))
-    trigger.classList.add('ed-split-caret', 'bksv-caret')
-    const rebuild = () => {
-      menu.textContent = ''
-      this.buildSaveAsItems(menu, () => wrap.classList.remove('open'))
-    }
-    wrap.append(trigger, menu)
-    document.addEventListener('pointerdown', (ev) => {
-      if (!wrap.contains(ev.target as Node)) wrap.classList.remove('open')
-    }, { signal: this.buildScope.signal })
-    return wrap
+    return this.dropdown('<span class="ed-caret" aria-hidden="true">▾</span>', '', t('Save as… — copy, new deck, password'), {
+      triggerClass: 'ed-split-caret bksv-caret', menuClass: 'ed-save-menu', alignEnd: true,
+      // rebuilt on every open: it reflects live state (see buildSaveAsItems)
+      fill: (menu, close) => this.buildSaveAsItems(menu, close),
+    }).root
   }
+
 
   /**
    * The Save-as list, built into `into`.
@@ -950,7 +950,7 @@ export class Editor {
    * the buttons sharing this menu are the real toolbar nodes on loan from the
    * bar, and clearing the container would destroy them.
    */
-  private fillPhoneSaveAs(menu: HTMLElement, wrap: HTMLElement) {
+  private fillPhoneSaveAs(menu: HTMLElement, close: () => void) {
     for (const stale of Array.from(menu.querySelectorAll('[data-phone-saveas]'))) stale.remove()
     if (!this.phoneChromeOn) return
     // `el.dataset.x = …`, never Object.assign(el, {dataset}) — dataset is a
@@ -961,7 +961,7 @@ export class Editor {
     const sep = div('ed-menu-sep')
     sep.dataset.phoneSaveas = '1'
     menu.appendChild(sep)
-    this.buildSaveAsItems(menu, () => wrap.classList.remove('open'), true)
+    this.buildSaveAsItems(menu, close, true)
   }
 
   /**
@@ -1273,22 +1273,19 @@ export class Editor {
   // --- live-collaboration Share popover ------------------------------------
 
   private shareDropdown(): HTMLElement {
-    const wrap = div('ed-dropdown')
-    this.shareWrap = wrap
-    this.shareB = btn(ICONS.share, t('Share'), () => {
-      wrap.classList.toggle('open')
-      if (wrap.classList.contains('open')) this.renderSharePanel()
-    }, t('Share — invite people to edit, send view-only copies, see who’s here'))
+    const m = this.dropdown(ICONS.share, t('Share'), t('Share — invite people to edit, send view-only copies, see who’s here'), {
+      panel: true, menuClass: 'ed-share-pop', alignEnd: true,
+      onOpen: () => this.renderSharePanel(),
+    })
+    this.shareMenu = m
+    this.shareWrap = m.root
+    this.shareB = m.trigger
     // stable hook for the status dot (grey dormant / amber connecting / green live)
     this.shareB.classList.add('ed-btn-share')
     this.shareB.title = t('Not sharing yet — click to start a live session')
-    const panel = div('ed-menu ed-share-pop')
-    wrap.append(this.shareB, panel)
-    document.addEventListener('pointerdown', (ev) => {
-      if (!wrap.contains(ev.target as Node)) wrap.classList.remove('open')
-    }, { signal: this.buildScope.signal })
-    return wrap
+    return m.root
   }
+
 
   private renderSharePanel() {
     const panel = this.shareWrap.querySelector<HTMLElement>('.ed-share-pop')!
@@ -1426,7 +1423,7 @@ export class Editor {
       const uploading = note('', 'ed-share-uploading')
       uploading.hidden = true
       const tick = () => {
-        if (!this.shareWrap.classList.contains('open')) { if (this.uploadPoll !== null) clearInterval(this.uploadPoll); this.uploadPoll = null; return }
+        if (!this.shareMenu.isOpen) { if (this.uploadPoll !== null) clearInterval(this.uploadPoll); this.uploadPoll = null; return }
         const k = this.session?.pendingBlobUploads() ?? 0
         uploading.hidden = k === 0
         uploading.textContent = k === 1 ? t('1 picture still uploading…') : t('{n} pictures still uploading…', { n: k })
@@ -1681,25 +1678,21 @@ export class Editor {
 
   /** Globe → locale picker. UI language follows the VIEWER, never the file. */
   private shapeDropdown(): HTMLElement {
-    const wrap = div('ed-dropdown')
-    const trigger = btn(ICONS.shapes, t('Shape'), () => wrap.classList.toggle('open'))
-    const menu = div('ed-menu')
+    const m = this.dropdown(ICONS.shapes, t('Shape'), t('Shape'))
     for (const item of SHAPE_MENU) {
       const b = btn(item.icon, t(item.label), () => {
-        wrap.classList.remove('open')
+        // the whole stack: on a phone this menu sits inside ＋
+        closeAllMenus()
         // line / curve / connector arm a draw tool — drag on the canvas to draw
         // (or click to drop a default); other shapes insert straight away.
         if (item.draw) { this.canvas.armDraw(item.draw); return }
         this.canvas.insert(defaultShape(item.kind, item.heads ? { heads: item.heads } : {}))
       }, t(item.tip))
-      menu.appendChild(b)
+      m.menu.appendChild(b)
     }
-    wrap.append(trigger, menu)
-    document.addEventListener('pointerdown', (ev) => {
-      if (!wrap.contains(ev.target as Node)) wrap.classList.remove('open')
-    }, { signal: this.buildScope.signal })
-    return wrap
+    return m.root
   }
+
 
   // --- sidebar -----------------------------------------------------------------
 
@@ -2156,22 +2149,17 @@ export class Editor {
   /** Media insert menu: a file (embeds) or a link (stays a URL — keeps the
    *  deck small; good for big clips that shouldn't ride inside the file). */
   private mediaDropdown(): HTMLElement {
-    const wrap = div('ed-dropdown')
-    const trigger = btn(ICONS.media, t('Media'), () => wrap.classList.toggle('open'),
+    const m = this.dropdown(ICONS.media, t('Media'),
       t('Add video or audio — from a file (embeds it) or a link (stays a URL)'))
-    const menu = div('ed-menu')
     const item = (label: string, onClick: () => void) => {
-      menu.appendChild(btn(ICONS.media, t(label), () => { wrap.classList.remove('open'); onClick() }))
+      m.menu.appendChild(btn(ICONS.media, t(label), () => { closeAllMenus(); onClick() }))
     }
     item('Video or audio file…', () => this.pickMedia())
     item('Video from a link…', () => void this.promptMediaUrl('video'))
     item('Audio from a link…', () => void this.promptMediaUrl('audio'))
-    wrap.append(trigger, menu)
-    document.addEventListener('pointerdown', (ev) => {
-      if (!wrap.contains(ev.target as Node)) wrap.classList.remove('open')
-    }, { signal: this.buildScope.signal })
-    return wrap
+    return m.root
   }
+
 
   /** Insert a media element that REFERENCES a URL (not embedded). */
   private async promptMediaUrl(kind: 'video' | 'audio') {
