@@ -8,6 +8,7 @@ import type { Store } from '../store'
 import { MEDIA_EMBED_BUDGET, applyChartPalette, defaultChart, internAsset, morphKey, paginates, isWebUrl, tableStyleFor, uid, type ChartElement, type ImageElement, type LineEnding, type MediaElement, type ShapeElement, type Slide, type SlideElement, type TableElement, type TextElement, type TransitionKind, type CodeElement, type BentoDoc, type EmbedElement } from '../model'
 import { CROP_MAX_SCALE, normalizeCrop } from '../crop'
 import { LANGS } from '../../../kernel/src/tokenize.ts'
+import { h } from '../../../kernel/src/dom.ts'
 import { resolveAsset } from '../render'
 import { measureElement } from '../measure'
 import { PALETTE_SLOTS, paletteOf, refAt, setColor, slotIsSet } from '../palette'
@@ -341,16 +342,12 @@ export class PropsPanel {
           else delete this.store.slide.unnumbered
         }, true)))
       if (slide.unnumbered) {
-        const hint = document.createElement('p')
-        hint.className = 'ed-hint'
-        hint.textContent = t('Stays in the show but takes no page number — the page field continues the previous slide’s. For a reveal built as several morph steps, or a card that should not count.')
+        const hint = h('p.ed-hint', { textContent: t('Stays in the show but takes no page number — the page field continues the previous slide’s. For a reveal built as several morph steps, or a card that should not count.') })
         this.host.appendChild(hint)
       }
     }
     if (slide.transition === 'morph') {
-      const hint = document.createElement('p')
-      hint.className = 'ed-hint'
-      hint.innerHTML = t('<b>Morph</b> animates elements that appear on both this slide and the previous one (copy a slide, then move things around).')
+      const hint = h('p.ed-hint', { innerHTML: t('<b>Morph</b> animates elements that appear on both this slide and the previous one (copy a slide, then move things around).') })
       this.host.appendChild(hint)
     }
 
@@ -395,24 +392,17 @@ export class PropsPanel {
     // interactivity: naming, state-of, hover focus
     this.buildThemeProps()
     this.section(t('Interactivity'))
-    const name = document.createElement('input')
-    name.type = 'text'
-    name.placeholder = t('unnamed')
-    name.value = slide.name ?? ''
+    const name = h('input', { type: 'text', placeholder: t('unnamed'), value: slide.name ?? '' })
     name.addEventListener('change', () =>
       this.edit(() => { this.store.slide.name = name.value || undefined }, true))
     this.row('Name', name)
 
-    const stateSel = document.createElement('select')
-    const optNone = document.createElement('option')
-    optNone.value = ''
-    optNone.textContent = t('no — normal slide')
+    const stateSel = h('select')
+    const optNone = h('option', { value: '', textContent: t('no — normal slide') })
     stateSel.appendChild(optNone)
     this.store.doc.slides.forEach((s, i) => {
       if (s.stateOf || s.id === slide.id) return
-      const o = document.createElement('option')
-      o.value = s.id
-      o.textContent = this.slideLabel(s, i)
+      const o = h('option', { value: s.id, textContent: this.slideLabel(s, i) })
       if (slide.stateOf === s.id) o.selected = true
       stateSel.appendChild(o)
     })
@@ -425,10 +415,10 @@ export class PropsPanel {
     this.row('State of', stateSel)
 
     if (slide.stateOf) {
-      const sync = document.createElement('button')
-      sync.className = 'ed-btn ed-btn-block'
-      sync.innerHTML = `${ICONS.sync}<span>${t('Sync from parent slide')}</span>`
-      sync.title = t('Pull elements added to the parent into this state and adopt its ordering — your changes to shared elements are kept')
+      const sync = h('button.ed-btn.ed-btn-block', {
+        innerHTML: `${ICONS.sync}<span>${t('Sync from parent slide')}</span>`,
+        title: t('Pull elements added to the parent into this state and adopt its ordering — your changes to shared elements are kept'),
+      })
       sync.addEventListener('click', () => this.syncStateFromParent())
       this.host.appendChild(sync)
     }
@@ -447,10 +437,7 @@ export class PropsPanel {
     }
     if (slide.hover?.type === 'reveal') {
       const sets = [...new Set(slide.elements.map((e) => e.showOnHover).filter(Boolean))] as string[]
-      const defIn = document.createElement('input')
-      defIn.type = 'text'
-      defIn.placeholder = sets[0] ?? 'set name'
-      defIn.value = slide.hover.default ?? ''
+      const defIn = h('input', { type: 'text', placeholder: sets[0] ?? 'set name', value: slide.hover.default ?? '' })
       defIn.addEventListener('change', () =>
         this.edit(() => { if (this.store.slide.hover) this.store.slide.hover.default = defIn.value || undefined }, true))
       this.row('Default set', defIn)
@@ -459,26 +446,24 @@ export class PropsPanel {
           this.store.hoverPreview = v
           this.store.emit('current') // re-render canvas without touching the doc
         }))
-        const revealHint = document.createElement('p')
-        revealHint.className = 'ed-hint'
-        revealHint.innerHTML = t('While presenting, hovering an element whose <b>group</b> matches a set name shows that set. Use Preview to edit each set.')
+        const revealHint = h('p.ed-hint', { innerHTML: t('While presenting, hovering an element whose <b>group</b> matches a set name shows that set. Use Preview to edit each set.') })
         this.host.appendChild(revealHint)
       }
     }
 
     this.section(t('Layout'))
-    const applyLy = document.createElement('button')
-    applyLy.className = 'ed-btn ed-btn-block'
-    applyLy.textContent = t('⧉ Apply layout…')
-    applyLy.title = t('Re-arrange this slide onto a layout — content moves by matching id, then role; extra elements are kept')
+    const applyLy = h('button.ed-btn.ed-btn-block', {
+      textContent: t('⧉ Apply layout…'),
+      title: t('Re-arrange this slide onto a layout — content moves by matching id, then role; extra elements are kept'),
+    })
     applyLy.addEventListener('click', () =>
       document.dispatchEvent(new CustomEvent('bento:apply-layout', { detail: { anchor: applyLy } })))
     this.host.appendChild(applyLy)
 
-    const saveLy = document.createElement('button')
-    saveLy.className = 'ed-btn ed-btn-block'
-    saveLy.textContent = t('＋ Save slide as layout…')
-    saveLy.title = "Add this slide to the document's layout picker (New slide button)"
+    const saveLy = h('button.ed-btn.ed-btn-block', {
+      textContent: t('＋ Save slide as layout…'),
+      title: "Add this slide to the document's layout picker (New slide button)",
+    })
     saveLy.addEventListener('click', () => {
       const name = window.prompt('Layout name', this.store.slide.name ?? 'My layout')
       if (!name) return
@@ -491,14 +476,14 @@ export class PropsPanel {
     this.host.appendChild(saveLy)
 
     this.section(t('Speaker notes'))
-    const notes = document.createElement('textarea')
-    notes.className = 'ed-notes'
-    notes.placeholder = t('Notes for presenter view (press S while presenting)…')
-    notes.value = slide.notes
+    const notes = h('textarea.ed-notes', {
+      placeholder: t('Notes for presenter view (press S while presenting)…'),
+      value: slide.notes,
+      title: t('Shown in the speaker view (Slideshow menu, or S while presenting).') +
+        (isMacOS() ? ' ' + t('On macOS, open the speaker view before going fullscreen.') : ''),
+    })
     notes.addEventListener('input', () => this.edit(() => { this.store.slide.notes = notes.value }, false))
     notes.addEventListener('change', () => this.edit(() => { this.store.slide.notes = notes.value }, true))
-    notes.title = t('Shown in the speaker view (Slideshow menu, or S while presenting).') +
-      (isMacOS() ? ' ' + t('On macOS, open the speaker view before going fullscreen.') : '')
     this.host.appendChild(notes)
   }
 
@@ -529,8 +514,7 @@ export class PropsPanel {
     if (el.type === 'embed') this.buildEmbedProps(el)
 
     this.section(t('Position & size'))
-    const geo = document.createElement('div')
-    geo.className = 'ed-grid2'
+    const geo = h('div.ed-grid2')
     geo.append(
       this.mini(t('X'), el.x, (v) => this.setNum(el.id, 'x', v)),
       this.mini(t('Y'), el.y, (v) => this.setNum(el.id, 'y', v)),
@@ -571,13 +555,10 @@ export class PropsPanel {
       }, fin)
     shadows.forEach((sh, i) => {
       if (shadows.length > 1) {
-        const cap = document.createElement('div')
-        cap.className = 'ed-shadow-cap'
-        cap.textContent = `Layer ${i + 1}`
+        const cap = h('div.ed-shadow-cap', { textContent: `Layer ${i + 1}` })
         this.host.appendChild(cap)
       }
-      const grid = document.createElement('div')
-      grid.className = 'ed-grid2'
+      const grid = h('div.ed-grid2')
       grid.append(
         this.mini(t('X'), sh.x ?? 0, (v) => setShadow(i, { x: v })),
         this.mini(t('Y'), sh.y ?? 0, (v) => setShadow(i, { y: v })),
@@ -589,8 +570,7 @@ export class PropsPanel {
 
     // Blur (on the element) / frosted-glass backdrop (behind it) / blend mode —
     // available on any element. 0 clears blur/backdrop; 'normal' clears blend.
-    const fxGrid = document.createElement('div')
-    fxGrid.className = 'ed-grid2'
+    const fxGrid = h('div.ed-grid2')
     fxGrid.append(
       this.mini(t('Blur'), el.blur ?? 0, (v) => this.mutate(el.id, (e) => {
         if (v > 0) e.blur = v
@@ -630,14 +610,9 @@ export class PropsPanel {
     this.section(t('Morph'))
     const effective = morphKey(el)
 
-    const warn = document.createElement('p')
-    warn.className = 'ed-hint ed-morph-warn'
-    warn.style.display = 'none'
+    const warn = h('p.ed-hint.ed-morph-warn', { style: { display: 'none' } })
 
-    const input = document.createElement('input')
-    input.type = 'text'
-    input.value = effective
-    input.spellcheck = false
+    const input = h('input', { type: 'text', value: effective, spellcheck: false })
     input.addEventListener('change', () => {
       const err = this.setMorphId(el, input.value)
       if (err) { warn.textContent = err; warn.style.display = ''; input.value = effective }
@@ -648,24 +623,18 @@ export class PropsPanel {
     // `|| el.morphId`: a paired element with no OTHER slide to pair with still
     // needs the picker — otherwise there is nowhere to unpair from.
     if (targets.length || el.morphId) {
-      const sel = document.createElement('select')
-      const none = document.createElement('option')
-      none.value = ''
-      none.textContent = t('(pick an element)')
+      const sel = h('select')
+      const none = h('option', { value: '', textContent: t('(pick an element)') })
       sel.appendChild(none)
       // Clearing an override had no affordance: the documented way is to retype
       // the element's own id into the field above, which means knowing what it
       // was (issue #54). Offer it as a choice instead.
       if (el.morphId) {
-        const un = document.createElement('option')
-        un.value = UNPAIR
-        un.textContent = t('Don’t pair — use its own id')
+        const un = h('option', { value: UNPAIR, textContent: t('Don’t pair — use its own id') })
         sel.appendChild(un)
       }
       for (const tgt of targets) {
-        const o = document.createElement('option')
-        o.value = tgt.key
-        o.textContent = tgt.label
+        const o = h('option', { value: tgt.key, textContent: tgt.label })
         if (tgt.key === effective) o.selected = true
         sel.appendChild(o)
       }
@@ -680,11 +649,11 @@ export class PropsPanel {
 
     this.host.appendChild(warn)
 
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.innerHTML = el.morphId
-      ? t('Morphs as <code>{id}</code>, overriding its own id. Set it back to <code>{own}</code> to clear.', { id: effective, own: el.id })
-      : t('Elements sharing a morph id morph into each other across slides. Change this (or pick below) to pair with an element on another slide.')
+    const hint = h('p.ed-hint', {
+      innerHTML: el.morphId
+        ? t('Morphs as <code>{id}</code>, overriding its own id. Set it back to <code>{own}</code> to clear.', { id: effective, own: el.id })
+        : t('Elements sharing a morph id morph into each other across slides. Change this (or pick below) to pair with an element on another slide.'),
+    })
     this.host.appendChild(hint)
   }
 
@@ -763,9 +732,7 @@ export class PropsPanel {
     this.row('Reveal step', this.number(el.fx?.step ?? 0, 1,
       (v, fin) => { if (fin) setFx({ step: v >= 1 ? Math.floor(v) : undefined }) }))
     if (el.fx?.step) {
-      const hint = document.createElement('p')
-      hint.className = 'ed-hint'
-      hint.textContent = t('Hidden until that press of → while presenting; ← hides it again. Give several elements the same step to reveal them together.')
+      const hint = h('p.ed-hint', { textContent: t('Hidden until that press of → while presenting; ← hides it again. Give several elements the same step to reveal them together.') })
       this.host.appendChild(hint)
     }
     this.row('Count up', this.select(
@@ -809,10 +776,7 @@ export class PropsPanel {
       this.row('Loop secs', this.number(loop.duration ?? 2, 0.1, (v, fin) =>
         this.mutate(el.id, (e) => { if (e.fx?.loop) e.fx.loop.duration = Math.max(v, 0.1) }, fin)))
       if (loop.type === 'motion-path') {
-        const path = document.createElement('input')
-        path.type = 'text'
-        path.value = loop.path
-        path.title = t('SVG path the element travels along, relative to its position')
+        const path = h('input', { type: 'text', value: loop.path, title: t('SVG path the element travels along, relative to its position') })
         path.addEventListener('change', () =>
           this.mutate(el.id, (e) => { if (e.fx?.loop?.type === 'motion-path') e.fx.loop.path = path.value }, true))
         this.row('Path', path)
@@ -827,26 +791,25 @@ export class PropsPanel {
             if (v === 'none') delete lp.ease; else lp.ease = v
           }, true)))
 
-        const editPath = document.createElement('button')
-        editPath.className = 'ed-btn ed-btn-block'
-        editPath.textContent = t('✎ Edit path on canvas')
-        editPath.title = t('Drag points to reshape · double-click to add/remove · scroll a point to change its speed')
+        const editPath = h('button.ed-btn.ed-btn-block', {
+          textContent: t('✎ Edit path on canvas'),
+          title: t('Drag points to reshape · double-click to add/remove · scroll a point to change its speed'),
+        })
         editPath.addEventListener('click', () =>
           document.dispatchEvent(new CustomEvent('bento:edit-path', { detail: { id: el.id } })))
         this.host.appendChild(editPath)
-        const speedHint = document.createElement('p')
-        speedHint.className = 'ed-hint'
-        speedHint.textContent = t('Tip: on the canvas, scroll a point to make the element dwell there or rush past it.')
+        const speedHint = h('p.ed-hint', { textContent: t('Tip: on the canvas, scroll a point to make the element dwell there or rush past it.') })
         this.host.appendChild(speedHint)
       }
     }
 
     // hover-reveal set membership
-    const soh = document.createElement('input')
-    soh.type = 'text'
-    soh.placeholder = t('always visible')
-    soh.value = el.showOnHover ?? ''
-    soh.title = "Only visible while an element with this group is hovered (slide hover: 'reveal')"
+    const soh = h('input', {
+      type: 'text',
+      placeholder: t('always visible'),
+      value: el.showOnHover ?? '',
+      title: "Only visible while an element with this group is hovered (slide hover: 'reveal')",
+    })
     soh.addEventListener('change', () => {
       this.mutate(el.id, (e) => {
         if (soh.value) e.showOnHover = soh.value
@@ -859,10 +822,7 @@ export class PropsPanel {
     this.row('Show on hover', soh)
 
     // group tag (hover focus & interaction targeting)
-    const group = document.createElement('input')
-    group.type = 'text'
-    group.placeholder = t('none')
-    group.value = el.group ?? ''
+    const group = h('input', { type: 'text', placeholder: t('none'), value: el.group ?? '' })
     group.addEventListener('change', () =>
       this.mutate(el.id, (e) => {
         if (group.value) e.group = group.value
@@ -871,23 +831,16 @@ export class PropsPanel {
     this.row('Group', group)
 
     // link → slide picker
-    const sel = document.createElement('select')
-    const none = document.createElement('option')
-    none.value = ''
-    none.textContent = t('none')
+    const sel = h('select')
+    const none = h('option', { value: '', textContent: t('none') })
     sel.appendChild(none)
     this.store.doc.slides.forEach((s, i) => {
-      const o = document.createElement('option')
-      o.value = s.id
-      o.textContent = this.slideLabel(s, i)
+      const o = h('option', { value: s.id, textContent: this.slideLabel(s, i) })
       if (el.link === s.id) o.selected = true
       sel.appendChild(o)
     })
     if (isWebUrl(el.link)) {
-      const web = document.createElement('option')
-      web.value = el.link
-      web.textContent = t('web page (below)')
-      web.selected = true
+      const web = h('option', { value: el.link, textContent: t('web page (below)'), selected: true })
       sel.appendChild(web)
     }
     sel.addEventListener('change', () =>
@@ -897,10 +850,7 @@ export class PropsPanel {
       }, true))
     this.row('Link to', sel)
     // Or a web page: opens in a new tab while presenting (discussion #373).
-    const url = document.createElement('input')
-    url.type = 'url'
-    url.placeholder = 'https://…'
-    url.value = isWebUrl(el.link) ? el.link : ''
+    const url = h('input', { type: 'url', placeholder: 'https://…', value: isWebUrl(el.link) ? el.link : '' })
     url.addEventListener('change', () => {
       const v = url.value.trim()
       if (v && !isWebUrl(v)) {
@@ -917,10 +867,10 @@ export class PropsPanel {
 
     // one-click interactivity: duplicate this slide as a hidden state
     // (element ids preserved ⇒ it morphs) and link this element to it
-    const makeState = document.createElement('button')
-    makeState.className = 'ed-btn ed-btn-block'
-    makeState.textContent = t('＋ New state linked from this element')
-    makeState.title = t('Duplicates this slide as a hidden interactive state and links the selected element to it')
+    const makeState = h('button.ed-btn.ed-btn-block', {
+      textContent: t('＋ New state linked from this element'),
+      title: t('Duplicates this slide as a hidden interactive state and links the selected element to it'),
+    })
     makeState.addEventListener('click', () => this.createLinkedState(el))
     this.host.appendChild(makeState)
   }
@@ -965,9 +915,7 @@ export class PropsPanel {
 
   private toast(message: string) {
     document.querySelector('.ed-toast')?.remove()
-    const t = document.createElement('div')
-    t.className = 'ed-toast'
-    t.textContent = message
+    const t = h('div.ed-toast', { textContent: message })
     document.body.appendChild(t)
     setTimeout(() => t.classList.add('show'))
     setTimeout(() => {
@@ -1029,11 +977,11 @@ export class PropsPanel {
     if (!el.html?.trim()) return // nothing to measure yet
     const m = measureElement(el, this.store.doc)
     const delta = m.height - el.h
-    const fit = document.createElement('button')
-    fit.className = 'ed-btn ed-btn-block'
-    fit.textContent = t('Fit height to text')
-    fit.title = t('The text needs {need}px and the box is {have}px',
-      { need: String(m.height), have: String(el.h) })
+    const fit = h('button.ed-btn.ed-btn-block', {
+      textContent: t('Fit height to text'),
+      title: t('The text needs {need}px and the box is {have}px',
+        { need: String(m.height), have: String(el.h) }),
+    })
     if (delta === 0) fit.setAttribute('disabled', '')
     fit.addEventListener('click', () => {
       // measure again at click time — the text may have been edited since the
@@ -1079,9 +1027,7 @@ export class PropsPanel {
 
   private buildTextProps(el: TextElement) {
     this.section(t('Typography'))
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.innerHTML = t('While editing: <b>⌘B</b>/<b>⌘I</b>/<b>⌘U</b> · markdown auto-converts — **bold*&#8203;* *italic*&#8203; `code` ~~strike~~ and "- " bullets; pasting markdown converts too. Escape with \\ or press ⌘Z right after to keep the literal characters.')
+    const hint = h('p.ed-hint', { innerHTML: t('While editing: <b>⌘B</b>/<b>⌘I</b>/<b>⌘U</b> · markdown auto-converts — **bold*&#8203;* *italic*&#8203; `code` ~~strike~~ and "- " bullets; pasting markdown converts too. Escape with \\ or press ⌘Z right after to keep the literal characters.') })
     this.host.appendChild(hint)
     this.buildFitHeight(el)
     this.buildFieldPicker(el)
@@ -1122,8 +1068,7 @@ export class PropsPanel {
           if (g) g.angle = v
         }, fin)))
       tgrad.stops.forEach((stop, i) => {
-        const wrap = document.createElement('div')
-        wrap.className = 'ed-gradstop'
+        const wrap = h('div.ed-gradstop')
         const at = this.number(Math.round(stop.at * 100), 1, (v, fin) =>
           this.mutate(el.id, (e) => {
             const g = (e as TextElement).colorGradient
@@ -1137,10 +1082,7 @@ export class PropsPanel {
           }, fin))
         wrap.append(at, color)
         if (tgrad.stops.length > 2) {
-          const del = document.createElement('button')
-          del.className = 'ed-btn ed-btn-icon'
-          del.textContent = '✕'
-          del.title = t('Remove stop')
+          const del = h('button.ed-btn.ed-btn-icon', { textContent: '✕', title: t('Remove stop') })
           del.addEventListener('click', () =>
             this.mutate(el.id, (e) => {
               const g = (e as TextElement).colorGradient
@@ -1150,9 +1092,7 @@ export class PropsPanel {
         }
         this.row(`Stop ${i + 1}`, wrap)
       })
-      const addStop = document.createElement('button')
-      addStop.className = 'ed-btn ed-btn-block'
-      addStop.textContent = t('＋ Add stop')
+      const addStop = h('button.ed-btn.ed-btn-block', { textContent: t('＋ Add stop') })
       addStop.addEventListener('click', () =>
         this.mutate(el.id, (e) => {
           const g = (e as TextElement).colorGradient
@@ -1192,10 +1132,10 @@ export class PropsPanel {
         }, true)))
     }
 
-    const embed = document.createElement('button')
-    embed.className = 'ed-btn ed-btn-block'
-    embed.textContent = t('＋ Embed font file…')
-    embed.title = t('Bundle a .woff2/.woff/.ttf/.otf into this file and use it here')
+    const embed = h('button.ed-btn.ed-btn-block', {
+      textContent: t('＋ Embed font file…'),
+      title: t('Bundle a .woff2/.woff/.ttf/.otf into this file and use it here'),
+    })
     embed.addEventListener('click', () => this.embedFont(el))
     this.host.appendChild(embed)
   }
@@ -1206,14 +1146,10 @@ export class PropsPanel {
    * render in their own face so the menu previews itself.
    */
   private fontSelect(el: TextElement): HTMLElement {
-    const sel = document.createElement('select')
+    const sel = h('select')
     const current = el.fontFamily ?? ''
     const add = (label: string, value: string, selected: boolean) => {
-      const o = document.createElement('option')
-      o.value = value
-      o.textContent = label
-      o.style.fontFamily = value || 'inherit'
-      o.selected = selected
+      const o = h('option', { value, textContent: label, style: { fontFamily: value || 'inherit' }, selected })
       sel.appendChild(o)
       return o
     }
@@ -1238,9 +1174,7 @@ export class PropsPanel {
 
   /** Bundle a font file into the document and apply it to this element. */
   private embedFont(el: TextElement) {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.woff2,.woff,.ttf,.otf'
+    const input = h('input', { type: 'file', accept: '.woff2,.woff,.ttf,.otf' })
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       if (!file) return
@@ -1294,8 +1228,7 @@ export class PropsPanel {
           if (g) g.angle = v
         }, fin)))
       grad.stops.forEach((stop, i) => {
-        const wrap = document.createElement('div')
-        wrap.className = 'ed-gradstop'
+        const wrap = h('div.ed-gradstop')
         const at = this.number(Math.round(stop.at * 100), 1, (v, fin) =>
           this.mutate(el.id, (e) => {
             const g = (e as ShapeElement).fillGradient
@@ -1309,10 +1242,7 @@ export class PropsPanel {
           }, fin))
         wrap.append(at, color)
         if (grad.stops.length > 2) {
-          const del = document.createElement('button')
-          del.className = 'ed-btn ed-btn-icon'
-          del.textContent = '✕'
-          del.title = t('Remove stop')
+          const del = h('button.ed-btn.ed-btn-icon', { textContent: '✕', title: t('Remove stop') })
           del.addEventListener('click', () =>
             this.mutate(el.id, (e) => {
               const g = (e as ShapeElement).fillGradient
@@ -1322,9 +1252,7 @@ export class PropsPanel {
         }
         this.row(`Stop ${i + 1}`, wrap)
       })
-      const add = document.createElement('button')
-      add.className = 'ed-btn ed-btn-block'
-      add.textContent = t('＋ Add stop')
+      const add = h('button.ed-btn.ed-btn-block', { textContent: t('＋ Add stop') })
       add.addEventListener('click', () =>
         this.mutate(el.id, (e) => {
           const g = (e as ShapeElement).fillGradient
@@ -1376,10 +1304,9 @@ export class PropsPanel {
 
   /** Native <select> with distinct value/label pairs (for model-word values). */
   private labeledSelect(pairs: Array<[string, string]>, value: string, onChange: (v: string) => void): HTMLSelectElement {
-    const sel = document.createElement('select')
+    const sel = h('select')
     for (const [v, label] of pairs) {
-      const o = document.createElement('option')
-      o.value = v; o.textContent = label
+      const o = h('option', { value: v, textContent: label })
       if (v === value) o.selected = true
       sel.appendChild(o)
     }
@@ -1396,15 +1323,13 @@ export class PropsPanel {
     this.section(t('Chart'))
     // live table binding banner (if this chart tracks a table)
     if (el.source?.tableId) {
-      const linkRow = document.createElement('div')
-      linkRow.className = 'ed-chart-link'
-      const label = document.createElement('span')
+      const linkRow = h('div.ed-chart-link')
       const stillThere = this.store.slide.elements.some((e) => e.id === el.source!.tableId && e.type === 'table')
-      label.textContent = stillThere ? t('🔗 Live-linked to a table') : t('🔗 Linked table not on this slide')
-      const unlink = document.createElement('button')
-      unlink.className = 'ed-btn'
-      unlink.textContent = t('Unlink')
-      unlink.title = t('Stop tracking the table; the chart keeps its current data')
+      const label = h('span', { textContent: stillThere ? t('🔗 Live-linked to a table') : t('🔗 Linked table not on this slide') })
+      const unlink = h('button.ed-btn', {
+        textContent: t('Unlink'),
+        title: t('Stop tracking the table; the chart keeps its current data'),
+      })
       unlink.addEventListener('click', () => this.mutate(el.id, (e) => { delete (e as ChartElement).source }, true))
       linkRow.append(label, unlink)
       this.host.appendChild(linkRow)
@@ -1421,15 +1346,9 @@ export class PropsPanel {
 
     // The escape hatch: the full option as JSON, for anything the UI omits.
     this.section(t('Advanced (JSON)'))
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.innerHTML = t('The full <b>chart option</b> as JSON (pure data — use template-string formatters like <code>{b}: {c}</code>, never functions). Tooltips and zoom run while presenting.')
+    const hint = h('p.ed-hint', { innerHTML: t('The full <b>chart option</b> as JSON (pure data — use template-string formatters like <code>{b}: {c}</code>, never functions). Tooltips and zoom run while presenting.') })
     this.host.appendChild(hint)
-    const ta = document.createElement('textarea')
-    ta.className = 'ed-chart-json'
-    ta.rows = 12
-    ta.spellcheck = false
-    ta.value = JSON.stringify(el.option, null, 2)
+    const ta = h('textarea.ed-chart-json', { rows: 12, spellcheck: false, value: JSON.stringify(el.option, null, 2) })
     ta.addEventListener('change', () => {
       try {
         const parsed = JSON.parse(ta.value)
@@ -1475,11 +1394,8 @@ export class PropsPanel {
     this.section(t('Series'))
     const palette: string[] | undefined = Array.isArray(opt.color) ? opt.color : undefined
     series.forEach((s, i) => {
-      const row = document.createElement('div')
-      row.className = 'ed-series-row'
-      const name = document.createElement('input')
-      name.type = 'text'; name.className = 'ed-series-name'; name.value = s?.name ?? ''
-      name.placeholder = t('Series {n}', { n: i + 1 })
+      const row = h('div.ed-series-row')
+      const name = h('input.ed-series-name', { type: 'text', value: s?.name ?? '', placeholder: t('Series {n}', { n: i + 1 }) })
       name.addEventListener('input', () => this.editOption(el.id, (o) => { o.series[i].name = name.value }, false))
       name.addEventListener('change', () => this.editOption(el.id, (o) => { o.series[i].name = name.value }, true))
       const type = this.labeledSelect([['bar', t('Bar')], ['line', t('Line')]], s?.type === 'line' ? 'line' : 'bar',
@@ -1499,11 +1415,8 @@ export class PropsPanel {
       row.append(rm)
       this.host.appendChild(row)
     })
-    const addRow = document.createElement('div')
-    addRow.className = 'ed-chart-add'
-    const addBtn = document.createElement('button')
-    addBtn.className = 'ed-btn'
-    addBtn.textContent = t('＋ Add series')
+    const addRow = h('div.ed-chart-add')
+    const addBtn = h('button.ed-btn', { textContent: t('＋ Add series') })
     addBtn.addEventListener('click', () => this.editOption(el.id, (o) => {
       const ss: any[] = Array.isArray(o.series) ? o.series : o.series ? [o.series] : []
       const n = (o.xAxis?.data?.length) || 4
@@ -1516,12 +1429,9 @@ export class PropsPanel {
     // --- per-axis min/max ---------------------------------------------------
     yAxis.forEach((ax, ai) => {
       const label = twoAxes ? (ai === 0 ? t('Left axis') : t('Right axis')) : t('Y axis')
-      const wrap = document.createElement('div')
-      wrap.className = 'ed-axis-range'
+      const wrap = h('div.ed-axis-range')
       const mk = (key: 'min' | 'max', ph: string) => {
-        const inp = document.createElement('input')
-        inp.type = 'number'; inp.placeholder = ph
-        inp.value = typeof ax?.[key] === 'number' ? String(ax[key]) : ''
+        const inp = h('input', { type: 'number', placeholder: ph, value: typeof ax?.[key] === 'number' ? String(ax[key]) : '' })
         const commit = (final: boolean) => this.editOption(el.id, (o) => {
           const a = Array.isArray(o.yAxis) ? o.yAxis[ai] : o.yAxis
           const raw = inp.value.trim()
@@ -1545,25 +1455,20 @@ export class PropsPanel {
   private buildChartGrid(el: ChartElement, opt: Record<string, any>, series: any[]) {
     const cats: any[] = opt.xAxis?.data ?? []
     this.section(t('Data'))
-    const scroll = document.createElement('div')
-    scroll.className = 'ed-chart-grid-wrap'
-    const table = document.createElement('table')
-    table.className = 'ed-chart-grid'
-    const thead = document.createElement('tr')
-    const corner = document.createElement('th'); corner.textContent = ''
+    const scroll = h('div.ed-chart-grid-wrap')
+    const table = h('table.ed-chart-grid')
+    const thead = h('tr')
+    const corner = h('th', { textContent: '' })
     thead.appendChild(corner)
     series.forEach((s, i) => {
-      const th = document.createElement('th')
-      th.textContent = s?.name || t('Series {n}', { n: i + 1 })
+      const th = h('th', { textContent: s?.name || t('Series {n}', { n: i + 1 }) })
       thead.appendChild(th)
     })
-    thead.appendChild(document.createElement('th'))
+    thead.appendChild(h('th'))
     table.appendChild(thead)
 
     const cellInput = (value: string, onCommit: (v: string, final: boolean) => void, numeric: boolean) => {
-      const inp = document.createElement('input')
-      inp.type = numeric ? 'number' : 'text'
-      inp.value = value
+      const inp = h('input', { type: numeric ? 'number' : 'text', value })
       inp.addEventListener('input', () => onCommit(inp.value, false))
       inp.addEventListener('change', () => onCommit(inp.value, true))
       return inp
@@ -1571,15 +1476,15 @@ export class PropsPanel {
 
     const rowCount = Math.max(cats.length, ...series.map((s) => (s?.data?.length ?? 0)))
     for (let r = 0; r < rowCount; r++) {
-      const tr = document.createElement('tr')
-      const cat = document.createElement('td')
+      const tr = h('tr')
+      const cat = h('td')
       cat.appendChild(cellInput(String(cats[r] ?? ''), (v, final) => this.editOption(el.id, (o) => {
         if (!Array.isArray(o.xAxis?.data)) { o.xAxis = { ...(o.xAxis ?? { type: 'category' }), data: [] } }
         o.xAxis.data[r] = v
       }, final), false))
       tr.appendChild(cat)
       series.forEach((s, i) => {
-        const td = document.createElement('td')
+        const td = h('td')
         td.appendChild(cellInput(String(s?.data?.[r] ?? ''), (v, final) => this.editOption(el.id, (o) => {
           const arr = o.series[i].data ?? (o.series[i].data = [])
           const n = parseFloat(v)
@@ -1587,7 +1492,7 @@ export class PropsPanel {
         }, final), true))
         tr.appendChild(td)
       })
-      const rmTd = document.createElement('td')
+      const rmTd = h('td')
       rmTd.appendChild(this.opBtn('✕', t('Remove row'), () => this.editOption(el.id, (o) => {
         if (Array.isArray(o.xAxis?.data)) o.xAxis.data.splice(r, 1)
         o.series.forEach((s: any) => { if (Array.isArray(s?.data)) s.data.splice(r, 1) })
@@ -1598,11 +1503,8 @@ export class PropsPanel {
     scroll.appendChild(table)
     this.host.appendChild(scroll)
 
-    const addRow = document.createElement('div')
-    addRow.className = 'ed-chart-add'
-    const addBtn = document.createElement('button')
-    addBtn.className = 'ed-btn'
-    addBtn.textContent = t('＋ Add row')
+    const addRow = h('div.ed-chart-add')
+    const addBtn = h('button.ed-btn', { textContent: t('＋ Add row') })
     addBtn.addEventListener('click', () => this.editOption(el.id, (o) => {
       if (!Array.isArray(o.xAxis?.data)) o.xAxis = { ...(o.xAxis ?? { type: 'category' }), data: [] }
       o.xAxis.data.push(t('Item {n}', { n: o.xAxis.data.length + 1 }))
@@ -1620,14 +1522,11 @@ export class PropsPanel {
     const palette: string[] | undefined = Array.isArray((el.option as any).color) ? (el.option as any).color : undefined
     this.section(t('Slices'))
     data.forEach((d, i) => {
-      const row = document.createElement('div')
-      row.className = 'ed-series-row'
-      const name = document.createElement('input')
-      name.type = 'text'; name.className = 'ed-series-name'; name.value = d?.name ?? ''
+      const row = h('div.ed-series-row')
+      const name = h('input.ed-series-name', { type: 'text', value: d?.name ?? '' })
       name.addEventListener('input', () => this.editPieDatum(el.id, i, (x) => { x.name = name.value }, false))
       name.addEventListener('change', () => this.editPieDatum(el.id, i, (x) => { x.name = name.value }, true))
-      const val = document.createElement('input')
-      val.type = 'number'; val.className = 'ed-pie-val'; val.value = String(d?.value ?? 0)
+      const val = h('input.ed-pie-val', { type: 'number', value: String(d?.value ?? 0) })
       const commitVal = (final: boolean) => this.editPieDatum(el.id, i, (x) => { const n = parseFloat(val.value); x.value = Number.isNaN(n) ? 0 : n }, final)
       val.addEventListener('input', () => commitVal(false))
       val.addEventListener('change', () => commitVal(true))
@@ -1638,11 +1537,8 @@ export class PropsPanel {
       row.append(name, val, swatch, rm)
       this.host.appendChild(row)
     })
-    const addRow = document.createElement('div')
-    addRow.className = 'ed-chart-add'
-    const addBtn = document.createElement('button')
-    addBtn.className = 'ed-btn'
-    addBtn.textContent = t('＋ Add slice')
+    const addRow = h('div.ed-chart-add')
+    const addBtn = h('button.ed-btn', { textContent: t('＋ Add slice') })
     addBtn.addEventListener('click', () => this.editOption(el.id, (o) => {
       const ps = (Array.isArray(o.series) ? o.series : [o.series]).find((x: any) => x?.type === 'pie') ?? o.series[0]
       ps.data = ps.data ?? []
@@ -1663,12 +1559,9 @@ export class PropsPanel {
 
   private buildTableProps(el: TableElement) {
     const stepper = (label: string, count: number, onDelta: (d: number) => void) => {
-      const wrap = document.createElement('div')
-      wrap.className = 'ed-stepper'
+      const wrap = h('div.ed-stepper')
       const minus = this.opBtn('−', t('Remove'), () => onDelta(-1))
-      const val = document.createElement('span')
-      val.className = 'ed-stepper-val'
-      val.textContent = String(count)
+      const val = h('span.ed-stepper-val', { textContent: String(count) })
       const plus = this.opBtn('+', t('Add'), () => onDelta(1))
       wrap.append(minus, val, plus)
       this.row(label, wrap)
@@ -1720,8 +1613,7 @@ export class PropsPanel {
     this.row('Grid lines', this.colorAlpha(st.borderColor, (v, fin) =>
       this.mutate(el.id, (e) => { (e as TableElement).style.borderColor = v }, fin)))
 
-    const grid = document.createElement('div')
-    grid.className = 'ed-grid2'
+    const grid = h('div.ed-grid2')
     grid.append(
       this.mini(t('Font'), st.fontSize, (v) => this.mutate(el.id, (e) =>
         { (e as TableElement).style.fontSize = Math.max(v, 6) }, true)),
@@ -1734,15 +1626,13 @@ export class PropsPanel {
     )
     this.host.appendChild(grid)
 
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.textContent = t('Double-click a cell to edit. Tab moves across, Enter down.')
+    const hint = h('p.ed-hint', { textContent: t('Double-click a cell to edit. Tab moves across, Enter down.') })
     this.host.appendChild(hint)
 
-    const toChart = document.createElement('button')
-    toChart.className = 'ed-btn ed-btn-block'
-    toChart.textContent = t('Make a chart from this table →')
-    toChart.title = t('Create a bar chart from the numbers in this table (first column = labels)')
+    const toChart = h('button.ed-btn.ed-btn-block', {
+      textContent: t('Make a chart from this table →'),
+      title: t('Create a bar chart from the numbers in this table (first column = labels)'),
+    })
     toChart.addEventListener('click', () => this.tableToChart(el))
     this.host.appendChild(toChart)
   }
@@ -1820,8 +1710,7 @@ export class PropsPanel {
     this.section(t('Picture'))
     const src = (el as ImageElement).src
     // what is stored: size and pixels for an embed, the URL otherwise
-    const status = document.createElement('p')
-    status.className = 'ed-hint'
+    const status = h('p.ed-hint')
     const resolved = src ? resolveAsset(this.store.doc, src) : ''
     if (resolved.startsWith('data:')) {
       const bytes = Math.floor(((resolved.length - resolved.indexOf(',') - 1) * 3) / 4)
@@ -1834,13 +1723,9 @@ export class PropsPanel {
     // Replace: through the shrink path, or at original size (the one honest
     // way to say "I want the full-resolution file in the deck").
     const pick = (label: string, original: boolean) => {
-      const b = document.createElement('button')
-      b.className = 'ed-btn ed-btn-block'
-      b.textContent = label
+      const b = h('button.ed-btn.ed-btn-block', { textContent: label })
       b.addEventListener('click', () => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = 'image/*'
+        const input = h('input', { type: 'file', accept: 'image/*' })
         input.addEventListener('change', () => {
           const file = input.files?.[0]
           if (!file) return
@@ -1882,9 +1767,7 @@ export class PropsPanel {
    *  number, the way in, and the way back to the whole picture. */
   private buildCropProps(el: ImageElement) {
     this.section(t('Crop'))
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.textContent = t('Double-click the picture to move it inside its frame; scroll or pinch to zoom.')
+    const hint = h('p.ed-hint', { textContent: t('Double-click the picture to move it inside its frame; scroll or pinch to zoom.') })
     this.host.appendChild(hint)
     const crop = normalizeCrop(el.crop)
     this.row('Zoom', this.number(Math.round((crop?.scale ?? 1) * 10) / 10, 0.1, (v, fin) =>
@@ -1895,17 +1778,15 @@ export class PropsPanel {
         if (scale === 1 && cur.x === 0.5 && cur.y === 0.5) delete im.crop
         else im.crop = { ...cur, scale }
       }, fin)))
-    const edit = document.createElement('button')
-    edit.className = 'ed-btn ed-btn-block'
-    edit.textContent = t('✎ Edit crop on canvas')
+    const edit = h('button.ed-btn.ed-btn-block', { textContent: t('✎ Edit crop on canvas') })
     edit.addEventListener('click', () =>
       document.dispatchEvent(new CustomEvent('bento:edit-crop', { detail: { id: el.id } })))
     this.host.appendChild(edit)
     if (el.crop) {
-      const reset = document.createElement('button')
-      reset.className = 'ed-btn ed-btn-block'
-      reset.textContent = t('Reset crop')
-      reset.title = t('Show the whole picture again, the way Fit says')
+      const reset = h('button.ed-btn.ed-btn-block', {
+        textContent: t('Reset crop'),
+        title: t('Show the whole picture again, the way Fit says'),
+      })
       reset.addEventListener('click', () => this.mutate(el.id, (e) => { delete (e as ImageElement).crop }, true))
       this.host.appendChild(reset)
     }
@@ -1915,8 +1796,7 @@ export class PropsPanel {
     this.section(t('Source & playback'))
 
     // source status: embedded (with size) / linked / none
-    const status = document.createElement('p')
-    status.className = 'ed-hint'
+    const status = h('p.ed-hint')
     // Resolve first: an embed is stored as an `asset:` ref, so testing el.src
     // directly would report an embedded clip as "linked".
     const resolved = el.src ? resolveAsset(this.store.doc, el.src) : ''
@@ -1928,13 +1808,9 @@ export class PropsPanel {
     this.host.appendChild(status)
 
     // replace / choose file (embeds; warns over budget)
-    const replace = document.createElement('button')
-    replace.className = 'ed-btn ed-btn-block'
-    replace.textContent = el.src ? t('Replace file…') : t('Choose file…')
+    const replace = h('button.ed-btn.ed-btn-block', { textContent: el.src ? t('Replace file…') : t('Choose file…') })
     replace.addEventListener('click', () => {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = el.kind === 'audio' ? 'audio/*' : 'video/*'
+      const input = h('input', { type: 'file', accept: el.kind === 'audio' ? 'audio/*' : 'video/*' })
       input.addEventListener('change', () => {
         const file = input.files?.[0]
         if (!file) return
@@ -1955,10 +1831,11 @@ export class PropsPanel {
     this.host.appendChild(replace)
 
     // URL (reference) — clears an embed when set
-    const url = document.createElement('input')
-    url.type = 'text'
-    url.placeholder = t('…or paste a media URL')
-    url.value = el.src && !el.src.startsWith('data:') && !el.src.startsWith('asset:') ? el.src : ''
+    const url = h('input', {
+      type: 'text',
+      placeholder: t('…or paste a media URL'),
+      value: el.src && !el.src.startsWith('data:') && !el.src.startsWith('asset:') ? el.src : '',
+    })
     url.addEventListener('change', () =>
       this.mutate(el.id, (e) => { (e as MediaElement).src = url.value.trim() }, true))
     this.row('URL', url)
@@ -1973,9 +1850,7 @@ export class PropsPanel {
     toggle('Autoplay', !!el.autoplay, (v) => this.mutate(el.id, (e) => { (e as MediaElement).autoplay = v || undefined }, true))
     toggle('Loop', !!el.loop, (v) => this.mutate(el.id, (e) => { (e as MediaElement).loop = v || undefined }, true))
     toggle('Muted', !!el.muted, (v) => this.mutate(el.id, (e) => { (e as MediaElement).muted = v || undefined }, true))
-    const note = document.createElement('p')
-    note.className = 'ed-hint'
-    note.textContent = t('Autoplay runs only while presenting; browsers require “muted” for video to autoplay.')
+    const note = h('p.ed-hint', { textContent: t('Autoplay runs only while presenting; browsers require “muted” for video to autoplay.') })
     this.host.appendChild(note)
 
     if (el.kind === 'video') {
@@ -1983,10 +1858,11 @@ export class PropsPanel {
         this.mutate(el.id, (e) => { (e as MediaElement).fit = v as MediaElement['fit'] }, true)))
       this.row('Corner radius', this.number(el.radius ?? 0, 1, (v, fin) =>
         this.mutate(el.id, (e) => { (e as MediaElement).radius = Math.max(v, 0) }, fin)))
-      const poster = document.createElement('input')
-      poster.type = 'text'
-      poster.placeholder = t('Poster image URL (optional)')
-      poster.value = el.poster && !el.poster.startsWith('data:') ? el.poster : ''
+      const poster = h('input', {
+        type: 'text',
+        placeholder: t('Poster image URL (optional)'),
+        value: el.poster && !el.poster.startsWith('data:') ? el.poster : '',
+      })
       poster.addEventListener('change', () =>
         this.mutate(el.id, (e) => {
           const m = e as MediaElement
@@ -2007,21 +1883,16 @@ export class PropsPanel {
   private buildEmbedProps(el: EmbedElement) {
     this.section(t('Web page'))
 
-    const status = document.createElement('p')
-    status.className = 'ed-hint'
+    const status = h('p.ed-hint')
     const view = (el.view ?? '').trim()
     if (!view) status.textContent = t('No view yet. Capture a picture of the page so it shows offline.')
     else if (view.startsWith('<') || view.startsWith('asset:')) status.textContent = t('View embedded in the file')
     else status.textContent = t('View is a link. It needs the network and shows nothing offline.')
     this.host.appendChild(status)
 
-    const capture = document.createElement('button')
-    capture.className = 'ed-btn ed-btn-block'
-    capture.textContent = view ? t('Replace view…') : t('Capture view…')
+    const capture = h('button.ed-btn.ed-btn-block', { textContent: view ? t('Replace view…') : t('Capture view…') })
     capture.addEventListener('click', () => {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = 'image/svg+xml,image/png,image/jpeg,image/webp,image/gif'
+      const input = h('input', { type: 'file', accept: 'image/svg+xml,image/png,image/jpeg,image/webp,image/gif' })
       input.addEventListener('change', () => {
         const file = input.files?.[0]
         if (!file) return
@@ -2043,10 +1914,7 @@ export class PropsPanel {
 
     // Labels stay RAW English: row() translates them and looks its tooltip
     // up by the English label (see buildMediaProps).
-    const url = document.createElement('input')
-    url.type = 'text'
-    url.placeholder = 'https://'
-    url.value = el.url ?? ''
+    const url = h('input', { type: 'text', placeholder: 'https://', value: el.url ?? '' })
     url.addEventListener('change', () =>
       this.mutate(el.id, (e) => {
         const m = e as EmbedElement
@@ -2057,24 +1925,19 @@ export class PropsPanel {
 
     this.row('Live', this.select(['off', 'on'], el.live ? 'on' : 'off', (v) =>
       this.mutate(el.id, (e) => { (e as EmbedElement).live = v === 'on' || undefined }, true)))
-    const note = document.createElement('p')
-    note.className = 'ed-hint'
-    note.textContent = t('The live frame loads only while online. Offline mode and a missing network show the captured view instead.')
+    const note = h('p.ed-hint', { textContent: t('The live frame loads only while online. Offline mode and a missing network show the captured view instead.') })
     this.host.appendChild(note)
     // Two things a presenter finds out on stage otherwise: a focused frame
     // keeps the arrow keys until they click outside it, and a live frame means
     // every viewer who presents this deck requests the page from its author —
     // the same trade a linked media src makes, said here so it is a choice.
-    const trade = document.createElement('p')
-    trade.className = 'ed-hint'
-    trade.textContent = t('While presenting, a clicked frame keeps the arrow keys until you click outside it. Everyone who presents this deck loads the page from its site.')
+    const trade = h('p.ed-hint', { textContent: t('While presenting, a clicked frame keeps the arrow keys until you click outside it. Everyone who presents this deck loads the page from its site.') })
     this.host.appendChild(trade)
   }
 
   private buildCodeProps(el: CodeElement) {
     this.section(t('Source Code'))
-    const status = document.createElement('p')
-    status.className = 'ed-hint'
+    const status = h('p.ed-hint')
     this.host.appendChild(status)
     // Font Size
     // Shown in POINTS (the unit office users know); the model stores slide-space
@@ -2106,8 +1969,7 @@ export class PropsPanel {
   // --- element ops --------------------------------------------------------------
 
   private opsRow(els: SlideElement[]) {
-    const row = document.createElement('div')
-    row.className = 'ed-ops'
+    const row = h('div.ed-ops')
     row.append(
       this.opBtn(ICONS.copy, t('Duplicate'), () => this.duplicate(els)),
       this.opBtn(ICONS.trash, t('Delete'), () => this.deleteEls(els)),
@@ -2119,20 +1981,13 @@ export class PropsPanel {
    *  captioned, balanced rows. */
   private arrangeRows(els: SlideElement[]) {
     const textBtn = (label: string, title: string, onClick: () => void, enabled = true) => {
-      const b = document.createElement('button')
-      b.className = 'ed-btn ed-arrange-btn'
-      b.textContent = label
-      b.title = title
-      b.disabled = !enabled
+      const b = h('button.ed-btn.ed-arrange-btn', { textContent: label, title, disabled: !enabled })
       b.addEventListener('click', onClick)
       return b
     }
     const group = (caption: string, buttons: HTMLElement[]) => {
-      const row = document.createElement('div')
-      row.className = 'ed-arrange-row'
-      const cap = document.createElement('span')
-      cap.className = 'ed-arrange-cap'
-      cap.textContent = caption
+      const row = h('div.ed-arrange-row')
+      const cap = h('span.ed-arrange-cap', { textContent: caption })
       row.appendChild(cap)
       row.append(...buttons)
       this.host.appendChild(row)
@@ -2161,8 +2016,7 @@ export class PropsPanel {
 
     const grouped = els.some((e) => e.groupId)
     if (els.length > 1 || grouped) {
-      const g = document.createElement('button')
-      g.className = 'ed-btn ed-btn-block'
+      const g = h('button.ed-btn.ed-btn-block')
       const allSame = els.length > 1 && els.every((e) => e.groupId && e.groupId === els[0].groupId)
       if (allSame || (grouped && els.length === 1)) {
         g.textContent = t('⛓ Ungroup')
@@ -2274,18 +2128,11 @@ export class PropsPanel {
   /** The three reveal verbs as a captioned button row (multi panel + Presenting). */
   private revealRow(els: SlideElement[]) {
     const stepped = els.some((e) => stepOf(e) > 0)
-    const row = document.createElement('div')
-    row.className = 'ed-reveal-row'
-    const cap = document.createElement('span')
-    cap.className = 'ed-arrange-cap'
-    cap.textContent = t('Reveal')
+    const row = h('div.ed-reveal-row')
+    const cap = h('span.ed-arrange-cap', { textContent: t('Reveal') })
     row.appendChild(cap)
     const btn = (label: string, title: string, run: () => void, enabled = true) => {
-      const b = document.createElement('button')
-      b.className = 'ed-btn'
-      b.textContent = label
-      b.title = title
-      b.disabled = !enabled
+      const b = h('button.ed-btn', { textContent: label, title, disabled: !enabled })
       b.addEventListener('click', run)
       row.appendChild(b)
     }
@@ -2293,9 +2140,7 @@ export class PropsPanel {
     btn(t('Together'), t('Hide until → is pressed, all at once'), () => this.revealTogether(els))
     btn(t('Remove'), t('Show with the slide again'), () => this.removeReveal(els), stepped)
     this.host.appendChild(row)
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.textContent = t('Numbered badges on the canvas show the order; click one for the next step.')
+    const hint = h('p.ed-hint', { textContent: t('Numbered badges on the canvas show the order; click one for the next step.') })
     this.host.appendChild(hint)
   }
 
@@ -2364,10 +2209,8 @@ export class PropsPanel {
   }
 
   private row(label: string, input: HTMLElement): HTMLLabelElement {
-    const row = document.createElement('label')
-    row.className = 'ed-row'
-    const span = document.createElement('span')
-    span.textContent = t(label)
+    const row = h('label.ed-row')
+    const span = h('span', { textContent: t(label) })
     // real help on hover (label + control): looked up by the RAW English label;
     // rows without an entry get no tooltip — never a useless label echo
     const tip = ROW_TIPS[label]
@@ -2378,23 +2221,16 @@ export class PropsPanel {
   }
 
   private mini(label: string, value: number, onChange: (v: number) => void): HTMLElement {
-    const wrap = document.createElement('label')
-    wrap.className = 'ed-mini'
-    const span = document.createElement('span')
-    span.textContent = label
-    const input = document.createElement('input')
-    input.type = 'number'
-    input.value = String(Math.round(value * 10) / 10)
+    const wrap = h('label.ed-mini')
+    const span = h('span', { textContent: label })
+    const input = h('input', { type: 'number', value: String(Math.round(value * 10) / 10) })
     input.addEventListener('change', () => onChange(parseFloat(input.value)))
     wrap.append(span, input)
     return wrap
   }
 
   private number(value: number, step: number, onEdit: (v: number, final: boolean) => void): HTMLElement {
-    const input = document.createElement('input')
-    input.type = 'number'
-    input.step = String(step)
-    input.value = String(value)
+    const input = h('input', { type: 'number', step: String(step), value: String(value) })
     input.addEventListener('change', () => {
       const v = parseFloat(input.value)
       if (!Number.isNaN(v)) onEdit(v, true)
@@ -2409,9 +2245,7 @@ export class PropsPanel {
      *  `id: null` means the property belongs to the slide, not an element. */
     ref?: { id: string | null; path: string },
   ): HTMLElement {
-    const input = document.createElement('input')
-    input.type = 'color'
-    input.value = /^#[0-9a-fA-F]{6}$/.test(value) ? value : parseColor(value).hex
+    const input = h('input', { type: 'color', value: /^#[0-9a-fA-F]{6}$/.test(value) ? value : parseColor(value).hex })
     input.addEventListener('input', () => onEdit(input.value, false))
     // A colour chosen by hand must CLEAR any palette reference on this path.
     // Without that, the next theme edit silently overwrites a colour somebody
@@ -2421,8 +2255,7 @@ export class PropsPanel {
       if (ref) this.setRef(ref, input.value, null)
     })
     if (!ref) return input
-    const wrap = document.createElement('div')
-    wrap.className = 'ed-colorref'
+    const wrap = h('div.ed-colorref')
     wrap.appendChild(this.paletteSwatches(ref, input))
     wrap.appendChild(input)
     return wrap
@@ -2444,8 +2277,7 @@ export class PropsPanel {
    * re-branded and one that has 400 hex literals in it.
    */
   private paletteSwatches(ref: { id: string | null; path: string }, input: HTMLInputElement): HTMLElement {
-    const row = document.createElement('div')
-    row.className = 'ed-swatches'
+    const row = h('div.ed-swatches')
     const palette = paletteOf(this.store.doc)
     const holder = (ref.id ? this.store.element(ref.id) : this.store.slide) as never
     const current = holder ? refAt(holder, ref.path) : undefined
@@ -2453,11 +2285,7 @@ export class PropsPanel {
       const base = palette[slot]
       if (!base) continue // hlink/folHlink are usually unset — don't show empties
       if (!slotIsSet(this.store.doc, slot)) continue // accent 2–6 unset: a copy of accent 1, not a choice
-      const b = document.createElement('button')
-      b.type = 'button'
-      b.className = 'ed-swatch'
-      b.style.background = base
-      b.title = slot
+      const b = h('button.ed-swatch', { type: 'button', style: { background: base }, title: slot })
       if (current && current.split(' ')[0] === slot) b.classList.add('is-on')
       b.addEventListener('click', () => {
         input.value = /^#[0-9a-fA-F]{6}$/.test(base) ? base : parseColor(base).hex
@@ -2475,9 +2303,7 @@ export class PropsPanel {
    */
   private buildThemeProps() {
     this.section(t('Theme'))
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.textContent = t('Deck-wide brand colours. Anything using a theme colour follows when you change it here.')
+    const hint = h('p.ed-hint', { textContent: t('Deck-wide brand colours. Anything using a theme colour follows when you change it here.') })
     this.host.appendChild(hint)
     const theme = this.store.doc.theme
     const slot = (label: string, get: () => string, set: (v: string) => void) =>
@@ -2503,9 +2329,7 @@ export class PropsPanel {
     // with no codePalette shows the built-in scheme as its starting values and
     // the field is written only when a colour is changed, so a deck without
     // one keeps rendering exactly as before.
-    const codeHead = document.createElement('p')
-    codeHead.className = 'ed-hint'
-    codeHead.textContent = t('Code colours — one per kind of token in code snippets.')
+    const codeHead = h('p.ed-hint', { textContent: t('Code colours — one per kind of token in code snippets.') })
     this.host.appendChild(codeHead)
     for (const scope of CODE_SCOPES) {
       slot(t(scope.label), () => this.store.doc.theme.codePalette?.[scope.key] ?? DEFAULT_CODE_COLORS[scope.key], (v) => {
@@ -2514,10 +2338,10 @@ export class PropsPanel {
       })
     }
     if (this.store.doc.theme.codePalette) {
-      const reset = document.createElement('button')
-      reset.className = 'ed-btn ed-btn-block'
-      reset.textContent = t('Use the built-in code colours')
-      reset.title = t('Removes the deck’s code palette; snippets render with the standard scheme again')
+      const reset = h('button.ed-btn.ed-btn-block', {
+        textContent: t('Use the built-in code colours'),
+        title: t('Removes the deck’s code palette; snippets render with the standard scheme again'),
+      })
       reset.addEventListener('click', () => this.edit(() => { delete this.store.doc.theme.codePalette }, true))
       this.host.appendChild(reset)
     }
@@ -2530,19 +2354,17 @@ export class PropsPanel {
     onEdit: (v: string, final: boolean) => void,
     ref?: { id: string | null; path: string },
   ): HTMLElement {
-    const wrap = document.createElement('div')
-    wrap.className = 'ed-coloralpha'
+    const wrap = h('div.ed-coloralpha')
     const parsed = parseColor(value)
-    const col = document.createElement('input')
-    col.type = 'color'
-    col.value = parsed.hex
-    const alpha = document.createElement('input')
-    alpha.type = 'number'
-    alpha.min = '0'
-    alpha.max = '100'
-    alpha.step = '1'
-    alpha.value = String(Math.round(parsed.a * 100))
-    alpha.title = t('Opacity %')
+    const col = h('input', { type: 'color', value: parsed.hex })
+    const alpha = h('input', {
+      type: 'number',
+      min: '0',
+      max: '100',
+      step: '1',
+      value: String(Math.round(parsed.a * 100)),
+      title: t('Opacity %'),
+    })
     const emit = (final: boolean) => {
       const raw = parseFloat(alpha.value)
       const a = Number.isFinite(raw) ? Math.min(Math.max(raw / 100, 0), 1) : 1
@@ -2557,8 +2379,7 @@ export class PropsPanel {
     alpha.addEventListener('change', () => emit(true))
     wrap.append(col, alpha)
     if (!ref) return wrap
-    const outer = document.createElement('div')
-    outer.className = 'ed-colorref'
+    const outer = h('div.ed-colorref')
     outer.appendChild(this.paletteSwatches(ref, col))
     outer.appendChild(wrap)
     return outer
@@ -2570,20 +2391,14 @@ export class PropsPanel {
       [100, 'Thin'], [200, 'Extra light'], [300, 'Light'], [400, 'Regular'],
       [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extra bold'], [900, 'Black'],
     ]
-    const sel = document.createElement('select')
+    const sel = h('select')
     const current = el.fontWeight ?? 400
     if (!WEIGHTS.some(([n]) => n === current)) {
-      const o = document.createElement('option')
-      o.value = String(current)
-      o.textContent = t('Custom ({n})', { n: current })
-      o.selected = true
+      const o = h('option', { value: String(current), textContent: t('Custom ({n})', { n: current }), selected: true })
       sel.appendChild(o)
     }
     for (const [n, name] of WEIGHTS) {
-      const o = document.createElement('option')
-      o.value = String(n)
-      o.textContent = t(name)
-      o.style.fontWeight = String(n)
+      const o = h('option', { value: String(n), textContent: t(name), style: { fontWeight: String(n) } })
       if (n === current) o.selected = true
       sel.appendChild(o)
     }
@@ -2593,11 +2408,9 @@ export class PropsPanel {
   }
 
   private select(options: string[], value: string, onChange: (v: string) => void): HTMLElement {
-    const sel = document.createElement('select')
+    const sel = h('select')
     for (const opt of options) {
-      const o = document.createElement('option')
-      o.value = opt
-      o.textContent = t(opt)
+      const o = h('option', { value: opt, textContent: t(opt) })
       if (opt === value) o.selected = true
       sel.appendChild(o)
     }
@@ -2606,19 +2419,13 @@ export class PropsPanel {
   }
 
   private toggle(value: boolean, onChange: (v: boolean) => void): HTMLElement {
-    const cb = document.createElement('input')
-    cb.type = 'checkbox'
-    cb.className = 'ed-toggle'
-    cb.checked = value
+    const cb = h('input.ed-toggle', { type: 'checkbox', checked: value })
     cb.addEventListener('change', () => onChange(cb.checked))
     return cb
   }
 
   private opBtn(icon: string, title: string, onClick: () => void): HTMLElement {
-    const btn = document.createElement('button')
-    btn.className = 'ed-btn ed-btn-icon'
-    btn.title = title
-    btn.innerHTML = icon
+    const btn = h('button.ed-btn.ed-btn-icon', { title, innerHTML: icon })
     btn.addEventListener('click', onClick)
     return btn
   }
