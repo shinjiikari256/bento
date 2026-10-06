@@ -106,7 +106,17 @@ body.bkp-resizing { cursor: col-resize; user-select: none; }
   width: var(--bkp-collapsed-w, 16px);
 }
 .bkp-collapsed > .bkp-content { display: none; }
-.bkp-collapsed > .bkp-resizer { cursor: default; }
+.bkp-collapsed > .bkp-resizer {
+  cursor: default;
+  /* The strip IS the collapsed panel, so the chevron centres on all of it.
+     Left at its 5px resizer width, the strip sat flush against the outer
+     edge and a start panel's 16px chevron, centred on it, hung half off the
+     screen (measured at x=-5). An end panel only looked right by accident. */
+  width: 100%;
+}
+/* …and the chevron takes the strip's own width, so it can never poke out of
+   it on either side (a 16px tab centred on a 15px strip overhung by half a px) */
+.bkp-collapsed .bkp-toggle { left: 0; width: 100%; transform: translateY(-50%); }
 .bkp-collapsed > .bkp-resizer:hover { background: transparent; }
 
 /* ————— drawer: below the phone width the panel overlays the canvas —————
