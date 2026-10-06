@@ -707,13 +707,6 @@ html, body {
 .dx-bar.dx-bar-fold .dx-more-dd { display: block; }
 .dx-more-dd > .dx-menu { inset-inline-start: auto; inset-inline-end: 0; }
 .dx-more-dd > .dx-menu .dx-btn { white-space: nowrap; }
-/* a row's shortcut, at its end edge, drawn as a key — as every Bento menu does */
-.dx-kbd {
-  margin-inline-start: auto; padding: 1px 6px; flex: 0 0 auto;
-  font: inherit; font-size: 11.5px; color: var(--muted);
-  background: var(--chrome-2); border: 1px solid var(--line); border-radius: 5px;
-}
-.dx-menu .dx-btn:has(> .dx-kbd) > span { margin-inline-end: 16px; }
 .dx-bar.dx-bar-fold [data-act="redo"],
 .dx-bar.dx-bar-fold [data-act="about"],
 .dx-bar.dx-bar-fold [data-act="settings"],

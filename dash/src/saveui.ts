@@ -52,6 +52,8 @@
 
 import './saveui.css'
 import '../../kernel/src/ui/savebutton.css'
+import { toast as kernelToast } from '../../kernel/src/ui/toast.ts'
+import '../../kernel/src/ui/toast.css'
 import { h } from '../../kernel/src/dom.ts'
 import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import {
@@ -88,14 +90,11 @@ const newDocId = (): string =>
 
 const clone = (doc: DashDoc): DashDoc => JSON.parse(JSON.stringify(doc)) as DashDoc
 
-let toastTimer: number | undefined
-
+/** A short message — the suite's toast (kernel/src/ui/toast.ts). Every
+ *  dash action's only feedback: a share export leaves the open file
+ *  untouched, so without a line of text nothing visibly happened at all. */
 export function toast(message: string): void {
-  document.querySelector('.dxs-toast')?.remove()
-  const el = h('div.dxs-toast', { textContent: message })
-  document.body.appendChild(el)
-  clearTimeout(toastTimer)
-  toastTimer = window.setTimeout(() => el.remove(), 3600)
+  kernelToast(message)
 }
 
 /**

@@ -34,6 +34,7 @@
 import './about.css'
 import '../../kernel/src/ui/dialog.css'
 import '../../kernel/src/ui/sheet.css'
+import '../../kernel/src/ui/bar.css'
 import { createSheet, type Sheet } from '../../kernel/src/ui/sheet.ts'
 import { t } from './i18n.ts'
 

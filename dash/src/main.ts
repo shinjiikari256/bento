@@ -31,6 +31,8 @@ import {
 } from '../../kernel/src/save.ts'
 import { startTheme } from '../../kernel/src/theme.ts'
 import { fitTopbar } from '../../kernel/src/ui/topbar.ts'
+import { BENTO_MARK_SVG } from '../../kernel/src/ui/mark.ts'
+import { CHROME_ICONS, withIconClass } from '../../kernel/src/ui/icons.ts'
 import { putRecovery, pruneOld } from '../../kernel/src/autosave.ts'
 import { FileWriteBack } from './writeback.ts'
 import { APP_VERSION } from '../../kernel/src/update.ts'
@@ -126,13 +128,10 @@ const SVG = (d: string): string =>
   `<svg class="dx-i" viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" fill="none" ` +
   `stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 
-/** An icon drawn on the suite's 24 grid (slides/spaces/type), at dash's size. */
-const SVG24 = (d: string): string =>
-  `<svg class="dx-i" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" ` +
-  `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
-
+// the suite's chrome icons come from the kernel (kernel/src/ui/icons.ts), with
+// dash's .dx-i class; the rest are dash's own, on its 20 grid
 const ICON = {
-  plus: SVG('<path d="M10 4v12M4 10h12"/>'),
+  plus: withIconClass(CHROME_ICONS.plus, 'dx-i'),
   fx: SVG('<path d="M12 4.5h-1.2a2 2 0 0 0-2 2V16"/><path d="M6.5 9.5h5"/><path d="M13 11l4 5M17 11l-4 5"/>'),
   chart: SVG('<path d="M3.5 16.5h13"/><path d="M6.5 16.5v-5M10 16.5V5.5M13.5 16.5v-8"/>'),
   cube: SVG('<path d="M10 2.8l6 3.4v7.6l-6 3.4-6-3.4V6.2z"/><path d="M4 6.2l6 3.4 6-3.4M10 9.6v7.6"/>'),
@@ -140,29 +139,24 @@ const ICON = {
   dashboard: SVG('<rect x="3.2" y="3.2" width="6" height="6" rx="1.2"/><rect x="10.8" y="3.2" width="6" height="6" rx="1.2"/>' +
     '<rect x="3.2" y="10.8" width="6" height="6" rx="1.2"/><rect x="10.8" y="10.8" width="6" height="6" rx="1.2"/>'),
   story: SVG('<rect x="2.8" y="4" width="14.4" height="9.6" rx="1.4"/><path d="M7 17h6"/>'),
-  // undo/redo: the suite's arrows (slides' icons.ts), on their 24 grid
-  undo: SVG24('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
+  undo: withIconClass(CHROME_ICONS.undo, 'dx-i'),
   // The mirror of undo, because that is what every toolbar in the world uses
   // and a redo arrow that is not undo's reflection reads as a refresh button.
-  redo: SVG24('<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>'),
+  redo: withIconClass(CHROME_ICONS.redo, 'dx-i'),
   // Import and export get OPPOSITE arrows, not two copies of the cylinder. Four
   // rows reading "Import CSV / Export CSV / Import Excel / Export Excel" behind
   // the same glyph is four rows you have to read word by word; the arrow is
   // what lets you find the one you meant at a glance.
   imp: SVG('<path d="M10 3v8.5"/><path d="M6.6 8.2L10 11.6l3.4-3.4"/><path d="M4.2 13.6v2.2h11.6v-2.2"/>'),
   exp: SVG('<path d="M10 11.6V3.1"/><path d="M6.6 6.5L10 3.1l3.4 3.4"/><path d="M4.2 13.6v2.2h11.6v-2.2"/>'),
-  save: SVG('<path d="M4.4 3.6h8.3l3.3 3.3v9.5H4.4z"/><path d="M7 3.6v4.2h5V3.6"/><path d="M7 16.4v-4.6h6v4.6"/>'),
-  info: SVG24('<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none"/>'),
-  more: SVG24('<circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>'),
-  share: SVG24('<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17.5" cy="10.5" r="2.4"/><path d="M15.8 15.6c1.9.3 3.6 1.6 4.4 3.9"/>'),
-  keyboard: SVG24('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
-  gear: SVG24('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
-  panelRight: SVG24('<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/>'),
-  // A printer: the paper going in at the top, the platen, the sheet coming out.
-  // Not another arrow — Import and Export own those, and a third would make the
-  // menu three rows of the same glyph again.
-  print: SVG('<path d="M6 8V3.6h8V8"/><rect x="3.4" y="8" width="13.2" height="5.4" rx="1.2"/>' +
-    '<path d="M6 11.6h8v4.8H6z"/>'),
+  save: withIconClass(CHROME_ICONS.save, 'dx-i'),
+  info: withIconClass(CHROME_ICONS.info, 'dx-i'),
+  more: withIconClass(CHROME_ICONS.more, 'dx-i'),
+  share: withIconClass(CHROME_ICONS.share, 'dx-i'),
+  keyboard: withIconClass(CHROME_ICONS.keyboard, 'dx-i'),
+  gear: withIconClass(CHROME_ICONS.gear, 'dx-i'),
+  panelRight: withIconClass(CHROME_ICONS.panelRight, 'dx-i'),
+  print: withIconClass(CHROME_ICONS.print, 'dx-i'),
   down: SVG('<path d="M6 8l4 4 4-4"/>'),
 } as const
 
@@ -352,12 +346,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     // rungs in styles.css): 20px of mark costs less than "bento/dash" in text
     // and leaves a phone-width bar with an identity instead of a blank corner.
     `<span class="dx-mark">` +
-    `<svg class="dx-mark-svg" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">` +
-    `<rect width="32" height="32" rx="7" fill="#16273E"/>` +
-    `<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>` +
-    `<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>` +
-    `<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>` +
-    `</svg>` +
+    BENTO_MARK_SVG(20, 'dx-mark-svg') +
     `<span class="dx-mark-t"><span class="dx-mark-b">bento</span><span class="dx-slash">/</span>dash</span>` +
     `</span>` +
     // The update chip: beside the mark, and ONLY when a release is waiting
@@ -438,10 +427,10 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     `<div class="dx-dd dx-more-dd">` +
     `<button class="dx-btn dx-dd-trig dx-more-trig" data-dd="more" title="${esc(t('More'))}">${ICON.more}</button>` +
     `<div class="dx-menu dx-more-menu">` +
-    `<button class="dx-btn" data-proxy="redo">${ICON.redo}<span>${t('Redo')}</span><kbd class="dx-kbd">⇧⌘Z</kbd></button>` +
+    `<button class="dx-btn" data-proxy="redo">${ICON.redo}<span>${t('Redo')}</span><kbd class="bk-kbd">⇧⌘Z</kbd></button>` +
     `<button class="dx-btn" data-proxy="about">${ICON.info}<span>${t('About this workbook')}</span></button>` +
     `<button class="dx-btn" data-proxy="settings">${ICON.gear}<span>${t('Settings')}</span></button>` +
-    `<button class="dx-btn" data-proxy="help">${ICON.keyboard}<span>${t('Keyboard shortcuts')}</span><kbd class="dx-kbd">?</kbd></button>` +
+    `<button class="dx-btn" data-proxy="help">${ICON.keyboard}<span>${t('Keyboard shortcuts')}</span><kbd class="bk-kbd">?</kbd></button>` +
     `</div></div>` +
     barBtn('help', ICON.keyboard, t('Shortcuts'), t('Keyboard shortcuts (?)')) +
     `</div>` +
