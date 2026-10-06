@@ -85,11 +85,19 @@ body.bkp-resizing { cursor: col-resize; user-select: none; }
 }
 .bkp-toggle::before { content: ''; width: 0; height: 0; border-block: 4px solid transparent; }
 /* the arrow points toward the edge the panel would collapse into, and flips
-   when collapsed to point back — direction is logical, so it mirrors under RTL */
-.bkp-start .bkp-toggle::before { border-inline-start: 5px solid currentColor; }
-.bkp-end .bkp-toggle::before { border-inline-end: 5px solid currentColor; }
-.bkp-start.bkp-collapsed .bkp-toggle::before { border-inline: 0; border-inline-end: 5px solid currentColor; }
-.bkp-end.bkp-collapsed .bkp-toggle::before { border-inline: 0; border-inline-start: 5px solid currentColor; }
+   when collapsed to point back — direction is logical, so it mirrors under RTL.
+   A border-only triangle points AWAY from its solid side (border-inline-start
+   solid, the rest transparent, draws a triangle pointing inline-END) — so
+   "points at the start edge" needs the solid border on the END side, not the
+   start. Swapped from an earlier version that had this backwards: a start
+   panel showed ► while open (pointing INTO the canvas, the wrong way) and ◄
+   once collapsed, exactly inverted from both dash's and spaces' own
+   long-standing chevrons (›/‹ and ICONS.chevronRight/Left) before either
+   adopted this primitive. */
+.bkp-start .bkp-toggle::before { border-inline-end: 5px solid currentColor; }
+.bkp-end .bkp-toggle::before { border-inline-start: 5px solid currentColor; }
+.bkp-start.bkp-collapsed .bkp-toggle::before { border-inline: 0; border-inline-start: 5px solid currentColor; }
+.bkp-end.bkp-collapsed .bkp-toggle::before { border-inline: 0; border-inline-end: 5px solid currentColor; }
 
 /* ————— collapsed: the content is gone, the strip and its chevron remain —————
    The panel shrinks to the strip width; the chevron docks flush against the
