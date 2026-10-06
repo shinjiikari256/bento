@@ -246,6 +246,8 @@ export const PACKED: Record<string, ReadonlyArray<string | 0>> = {
   "Quote": ["引用","引述","引述","Cita","Citation","Zitat","Citazione","Citação"],
   "Read aloud by screen readers, and kept as the text if the picture is ever lost.": ["スクリーンリーダーで読み上げられ、画像が失われた場合はテキストとして残ります。","会被屏幕阅读器读出，且在图片丢失时会作为文字保留。","會被螢幕報讀軟體讀出，且在圖片遺失時會作為文字保留。","Lo leen los lectores de pantalla y se conserva como texto si la imagen se pierde.","Lu à voix haute par les lecteurs d'écran, et conservé comme texte si l'image venait à disparaître.","Wird von Bildschirmlesegeräten vorgelesen und bleibt als Text erhalten, falls das Bild verloren geht.","Viene letto ad alta voce dagli screen reader e resta come testo se l'immagine va persa.","Lido em voz alta por leitores de tela e mantido como texto caso a imagem se perca."],
   "Recent": ["最近使った色","最近使用","最近使用","Recientes","Récents","Kürzlich verwendet","Recenti","Recentes"],
+  "Undo": ["元に戻す","撤销","復原","Deshacer","Annuler","Rückgängig","Annulla","Desfazer"],
+  "Redo": ["やり直し","重做","重做","Rehacer","Rétablir","Wiederholen","Ripeti","Refazer"],
   "Redo (⇧⌘Z)": ["やり直し (⇧⌘Z)","重做 (⇧⌘Z)","重做 (⇧⌘Z)","Rehacer (⇧⌘Z)","Rétablir (⇧⌘Z)","Wiederholen (⇧⌘Z)","Ripeti (⇧⌘Z)","Refazer (⇧⌘Z)"],
   "References, as they will print": ["印刷される通りの参考文献","参考文献列表（打印外观）","參考文獻清單（列印外觀）","Referencias, tal como se imprimirán","Références, telles qu'elles seront imprimées","Literaturverzeichnis, wie es gedruckt wird","Bibliografia, come verrà stampata","Referências, como serão impressas"],
   "Regular": ["レギュラー","常规","一般","Normal","Normal","Normal","Normale","Regular"],

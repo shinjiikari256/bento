@@ -419,4 +419,6 @@ export const zhHans: Catalog = {
   "More": "更多",
   "Review — tracked changes and comments": "审阅 — 修订和批注",
   "Save as… — snapshot, signing, print, bibliography": "另存为… — 快照、签名、打印、参考文献",
+  "Undo": "撤销",
+  "Redo": "重做",
 }

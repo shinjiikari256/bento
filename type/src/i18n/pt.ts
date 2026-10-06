@@ -430,4 +430,6 @@ export const pt: Catalog = {
   "More": "Mais",
   "Review — tracked changes and comments": "Revisar — alterações e comentários",
   "Save as… — snapshot, signing, print, bibliography": "Salvar como… — instantâneo, assinatura, impressão, bibliografia",
+  "Undo": "Desfazer",
+  "Redo": "Refazer",
 }

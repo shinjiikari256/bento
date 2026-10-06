@@ -18,6 +18,8 @@ import { i18nApi } from '../../kernel/src/i18n.ts';
 import { openAbout, type AboutKind } from './about.ts';
 import { onThemeChange, startTheme } from '../../kernel/src/theme.ts';
 import { openShortcuts } from '../../kernel/src/ui/sheet.ts';
+import { createMenu, menuItem, menuSeparator, type Menu } from '../../kernel/src/ui/menu.ts';
+import '../../kernel/src/ui/menu.css';
 import { BENTO_MARK_SVG } from '../../kernel/src/ui/mark.ts';
 import '../../kernel/src/ui/savebutton.css';
 import '../../kernel/src/ui/bar.css';
@@ -118,12 +120,7 @@ app.innerHTML = `
       <div class="t-group" id="gFormat"></div>
       <div class="t-group" id="gInsert"></div>
       <div class="t-group" id="gReview"></div>
-      <div class="t-menuwrap t-review-wrap">
-        <button id="reviewMore" class="t-btn" type="button" aria-haspopup="menu"></button>
-        <div class="t-menu t-menu-start" id="reviewMenu" hidden>
-          <button id="review" type="button"></button>
-        </div>
-      </div>
+      <span id="reviewMenuSlot"></span>
       <span class="bk-bar-sep" aria-hidden="true"></span>
       <span class="t-status" id="status"></span>
     </div>
@@ -137,27 +134,11 @@ app.innerHTML = `
       <button id="props" class="t-btn" type="button"></button>
       <div class="bksv t-savewrap">
         <button id="save" class="t-btn bksv-main" type="button"></button>
-        <div class="t-menuwrap">
-          <button id="saveMore" class="t-btn bksv-caret" type="button" aria-haspopup="menu"></button>
-          <div class="t-menu" id="saveMenu" hidden>
-            <button id="snap" type="button"></button>
-            <button id="sign" type="button"></button>
-            <div class="t-menu-sep"></div>
-            <button id="print" type="button"></button>
-          </div>
-        </div>
+        <span id="saveMenuSlot"></span>
       </div>
       <button id="info" class="t-btn" type="button"></button>
       <button id="theme" class="t-btn" type="button"></button>
-      <div class="t-menuwrap t-more-wrap">
-        <button id="more" class="t-btn" type="button"></button>
-        <div class="t-menu" id="moreMenu" hidden>
-          <button id="redoRow" class="t-fold-only" type="button"></button>
-          <button id="infoRow" class="t-fold-only" type="button"></button>
-          <button id="themeRow" class="t-fold-only" type="button"></button>
-          <button id="keysRow" class="t-fold-only" type="button"></button>
-        </div>
-      </div>
+      <span id="moreMenuSlot"></span>
       <button id="keys" class="t-btn" type="button"></button>
     </div>
   </header>
@@ -269,21 +250,42 @@ label('props', ICONS.panelRight, t('Format — show or hide the properties panel
 label('undo', ICONS.undo, t('Undo (⌘Z)'));
 label('redo', ICONS.redo, t('Redo (⇧⌘Z)'));
 label('save', ICONS.save, t('Save (⌘S)'), t('Save'));
-label('more', ICONS.more, t('More'));
-label('reviewMore', ICONS.review, t('Review — tracked changes and comments'), t('Review'));
-// the ▾ every bar menu with a label carries (Save ▾, Space ▾ in spaces)
-byId('reviewMore').insertAdjacentHTML('beforeend', '<span class="t-dd-caret" aria-hidden="true">▾</span>');
-byId('saveMore').innerHTML = '<span aria-hidden="true">▾</span>';
-byId('saveMore').title = t('Save as… — snapshot, signing, print, bibliography');
-label('snap', ICONS.history, '', t('Snapshot'));
-label('review', ICONS.review, '', t('Review changes…'));
-label('sign', ICONS.sign, '', t('Sign…'));
-label('print', ICONS.print, '', t('Print or PDF…'));
+// THE BAR'S MENUS are the kernel's (kernel/src/ui/menu.ts): one open at a
+// time, Escape, an outside press, arrow keys, one-line rows. Rows keep the ids
+// the handlers below attach to, so each action is still wired in one place.
+const slotMenu = (slot: string, m: Menu): Menu => { byId(slot).replaceWith(m.root); return m; };
+const rowWithId = (m: Menu, id: string, text: string, icon: string, shortcut?: string): HTMLButtonElement => {
+  const b = m.item(text, () => {}, { icon, shortcut });
+  b.id = id;
+  return b;
+};
+const saveMenu = slotMenu('saveMenuSlot', createMenu('', t('Save as… — snapshot, signing, print, bibliography'),
+  { triggerClass: 't-btn bksv-caret', alignEnd: true }));
+saveMenu.trigger.id = 'saveMore';
+saveMenu.trigger.insertAdjacentHTML('beforeend', '<span aria-hidden="true">▾</span>');
+rowWithId(saveMenu, 'snap', t('Snapshot'), ICONS.history);
+rowWithId(saveMenu, 'sign', t('Sign…'), ICONS.sign);
+saveMenu.separator();
+rowWithId(saveMenu, 'print', t('Print or PDF…'), ICONS.print);
+const reviewMenu = slotMenu('reviewMenuSlot', createMenu(t('Review'), t('Review — tracked changes and comments'),
+  { triggerClass: 't-btn', icon: ICONS.review, caret: true }));
+reviewMenu.trigger.id = 'reviewMore';
+rowWithId(reviewMenu, 'review', t('Review changes…'), ICONS.review);
+// ⋯ — only on a FOLDED bar: what the bar gave up (its format/review groups,
+// redo, About, Settings, shortcuts), one tap away
+const moreMenu = slotMenu('moreMenuSlot', createMenu('', t('More'),
+  { triggerClass: 't-btn', icon: ICONS.more, alignEnd: true, className: 't-more-wrap', menuClass: 'bkm-scroll' }));
+moreMenu.trigger.id = 'more';
+// Undo joins only on the narrowest bar (t-bar-micro): measured at 380px the
+// folded bar still wanted 425px and pushed ⋯ itself off the screen
+rowWithId(moreMenu, 'undoRow', t('Undo'), ICONS.undo, '⌘Z');
+rowWithId(moreMenu, 'redoRow', t('Redo'), ICONS.redo, '⇧⌘Z');
+rowWithId(moreMenu, 'infoRow', t('About this document'), ICONS.info);
+rowWithId(moreMenu, 'themeRow', t('Settings'), ICONS.gear);
+rowWithId(moreMenu, 'keysRow', t('Keyboard shortcuts'), ICONS.keyboard, '?');
 // ⓘ is the DOCUMENT, the sun/moon is the READER'S settings, and the mark is
 // the APP (the suite's bar layout).
 label('info', ICONS.info, t('About this document'));
-// …and its row in ⋯, shown only once the bar has folded and ⓘ has left it
-label('infoRow', ICONS.info, '', t('About this document'));
 byId('mark').title = t('About bento/type — version, licenses');
 const showAbout = (kind: AboutKind = 'doc') => openAbout({
   store,
@@ -326,16 +328,6 @@ byId('info').addEventListener('click', () => showAbout('doc'));
 // GENERATED from the bar's own tooltips ("Bold (⌘B)"): the shortcut lives in
 // exactly one place, the label of the control it drives, so this list cannot
 // drift from what the keys do.
-/**
- * A menu row: icon, the words, and — when the label ends in a shortcut,
- * "Link (⌘K)" — that shortcut pulled out to the row's end edge as a key chip,
- * the way the Keyboard shortcuts sheet draws keys.
- */
-function menuRowHtml(icon: string, text: string): string {
-  const m = text.match(CHORD);
-  const words = m ? text.replace(CHORD, '') : text;
-  return icon + `<span>${words}</span>` + (m ? `<kbd class="bk-kbd">${m[1]}</kbd>` : '');
-}
 const CHORD = /\s*\(([^()]*[⌘⇧⌥⌃][^()]*)\)\s*$/;
 const keyRows = (titles: string[]) => titles.flatMap(ti => {
   const m = ti.match(CHORD);
@@ -353,7 +345,6 @@ const openKeys = () => openShortcuts({
 });
 label('keys', ICONS.keyboard, t('Keyboard shortcuts (?)'));
 byId('keys').addEventListener('click', openKeys);
-label('keysRow', ICONS.keyboard, '', t('Keyboard shortcuts'));
 byId('keysRow').addEventListener('click', openKeys);
 // …and the ? key, as in every Bento app — outside the page and any field, where
 // a ? is a character somebody is typing
@@ -366,7 +357,7 @@ document.addEventListener('keydown', e => {
 });
 byId('infoRow').addEventListener('click', () => showAbout('doc'));
 // …and, as slides does, the folded bar's other demoted controls get rows too
-byId('redoRow').innerHTML = menuRowHtml(ICONS.redo, t('Redo (⇧⌘Z)'));
+byId('undoRow').addEventListener('click', () => { store.undo(); editor.render(); refresh(); });
 byId('redoRow').addEventListener('click', () => { store.redo(); editor.render(); refresh(); });
 
 for (const [sub, text] of [['comments', t('Comments')], ['changes', t('Tracked changes')],
@@ -480,21 +471,16 @@ const mountInsertMenu = () => {
   const host = byId('gInsert');
   const specs = tools('insert');
   if (!specs.length) { host.remove(); return; }
-  const wrap = h('div.t-menuwrap');
-  const btn = h('button.t-btn', { type: 'button', id: 'insertMenuBtn' });
-  btn.innerHTML = ICONS.plus + `<span class="t-lbl">${t('Insert')}</span>`;
-  btn.title = t('Insert a picture, table, formula, citation…');
-  const menu = h('div.t-menu', { hidden: true });
+  const m = createMenu(t('Insert'), t('Insert a picture, table, formula, citation…'), { triggerClass: 't-btn', icon: ICONS.plus });
+  m.trigger.id = 'insertMenuBtn';
   for (const spec of specs) {
-    const item = h('button', { type: 'button' });
-    item.innerHTML = menuRowHtml(spec.icon, labelText(spec.label ?? spec.title));
-    item.addEventListener('mousedown', e => { e.preventDefault(); menu.hidden = true; spec.run(featureCtx); });
-    menu.appendChild(item);
+    const text = labelText(spec.label ?? spec.title);
+    const chord = text.match(CHORD);
+    const row = m.item(chord ? text.replace(CHORD, '') : text, () => spec.run(featureCtx), { icon: spec.icon, shortcut: chord?.[1] });
+    // the caret must survive choosing a row: don't let the press take focus
+    row.addEventListener('mousedown', e => e.preventDefault());
   }
-  btn.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; });
-  document.addEventListener('click', () => { menu.hidden = true; });
-  wrap.append(btn, menu);
-  host.appendChild(wrap);
+  host.appendChild(m.root);
 };
 
 mountTools('gFormat', 'format');
@@ -503,11 +489,12 @@ mountTools('gReview', 'review');
 
 /** A bar tool as a text row at the top of Review ▾ (its title is its label). */
 function mountReviewRow(spec: ReturnType<typeof tools>[number]): void {
-  const menu = byId('reviewMenu');
-  const b = h('button', { type: 'button', id: `tool-${spec.id}` });
-  b.innerHTML = menuRowHtml(spec.icon, labelText(spec.title));
-  b.addEventListener('click', () => spec.run(featureCtx));
-  menu.insertBefore(b, menu.firstChild);
+  const text = labelText(spec.title);
+  const chord = text.match(CHORD);
+  const b = menuItem(chord ? text.replace(CHORD, '') : text, () => spec.run(featureCtx),
+    { icon: spec.icon, shortcut: chord?.[1] }, () => reviewMenu.close());
+  b.id = `tool-${spec.id}`;
+  reviewMenu.menu.insertBefore(b, reviewMenu.menu.firstChild);
 }
 
 // Menu rows keep a reference to their spec so their labels can be RE-READ when
@@ -516,21 +503,24 @@ function mountReviewRow(spec: ReturnType<typeof tools>[number]): void {
 // wrong after the first use, describing the action you had already taken.
 const menuRows: Array<[HTMLElement, ReturnType<typeof menuItems>[number]]> = [];
 for (const spec of menuItems()) {
-  const b = h('button', { type: 'button' });
-  b.innerHTML = menuRowHtml(spec.icon ?? '', labelText(spec.label));
-  b.addEventListener('click', () => spec.run(featureCtx));
   // Registered items go where they belong: showing/hiding comments is review,
   // everything else a feature adds here (a bibliography import) is about the
   // FILE, so it rides in Save ▾ with snapshot, signing and print.
-  byId(spec.id === 'comments-visibility' ? 'reviewMenu' : 'saveMenu').appendChild(b);
+  const m = spec.id === 'comments-visibility' ? reviewMenu : saveMenu;
+  const b = m.item(labelText(spec.label), () => spec.run(featureCtx), { icon: spec.icon ?? '' });
   menuRows.push([b, spec]);
 }
 const refreshMenuLabels = () => {
   for (const [b, spec] of menuRows) {
     // the icon too: a toggle's glyph follows its state as its words do
-    b.innerHTML = menuRowHtml(spec.icon ?? '', labelText(spec.label));
+    const ico = b.querySelector('.bkm-ico');
+    if (ico) ico.innerHTML = spec.icon ?? '';
+    const words = b.querySelector('.bkm-text');
+    if (words) words.textContent = labelText(spec.label);
   }
 };
+// a toggle row's words and glyph are re-read every time its menu opens
+for (const m of [saveMenu, reviewMenu]) m.trigger.addEventListener('click', refreshMenuLabels);
 
 /**
  * Size the bar by MEASURING it (kernel/src/ui/topbar.ts), not by width
@@ -558,10 +548,11 @@ const bar = document.querySelector<HTMLElement>('.t-bar')!;
 // nodes (not clones) keeps every listener intact for free.
 const FOLD_GROUPS = ['gFormat', 'gReview'];
 const foldHome = new WeakMap<HTMLElement, HTMLElement>();
-const foldSep = h('div.t-menu-sep', { hidden: true });
-byId('moreMenu').insertBefore(foldSep, byId('infoRow'));
+const foldSep = menuSeparator();
+foldSep.hidden = true;
+moreMenu.menu.insertBefore(foldSep, moreMenu.menu.firstChild);
 function setBarFolded(next: boolean) {
-  const menu = byId('moreMenu');
+  const menu = moreMenu.menu;
   if (next) {
     for (const gid of FOLD_GROUPS) {
       const host = document.getElementById(gid);
@@ -659,21 +650,6 @@ const paintToolStates = () => {
   }
 };
 
-// The bar's three menus: Save ▾ (the file), Review ▾ (changes and comments)
-// and ⋯ (only on a folded bar — what it had to give up). One open at a time.
-const MENUS: Array<[string, string]> = [['saveMore', 'saveMenu'], ['reviewMore', 'reviewMenu'], ['more', 'moreMenu']];
-const closeMenus = () => { for (const [, m] of MENUS) byId(m).hidden = true; };
-for (const [trigger, menuId] of MENUS) {
-  const menu = byId(menuId);
-  byId(trigger).addEventListener('click', e => {
-    e.stopPropagation();
-    const opening = menu.hidden;
-    closeMenus();
-    if (opening) { refreshMenuLabels(); menu.hidden = false; }
-  });
-  menu.addEventListener('click', () => { menu.hidden = true; });
-}
-document.addEventListener('click', closeMenus);
 
 
 let metrics: Metrics = { pages: [], ms: 0 };
@@ -762,6 +738,8 @@ window.addEventListener('keydown', e => {
 const syncHistory = () => {
   (byId('undo') as HTMLButtonElement).disabled = !store.canUndo;
   (byId('redo') as HTMLButtonElement).disabled = !store.canRedo;
+  (byId('undoRow') as HTMLButtonElement).disabled = !store.canUndo;
+  (byId('redoRow') as HTMLButtonElement).disabled = !store.canRedo;
 };
 store.on(syncHistory);
 syncHistory();
@@ -1041,7 +1019,6 @@ addEventListener('keydown', (e) => {
 // lives in the Settings card's select.
 label('theme', ICONS.gear, t('Settings — language, appearance and updates'));
 byId('theme').addEventListener('click', () => showAbout('settings'));
-label('themeRow', ICONS.gear, '', t('Settings'));
 byId('themeRow').addEventListener('click', () => showAbout('settings'));
 // the page shadow and grid change with the theme, so re-measure
 onThemeChange(() => repaginate());

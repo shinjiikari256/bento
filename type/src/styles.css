@@ -303,7 +303,7 @@ html, body {
 .t-menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
 /* a bar button's chip only shows once it has folded into ⋯ */
 .t-mkbd { display: none; }
-.t-menu .t-mkbd { display: inline; }
+.t-menu .t-mkbd, .bkm-menu .t-mkbd { display: inline; }
 /* a menu opening from the centre tools reads from its start edge */
 .t-menu.t-menu-start { inset-inline-end: auto; inset-inline-start: 0; }
 .t-menu.t-menu-start button { white-space: nowrap; }
@@ -311,21 +311,21 @@ html, body {
 .t-more-wrap { display: none; }
 .t-savewrap > .t-menuwrap { display: flex; }
 .t-dd-caret { font-size: 10px; opacity: .6; margin-inline-start: -2px; }
-.t-bar-fold .t-more-wrap { display: block; }
+.t-bar-fold .t-more-wrap { display: inline-flex; }
 /* A bar button (`.t-btn`) reparented into the ⋯ menu at the fold tier
    (main.ts setBarFolded) is still a `.t-btn` — its OWN rules (inline-flex,
    fixed min-width) would make it a stray icon chip in a list of full-width
    rows. `.t-menu button`'s selector is more specific (0,1,1 vs 0,1,0) so it
    wins the conflicting properties without an !important war; this just
    covers the one property that selector doesn't touch. */
-.t-menu .t-btn { width: 100%; justify-content: flex-start; }
+.t-menu .t-btn, .bkm-menu .t-btn { width: 100%; justify-content: flex-start; }
 /* Icon-only bar buttons lean on `title` for their name; a menu row has no
    hover to reveal that, so it needs visible text. `.t-mlbl` (main.ts
    toolButton) is the fallback label those buttons carry for exactly this
    case — invisible while the button lives in the bar, shown only once it is
    actually inside a menu, so it costs nothing until it is needed. */
 .t-mlbl { display: none; }
-.t-menu .t-mlbl { display: inline; }
+.t-menu .t-mlbl, .bkm-menu .t-mlbl { display: inline; }
 
 /* RESPONSIVE, the suite's way: hide TEXT, never scroll the bar — and size it
    by MEASURING, not by width breakpoints (slides/src/editor/editor.ts
@@ -342,7 +342,9 @@ html, body {
    the bar's width squeeze and its text was never optional. Same fix as
    `.t-mlbl` above, for the label spans that already existed before it; same
    specificity as the rule it corrects, so it only wins by coming after it. */
-.t-menu .t-lbl { display: inline; }
+.t-menu .t-lbl, .bkm-menu .t-lbl { display: inline; }
+/* a kernel menu's trigger label goes with the other labels at compact */
+.t-bar-compact .bkm-trigger > .bkm-label { display: none; }
 .t-bar-compact .t-primary { padding: 6px 9px; }
 /* Save keeps its word until the fold: it is the one control named, not guessed */
 .t-bar-compact .bksv-main > .t-lbl { display: inline; }
@@ -364,6 +366,11 @@ html, body {
    nowhere left to shrink. Drop it cleanly instead of crushing it below one
    legible character — the window title and the About dialog still show it. */
 .t-bar-micro .t-doctitle { display: none; }
+/* …and undo moves into ⋯ beside redo: without it a 380px bar overflowed by
+   45px and ⋯ — the way to everything folded — sat past the screen edge */
+#undoRow { display: none; }
+.t-bar-micro #undoRow { display: flex; }
+.t-bar-micro #undo, .t-bar-micro .t-right > .bk-bar-sep { display: none; }
 /* folded: redo, ⓘ, Settings and shortcuts leave the bar for their rows in ⋯
    (one place at any width), as slides' fold does */
 .t-menu .t-fold-only { display: none; }

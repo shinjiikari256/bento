@@ -98,21 +98,10 @@ for (const f of readdirSync(SRC).filter(n => n.endsWith('.ts'))) {
 // app shows seven, so the rule would have been enforced against a seventh of
 // the menu.
 const main = readFileSync(join(SRC, 'main.ts'), 'utf8');
-// Slice to </header>, NOT to the first </div>: the menu contains
-// `<div class="t-menu-sep"></div>` separators, so the first close tag after
-// id="moreMenu" belongs to a separator two buttons in. Cutting there found ms
-// and mc and stopped — five of the seven ⋯ entries were invisible to a gate
-// whose whole job is to see all of them. Same mistake as the one callsOf()
-// above is written to avoid, made again twenty lines later.
-// The bar's menus are three now — Save ▾, Review ▾ and the folded-bar ⋯ —
-// so the scan reads each menu's block, up to the first line that closes it
-// (separators close on their own line, so they never end a block early).
-const menuMarkup = [...main.matchAll(/id="(?:save|review|more)Menu"[\s\S]*?\n\s*<\/div>/g)].map(m => m[0]).join('\n');
-for (const m of menuMarkup.matchAll(/<button id="([a-z]+)"/g)) {
-  const id = m[1];
-  const lbl = main.match(new RegExp(`label\\('${id}',[^;]*?t\\(\\s*'([^']+)'`, 's'));
-  if (lbl) actions.set(lbl[1], 'main.ts');
-}
+// The bar's menus are the kernel's now (createMenu): main.ts builds each row
+// with rowWithId(menu, 'id', t('Label'), …), so that call IS the inventory —
+// Save ▾, Review ▾ and the folded-bar ⋯ alike.
+for (const m of main.matchAll(/rowWithId\(\s*\w+,\s*'[A-Za-z]+',\s*t\(\s*'([^']+)'/g)) actions.set(m[1], 'main.ts');
 
 console.log(`\ninsert menu: ${[...inserts.keys()].join(', ')}`);
 console.log(`⋯ menu:      ${[...actions.keys()].join(', ')}\n`);
@@ -166,6 +155,8 @@ console.log('\n— every element the chrome reaches for actually exists —');
   for (const m of src.matchAll(/\bid="([A-Za-z][\w-]*)"/g)) declared.add(m[1]);
   // ids created in script rather than in the template
   for (const m of src.matchAll(/\.id\s*=\s*'([^']+)'/g)) declared.add(m[1]);
+  // menu rows created by the kernel menu with an id (rowWithId(menu, 'id', …))
+  for (const m of src.matchAll(/rowWithId\(\s*\w+,\s*'([^']+)'/g)) declared.add(m[1]);
   for (const m of src.matchAll(/\.id\s*=\s*`([^`$]+)`/g)) declared.add(m[1]);
 
   const referenced = new Map<string, string>();

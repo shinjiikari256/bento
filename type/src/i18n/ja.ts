@@ -419,4 +419,6 @@ export const ja: Catalog = {
   "More": "その他",
   "Review — tracked changes and comments": "レビュー — 変更履歴とコメント",
   "Save as… — snapshot, signing, print, bibliography": "名前を付けて保存… — スナップショット、署名、印刷、文献",
+  "Undo": "元に戻す",
+  "Redo": "やり直し",
 }

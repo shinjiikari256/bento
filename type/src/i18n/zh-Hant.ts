@@ -419,4 +419,6 @@ export const zhHant: Catalog = {
   "More": "更多",
   "Review — tracked changes and comments": "校閱 — 修訂與註解",
   "Save as… — snapshot, signing, print, bibliography": "另存為… — 快照、簽署、列印、參考文獻",
+  "Undo": "復原",
+  "Redo": "重做",
 }
