@@ -262,7 +262,6 @@ html, body {
    figures and parted from them by a divider; Insert keeps the start */
 .t-tools > #gReview { margin-inline-start: auto; padding-inline-start: 0; border-inline-start: 0; }
 .t-tools > .t-status { padding-inline-start: 2px; }
-.t-bar-sep { align-self: center; width: 1px; height: 20px; margin-inline: 4px; background: var(--line); flex: 0 0 auto; }
 .t-group { display: flex; align-items: center; gap: 2px; }
 .t-group + .t-group { margin-inline-start: 6px; padding-inline-start: 6px;
   border-inline-start: 1px solid var(--line); }
@@ -302,13 +301,6 @@ html, body {
 }
 .t-menu button:hover { background: var(--chrome-2); }
 .t-menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
-/* a row's shortcut, at its end edge, drawn as a key — as the shortcuts sheet does */
-.t-kbd {
-  margin-inline-start: auto; padding: 1px 6px; flex: 0 0 auto;
-  font: inherit; font-size: 11.5px; color: var(--muted); white-space: nowrap;
-  background: var(--chrome-2); border: 1px solid var(--line); border-radius: 5px;
-}
-.t-menu button:has(> .t-kbd) > span { margin-inline-end: 16px; }
 /* a bar button's chip only shows once it has folded into ⋯ */
 .t-mkbd { display: none; }
 .t-menu .t-mkbd { display: inline; }
@@ -360,7 +352,7 @@ html, body {
 .t-bar-tight .t-mark-word { display: none; }
 .t-bar-tight .t-doctitle { flex-basis: 160px; }
 .t-bar-fold .t-status { display: none; }
-.t-bar-fold .t-tools > .t-bar-sep { display: none; } /* it parts the figures, gone here */
+.t-bar-fold .t-tools > .bk-bar-sep { display: none; } /* it parts the figures, gone here */
 .t-bar-fold .t-doctitle { flex-basis: 110px; }
 .t-bar-fold .t-group + .t-group { margin-inline-start: 2px; padding-inline-start: 2px; }
 /* Everything the fold tier could move into ⋯ (main.ts FOLD_GROUPS) is gone

@@ -32,6 +32,7 @@
 
 import './collab.css';
 import '../../kernel/src/ui/sharebutton.css';
+import { toast as kernelToast } from '../../kernel/src/ui/toast.ts';
 import { ICONS } from './icons.ts';
 import { inviteCopy, readerCopy } from './share.ts';
 import { serializeAuto, writeUpdatedFileAs } from '../../kernel/src/save.ts';
@@ -56,18 +57,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string): HTMLEl
   return h(tag as string, cls ? { className: cls } : {}) as unknown as HTMLElementTagNameMap[K];
 }
 
-let toastEl: HTMLElement | null = null;
-let toastT: number | undefined;
-function toast(msg: string) {
-  if (!toastEl) {
-    toastEl = el('div', 'tc-toast');
-    document.body.appendChild(toastEl);
-  }
-  toastEl.textContent = msg;
-  toastEl.classList.add('on');
-  clearTimeout(toastT);
-  toastT = setTimeout(() => toastEl!.classList.remove('on'), 2400) as unknown as number;
-}
+// a short message — the suite's toast (kernel/src/ui/toast.ts)
+function toast(msg: string): void { kernelToast(msg); }
 
 function noticeText(n: SyncNotice): string {
   switch (n.code) {

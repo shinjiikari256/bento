@@ -18,7 +18,11 @@ import { i18nApi } from '../../kernel/src/i18n.ts';
 import { openAbout, type AboutKind } from './about.ts';
 import { onThemeChange, startTheme } from '../../kernel/src/theme.ts';
 import { openShortcuts } from '../../kernel/src/ui/sheet.ts';
+import { BENTO_MARK_SVG } from '../../kernel/src/ui/mark.ts';
 import '../../kernel/src/ui/savebutton.css';
+import '../../kernel/src/ui/bar.css';
+import { toast as kernelToast } from '../../kernel/src/ui/toast.ts';
+import '../../kernel/src/ui/toast.css';
 import { parseDoc, emptyDoc, uid, wordCount, type TypeDoc } from './model.ts';
 import { gateRestored } from './restoregate.ts';
 import { Store } from './store.ts';
@@ -106,12 +110,7 @@ const app = document.getElementById('app')!;
 app.innerHTML = `
   <header class="t-bar">
     <button id="mark" class="t-mark" type="button">
-      <svg class="t-mark-svg" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">
-        <rect width="32" height="32" rx="7" fill="#16273E"/>
-        <rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>
-        <rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>
-        <rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>
-      </svg><b class="t-mark-word">bento<span>/</span>type</b>
+      ${BENTO_MARK_SVG(20, 't-mark-svg')}<b class="t-mark-word">bento<span>/</span>type</b>
     </button>
     <button id="sidebar" class="t-btn" type="button"></button>
     <input id="doctitle" class="t-doctitle" spellcheck="false">
@@ -125,12 +124,12 @@ app.innerHTML = `
           <button id="review" type="button"></button>
         </div>
       </div>
-      <span class="t-bar-sep" aria-hidden="true"></span>
+      <span class="bk-bar-sep" aria-hidden="true"></span>
       <span class="t-status" id="status"></span>
     </div>
 
     <div class="t-right">
-      <span class="t-bar-sep" aria-hidden="true"></span>
+      <span class="bk-bar-sep" aria-hidden="true"></span>
       <div class="t-group">
         <button id="undo" class="t-btn" type="button"></button>
         <button id="redo" class="t-btn" type="button"></button>
@@ -335,7 +334,7 @@ byId('info').addEventListener('click', () => showAbout('doc'));
 function menuRowHtml(icon: string, text: string): string {
   const m = text.match(CHORD);
   const words = m ? text.replace(CHORD, '') : text;
-  return icon + `<span>${words}</span>` + (m ? `<kbd class="t-kbd">${m[1]}</kbd>` : '');
+  return icon + `<span>${words}</span>` + (m ? `<kbd class="bk-kbd">${m[1]}</kbd>` : '');
 }
 const CHORD = /\s*\(([^()]*[⌘⇧⌥⌃][^()]*)\)\s*$/;
 const keyRows = (titles: string[]) => titles.flatMap(ti => {
@@ -445,7 +444,7 @@ const toolButton = (spec: ReturnType<typeof tools>[number]) => {
   b.innerHTML = spec.icon + (spec.label
     ? `<span class="t-lbl">${labelText(spec.label)}</span>`
     : `<span class="t-mlbl">${titleText.replace(/\s*\([^)]*\)\s*$/, '')}</span>` +
-      (titleText.match(CHORD) ? `<kbd class="t-kbd t-mkbd">${titleText.match(CHORD)![1]}</kbd>` : ''));
+      (titleText.match(CHORD) ? `<kbd class="bk-kbd t-mkbd">${titleText.match(CHORD)![1]}</kbd>` : ''));
   b.title = titleText;
   // mousedown, not click: the caret must survive pressing a toolbar button
   b.addEventListener('mousedown', e => { e.preventDefault(); spec.run(featureCtx); });
@@ -969,21 +968,8 @@ async function paintSigs() {
   box.appendChild(foot);
 }
 
-// ─────────────────────────────────────────────────────────── a small toast
-let toastEl: HTMLElement | null = null, toastT: number | undefined;
-function toast(msg: string) {
-  if (!toastEl) {
-    toastEl = el('div');
-    toastEl.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);' +
-      'background:var(--ink);color:var(--chrome);padding:9px 15px;border-radius:8px;font-size:12.5px;' +
-      'box-shadow:0 10px 34px rgb(0 0 0 / .35);opacity:0;transition:opacity .18s;pointer-events:none;z-index:99';
-    document.body.appendChild(toastEl);
-  }
-  toastEl.textContent = msg;
-  toastEl.style.opacity = '1';
-  clearTimeout(toastT);
-  toastT = setTimeout(() => { toastEl!.style.opacity = '0'; }, 2200) as unknown as number;
-}
+// a short message — the suite's toast (kernel/src/ui/toast.ts)
+function toast(msg: string): void { kernelToast(msg); }
 
 // ─────────────────────────────────────────────────────────────── saving
 //
