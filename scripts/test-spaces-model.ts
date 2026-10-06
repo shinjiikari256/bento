@@ -1704,7 +1704,9 @@ function fsTable(f: string): string {
   ok(/drawerBelow:\s*820/.test(ed), 'below 820px the panel is a drawer, not a column')
 
   // the suite's undo/redo, not a circular arrow that reads as "reload"
-  ok(/M9 14 4 9l5-5/.test(ic) && /m15 14 5-5-5-5/.test(ic),
+  // (they live in the kernel's chrome set now, which this app's icons spread)
+  const kernelIcons = fsp.readFileSync(new URL('../kernel/src/ui/icons.ts', import.meta.url), 'utf8')
+  ok(/\.\.\.CHROME_ICONS/.test(ic) && /M9 14 4 9l5-5/.test(kernelIcons) && /m15 14 5-5-5-5/.test(kernelIcons),
     'undo/redo use the suite\'s glyphs')
 }
 

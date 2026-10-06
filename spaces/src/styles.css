@@ -1065,12 +1065,6 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 .sp-dditem-ico { display: inline-flex; color: var(--muted); flex: 0 0 auto; }
 .sp-dditem-ico svg { width: 16px; height: 16px; }
 .sp-dditem-lbl { flex: 1 1 auto; }
-/* a row's shortcut, at its end edge, drawn as a key */
-.sp-kbdchip {
-  flex: 0 0 auto; margin-inline-start: 16px; padding: 1px 6px;
-  font: inherit; font-size: 11.5px; color: var(--muted);
-  background: var(--chrome-2); border: 1px solid var(--line); border-radius: 5px;
-}
 .sp-caret .sp-btn { padding: 6px 5px; }
 .sp-panel-toggle { display: inline-flex; }
 
@@ -1308,8 +1302,6 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
    Space ▾, which is always there */
 .sp-bar-fold .sp-more { display: inline-flex; }
 .sp-dd-caret { font-size: 10px; opacity: .6; margin-inline-start: -2px; }
-/* the divider between this app's own controls (Space ▾) and the suite's */
-.sp-bar-sep { align-self: center; width: 1px; height: 20px; margin-inline: 4px; background: var(--line); flex: 0 0 auto; }
 
 /* The tier starts at the DRAWER breakpoint (820px), not at 720. It was 720, and
    measured at 768 — an iPad in portrait — the bar still laid out 795px wide: the

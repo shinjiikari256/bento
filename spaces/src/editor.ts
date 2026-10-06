@@ -46,9 +46,11 @@ import { disconnectOnline, joinFromDoc, startSharing } from '../../kernel/src/sy
 import * as shareModule from './share.ts'
 import { ICONS, type IconName } from './icons'
 import { openShortcuts } from '../../kernel/src/ui/sheet.ts'
+import { BENTO_MARK_SVG } from '../../kernel/src/ui/mark.ts'
 import { toast } from '../../kernel/src/ui/toast.ts'
 import '../../kernel/src/ui/toast.css'
 import '../../kernel/src/ui/savebutton.css'
+import '../../kernel/src/ui/bar.css'
 import { PropsPanel } from './props'
 import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import {
@@ -243,12 +245,7 @@ export class Editor {
     const mark = el('button', 'sp-mark')
     ;(mark as HTMLButtonElement).type = 'button'
     mark.innerHTML =
-      '<svg class="sp-mark-svg" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">' +
-      '<rect width="32" height="32" rx="7" fill="#16273E"/>' +
-      '<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>' +
-      '<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>' +
-      '<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>' +
-      '</svg><b class="sp-mark-word">bento<span>/</span>spaces</b>'
+      BENTO_MARK_SVG(20, 'sp-mark-svg') + '<b class="sp-mark-word">bento<span>/</span>spaces</b>'
     mark.title = t('About bento/spaces — version, licenses')
     mark.addEventListener('click', () => this.openAbout('app'))
 
@@ -383,7 +380,7 @@ export class Editor {
     })
     spaceD.classList.add('sp-space-dd')
     spaceD.querySelector('button')?.append(el('span', 'sp-dd-caret', '▾'))
-    const barSep = el('span', 'sp-bar-sep')
+    const barSep = el('span', 'bk-bar-sep')
 
     // ⋯ — only where the bar has FOLDED: what it had to give up, one tap away.
     const more = this.dropdown('more', '', t('More'), (menu, close) => {
@@ -680,7 +677,7 @@ export class Editor {
       className: 'sp-dditem' + (state.off ? ' sp-off' : '') + (state.selected ? ' sp-sel' : ''),
       innerHTML: `<span class="sp-dditem-ico">${ICONS[icon]}</span>` +
         `<span class="sp-dditem-lbl">${escapeHtml(label)}</span>` +
-        (chord ? `<kbd class="sp-kbdchip">${escapeHtml(hint)}</kbd>` : ''),
+        (chord ? `<kbd class="bk-kbd">${escapeHtml(hint)}</kbd>` : ''),
       onclick: (e) => { e.stopPropagation(); onClick() },
     })
     if (hint && !chord) b.title = hint
