@@ -139,6 +139,26 @@ because of this adoption: the retrofit itself used to add
 `.ed-sec-toggle` to every header it processed, separately from the
 always-present `.ed-section` — dropped by mistake in the first draft of
 the primitive, caught before any app had adopted it.
+
+### Adopted in `dash`
+
+The local `applyAccordion(hostEl)` function becomes a thin wrapper too
+(the SAME name, same one-argument call shape — both call sites unchanged).
+`section()` and `reveal()`'s own lookup switch from `.dp-section` to
+`.bka-section`; the dead `.dp-section`/`.dp-sec-toggle`/`.dp-section-body`
+rules drop from `panels.css` — byte-identical to slides' own already
+(that file's own comment said so: "18 above, 8 below — slides' `.ed-section`
+exactly"), so nothing of substance is lost, only the second copy.
+`staticClass: 'dp-static'` carries over even though nothing currently
+uses it — dead in dash today, kept because the option costs nothing and
+documents the intent dash's own header comment already stated.
+
+`scripts/test-dash-panelrhythm.ts`'s exact 18px/8px pin on `.dp-section`
+is removed outright rather than updated — dash no longer declares that
+rule at all, so there is nothing of DASH's left to pin; the number lives
+in `accordion.css` now. Its `KIT_PARTS` allowlist and margin-exemption
+list both drop their now-nonexistent `dp-section`/`dp-sec-toggle` entries.
+
 ## 2026-10-04 — Accordion sections are CARDS, not flat headers on white
 
 **Correction to the entry above.** The first pass of `accordion.css`

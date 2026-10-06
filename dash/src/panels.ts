@@ -38,6 +38,8 @@ import '../../kernel/src/ui/field.css'
 import { fieldize } from '../../kernel/src/ui/field.ts'
 import { openCtxMenuAtRect, type CtxItem } from '../../kernel/src/ui/ctxmenu.ts'
 import '../../kernel/src/ui/ctxmenu.css'
+import { applyAccordion as kernelAccordion } from '../../kernel/src/ui/accordion.ts'
+import '../../kernel/src/ui/accordion.css'
 import { lsJson, lsSet } from '../../kernel/src/storage.ts'
 import { TYPE_LABEL } from './format.ts'
 import { buildCellProps, type CellRange, type PanelKit } from './cellprops.ts'
@@ -774,41 +776,20 @@ export function mountPanels(host: PanelsHost): Panels {
   // --- the accordion --------------------------------------------------------
 
   /**
-   * Retrofit the flat panel into an accordion: every `.dp-section` header
-   * gathers the siblings that follow it into a collapsible body, and the open
-   * state is remembered by section TITLE. Copied from slides' `applyAccordion`
-   * including that detail — keying by title (not by index) is what lets a
-   * section keep its state when the panel above it changes shape.
-   *
-   * `.dp-static` opts a header out: the left panel's "Sheets" label is a
-   * heading, not a drawer.
+   * Retrofit the flat panel into an accordion: every `.bka-section` header
+   * gathers the siblings that follow it into a collapsible body. kernel's
+   * accordion.ts owns the walk now (slides wrote the identical thing
+   * independently; this was "Copied from slides' applyAccordion including
+   * that detail" per this function's own former comment) — this is the
+   * thin call wiring it to this panel's storage key and `.dp-static` opt-out
+   * (the left panel's "Sheets" label is a heading, not a drawer).
    */
   function applyAccordion(hostEl: HTMLElement): void {
-    const open = lsJson<Record<string, boolean>>(LS_SECTIONS, {})
-    for (const h of [...hostEl.querySelectorAll<HTMLElement>('.dp-section:not(.dp-static)')]) {
-      const key = h.textContent ?? ''
-      const bodyEl = document.createElement('div')  // `h` here is the loop's local element, shadowing the imported h()
-      bodyEl.className = 'dp-section-body'
-      let n: ChildNode | null = h.nextSibling
-      while (n && !(n instanceof HTMLElement && n.classList.contains('dp-section'))) {
-        const next: ChildNode | null = n.nextSibling
-        bodyEl.appendChild(n)
-        n = next
-      }
-      h.after(bodyEl)
-      const isOpen = open[key] ?? !CLOSED_BY_DEFAULT.has(key)
-      h.classList.add('dp-sec-toggle')
-      if (!isOpen) {
-        h.classList.add('closed')
-        bodyEl.style.display = 'none'
-      }
-      h.addEventListener('click', () => {
-        const nowClosed = h.classList.toggle('closed')
-        bodyEl.style.display = nowClosed ? 'none' : ''
-        open[key] = !nowClosed
-        lsSet(LS_SECTIONS, JSON.stringify(open))
-      })
-    }
+    kernelAccordion(hostEl, {
+      headerClass: 'bka-section', bodyClass: 'bka-body', closedClass: 'bka-closed',
+      toggleClass: 'bka-toggle', groupClass: 'bka-group', storageKey: LS_SECTIONS,
+      staticClass: 'dp-static', closedByDefault: CLOSED_BY_DEFAULT,
+    })
   }
 
   // --- keeping up with the app ----------------------------------------------
@@ -905,7 +886,7 @@ export function mountPanels(host: PanelsHost): Panels {
     lsSet(LS_SECTIONS, JSON.stringify(open))
     if (right.classList.contains('dp-shut')) toggle('right')
     render(true)
-    for (const h of right.querySelectorAll<HTMLElement>('.dp-section')) {
+    for (const h of right.querySelectorAll<HTMLElement>('.bka-section')) {
       if (h.textContent === title) { h.scrollIntoView({ block: 'nearest' }); return }
     }
   }
@@ -922,7 +903,7 @@ function section(hostEl: HTMLElement, title: string): void {
   // A plain createElement here, deliberately: the local `h` shadows the
   // imported h() for the rest of this function's scope.
   const h = document.createElement('h3')
-  h.className = 'dp-section'
+  h.className = 'bka-section'
   h.textContent = title
   hostEl.appendChild(h)
 }

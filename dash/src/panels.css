@@ -173,13 +173,20 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
-  background: var(--surface);
+  /* a dimmer backdrop than the accordion cards themselves (kernel's
+     .bka-group) — a white card on a white panel has nothing to sit
+     against. */
+  background: var(--chrome);
   padding: 12px;
   transition: width 0.18s ease, padding 0.18s ease;
 }
 .dp-right {
   border-left: 1px solid var(--line);
-  padding: 14px;
+  /* 8px inline, not 14: the accordion cards inside carry their own wider
+     inline-start padding for the header chevron (kernel accordion.css), and
+     at a 14px gutter that left a 250px panel's label column too narrow for
+     "Selection" on one line. */
+  padding: 14px 8px;
 }
 
 .dp-panel.dp-shut {
@@ -239,62 +246,11 @@ body.dp-resizing { cursor: col-resize; user-select: none; }
 }
 
 /* ————— sections ————— */
-
-.dp-section {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--muted);
-  /* 18 above, 8 below — slides' `.ed-section` exactly — and the 18 is the WHOLE
-     gap, not a gap plus whatever the last thing in the section above happened
-     to carry. A row leaves 8px under itself, a note 8px, a block button 8px, so
-     the distance between two sections used to be 22, 24 or 26px depending on
-     which of those the section above ended with. The `:last-child` rule below
-     zeroes the trailing margin so one number decides it. */
-  margin: 18px 0 8px;
-}
-.dp-section:first-child { margin-top: 2px; }
-.dp-section-body > :last-child { margin-bottom: 0; }
-
-/* ————— THE HEADER STARTS WHERE ITS ROWS START —————
-   The disclosure triangle needs 14px of room and it used to TAKE it from the
-   text: MEASURED, every section title began at the panel's content edge + 14px
-   while every label under it began at + 0. Seven headers, each one the only
-   thing in its part of the panel not on the label column, which is what
-   "section headers have no consistent relationship to the rows under them"
-   looks like from a screenshot.
-
-   So the padding is cancelled by an equal negative margin. The TEXT lands on
-   the label column; the triangle hangs back into the panel's own 14px of
-   padding, which is exactly the room it needs and room nothing else is using.
-   Logical properties throughout, because the chrome mirrors for an RTL viewer
-   (i18n applyDirection) and a hard `left` would put the triangle on top of the
-   first word. */
-.dp-sec-toggle {
-  cursor: pointer;
-  user-select: none;
-  position: relative;
-  padding-inline-start: 14px;
-  margin-inline-start: -14px;
-}
-.dp-sec-toggle::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: 1px;
-  top: 50%;
-  width: 0;
-  height: 0;
-  border-left: 5px solid currentColor;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transform: translateY(-50%) rotate(90deg);
-  transition: transform 0.12s ease;
-  opacity: 0.55;
-}
-.dp-sec-toggle.closed::before { transform: translateY(-50%); }
-.dp-sec-toggle:hover { color: var(--ink); }
-.dp-section-body { display: flex; flex-direction: column; }
+/* Header typography, spacing and the disclosure chevron moved to
+   kernel/src/ui/accordion.css — it was slides' `.ed-section`/
+   `.ed-sec-toggle` byte-for-byte already (see that sheet's own header
+   comment for the "header starts where its rows start" padding trick,
+   carried over unchanged). */
 
 /* ————— rows ————— */
 

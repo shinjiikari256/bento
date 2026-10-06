@@ -138,11 +138,10 @@ const TOKENS: Record<string, string> = {
 }
 
 {
-  // The section header and the panel padding are slides' numbers too. They are
-  // not custom properties (nothing else reads them), so they are pinned here.
-  const section = allRules.find((r) => r.sel === '.dp-section')
-  ok(/margin:\s*18px 0 8px/.test(section?.body ?? ''),
-    'a section header keeps 18px above and 8px below — slides\' .ed-section exactly')
+  // The section header rhythm (18px above, 8px below) moved to
+  // kernel/src/ui/accordion.css along with the header itself — dash no
+  // longer declares it, so there is nothing of dash's to pin here. The
+  // panel padding is still dash's own, and still slides' number.
   const panel = allRules.find((r) => r.sel === '.dp-panel')
   ok(/padding:\s*14px/.test(allRules.find((r) => r.sel === '.dp-right')?.body ?? ''),
     'the panel pads at 14px — slides\' .ed-props exactly')
@@ -179,13 +178,9 @@ console.log('\nno rule in the panel spells a shared measurement a second time')
 const RAW_OK: Array<{ re: RegExp; props: readonly string[] | '*'; why: string }> = [
   { re: /^\.dp-toggle/, props: ['height', 'border-radius'],
     why: 'the resizer chevron is a 16×44 drawer pull, not a row control' },
-  { re: /^\.dp-sec-toggle::before/, props: '*',
-    why: 'the disclosure triangle is drawn out of borders' },
   { re: /^\.dp-centre/, props: ['height'], why: 'the centre column is layout, not a control' },
   { re: /^\.dv-|^\.dg-cell/, props: '*',
     why: 'the in-cell dropdown, its menu and its marks are grid furniture, not panel rows' },
-  { re: /^\.dp-section$/, props: ['margin-bottom'],
-    why: 'the 18/8 section is pinned exactly, by name, in §1' },
 ]
 
 /**
@@ -276,7 +271,7 @@ const host = (): El => dom.doc.createElement('div') as unknown as El
  * emits anything else has stepped outside the grid, and no change to the KIT
  * will ever reach it.
  */
-const KIT_PARTS = ['dp-section', 'dp-row', 'dp-note', 'dp-btn', 'dp-cf-list', 'dp-empty']
+const KIT_PARTS = ['bka-section', 'dp-row', 'dp-note', 'dp-btn', 'dp-cf-list', 'dp-empty']
 
 function auditSection(name: string, build: (h: El) => void): void {
   const h = host()
