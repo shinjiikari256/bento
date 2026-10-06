@@ -46,6 +46,8 @@ import { disconnectOnline, joinFromDoc, startSharing } from '../../kernel/src/sy
 import * as shareModule from './share.ts'
 import { ICONS, type IconName } from './icons'
 import { openShortcuts } from '../../kernel/src/ui/sheet.ts'
+import { createMenu, menuItem as kernelMenuItem, type Menu } from '../../kernel/src/ui/menu.ts'
+import '../../kernel/src/ui/menu.css'
 import { BENTO_MARK_SVG } from '../../kernel/src/ui/mark.ts'
 import { toast } from '../../kernel/src/ui/toast.ts'
 import '../../kernel/src/ui/toast.css'
@@ -287,7 +289,7 @@ export class Editor {
           else this.focusBlock(fresh.id)
         }))
       }
-    })
+    }).root
 
     this.undoB = iconBtn('undo', t('Undo (⌘Z)'), () => { this.store.undo(); this.repaint() })
     this.redoB = iconBtn('redo', t('Redo (⇧⌘Z)'), () => { this.store.redo(); this.repaint() })
@@ -377,9 +379,7 @@ export class Editor {
       for (const a of menuActions) {
         menu.append(this.menuItem(a.icon, a.label, a.hint, () => { close(); a.run() }))
       }
-    })
-    spaceD.classList.add('sp-space-dd')
-    spaceD.querySelector('button')?.append(el('span', 'sp-dd-caret', '▾'))
+    }, { caret: true, className: 'sp-space-dd' }).root
     const barSep = el('span', 'bk-bar-sep')
 
     // ⋯ — only where the bar has FOLDED: what it had to give up, one tap away.
@@ -423,8 +423,7 @@ export class Editor {
         menu.append(this.menuItem('info', t('About this space'), '', () => { close(); this.openAbout('doc') }))
         menu.append(this.menuItem('gear', t('Settings'), '', () => { close(); this.openAbout('settings') }))
       }
-    })
-    more.classList.add('sp-more', 'sp-dd-end')
+    }, { alignEnd: true, className: 'sp-more' }).root
 
     // The live control sits BEFORE ⋯ and is replaced in place once the session
     // exists (connectSync). A placeholder rather than a conditional build, so
@@ -438,8 +437,11 @@ export class Editor {
     const saveLabel = h('span.sp-savelabel', { textContent: t('Save') })
     saveB.append(saveLabel)
     this.saveBtn = saveB
-    const saveMore = this.dropdown('chevronDown', '', t('Other ways to save'), (menu, close) => saveItems(menu, close))
-    saveMore.classList.add('sp-caret', 'sp-dd-end')
+    const saveMoreM = this.dropdown('chevronDown', '', t('Other ways to save'), (menu, close) => saveItems(menu, close),
+      { alignEnd: true, className: 'sp-caret', triggerClass: 'bksv-caret' })
+    // the same ▾ every app's Save carries, not this app's chevron icon
+    saveMoreM.trigger.innerHTML = '<span aria-hidden="true">▾</span>'
+    const saveMore = saveMoreM.root
 
     // LEFT = the document (mark · title · save state · history), RIGHT = doing
     // things with it. Same grouping as slides, so the two apps do not teach two
@@ -449,12 +451,6 @@ export class Editor {
     // the suite's Save (kernel/src/ui/savebutton.css): grey with nothing to
     // save, ink-filled when there is — the colour IS the unsaved signal
     const saveGroup = el('div', 'sp-split bksv')
-    const caretB = saveMore.querySelector('button')
-    if (caretB) {
-      caretB.classList.add('bksv-caret')
-      // the same ▾ every app's Save carries, not this app's chevron icon
-      caretB.innerHTML = '<span aria-hidden="true">▾</span>'
-    }
     saveGroup.append(saveB, saveMore)
     this.saveGroup = saveGroup
     const inspB = iconBtn('panelRight', t('Properties — show or hide this block’s settings'),
@@ -618,35 +614,20 @@ export class Editor {
   }
 
   /** A topbar dropdown: button + menu, closed by choosing, Esc, or clicking away. */
+  /**
+   * A top-bar dropdown — the kernel's menu (kernel/src/ui/menu.ts): one open at
+   * a time, Escape, an outside press, arrow keys, one-line rows. `fill` rebuilds
+   * the rows on every open, since a row can depend on state (folded or not).
+   */
   private dropdown(
     icon: IconName, label: string, tip: string,
     fill: (menu: HTMLElement, close: () => void) => void,
-  ): HTMLElement {
-    const wrap = el('div', 'sp-dd')
-    const b = h('button.sp-btn[type=button][aria-haspopup=menu]', {
-      innerHTML: ICONS[icon],
-      title: tip,
-      ariaLabel: tip,
+    opts: { caret?: boolean; alignEnd?: boolean; className?: string; triggerClass?: string } = {},
+  ): Menu {
+    return createMenu(label, tip, {
+      icon: ICONS[icon], fill, caret: opts.caret, alignEnd: opts.alignEnd,
+      className: opts.className, triggerClass: 'sp-btn' + (opts.triggerClass ? ' ' + opts.triggerClass : ''),
     })
-    // The word is a SPAN, not a bare text node, so a narrow bar can drop it and
-    // keep the icon — slides' rule, and the only way to collapse a labelled
-    // control without also losing it.
-    if (label) b.append(el('span', 'sp-btnlabel', label))
-    const menu = el('div', 'sp-ddmenu')
-    menu.setAttribute('role', 'menu')
-    const close = () => { wrap.classList.remove('sp-open'); b.setAttribute('aria-expanded', 'false') }
-    b.addEventListener('click', (e) => {
-      e.stopPropagation()
-      const open = !wrap.classList.contains('sp-open')
-      for (const other of document.querySelectorAll('.sp-dd.sp-open')) other.classList.remove('sp-open')
-      wrap.classList.toggle('sp-open', open)
-      b.setAttribute('aria-expanded', String(open))
-      if (open) { menu.innerHTML = ''; fill(menu, close) }
-    })
-    document.addEventListener('click', close)
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close() })
-    wrap.append(b, menu)
-    return wrap
   }
 
   /**
@@ -667,23 +648,13 @@ export class Editor {
     onClick: () => void,
     state: { off?: boolean; selected?: boolean } = {},
   ): HTMLElement {
-    // One line per row, as in every Bento app's menus: the icon and the words.
-    // A hint that is a SHORTCUT ("⌘⌥N", "?") sits at the row's end as a key
-    // chip; a hint that is a sentence becomes the row's tooltip — a second
-    // line of small print under every item is what made these menus twice
-    // the height of the suite's others.
+    // the kernel's row: a hint that is a SHORTCUT ("⌘⌥N", "?") is a key at the
+    // end edge, a sentence is the tooltip — one line per row in every app
     const chord = !!hint && (/[⌘⇧⌥⌃]/.test(hint) || hint.length <= 2)
-    const b = h('button[role=menuitem][type=button]', {
-      className: 'sp-dditem' + (state.off ? ' sp-off' : '') + (state.selected ? ' sp-sel' : ''),
-      innerHTML: `<span class="sp-dditem-ico">${ICONS[icon]}</span>` +
-        `<span class="sp-dditem-lbl">${escapeHtml(label)}</span>` +
-        (chord ? `<kbd class="bk-kbd">${escapeHtml(hint)}</kbd>` : ''),
-      onclick: (e) => { e.stopPropagation(); onClick() },
+    return kernelMenuItem(label, onClick, {
+      icon: ICONS[icon], shortcut: chord ? hint : undefined, tip: chord ? undefined : (hint || undefined),
+      off: state.off, selected: state.selected, keepOpen: true,
     })
-    if (hint && !chord) b.title = hint
-    if (state.off) b.setAttribute('aria-disabled', 'true')
-    if (state.selected) b.setAttribute('aria-current', 'true')
-    return b
   }
 
   /** `force` means "should it end up OPEN" — undefined just flips it, same

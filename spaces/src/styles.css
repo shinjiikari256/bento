@@ -1045,16 +1045,8 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
   p, li { orphans: 2; widows: 2; }
 }
 
-/* ————— topbar dropdowns ————— */
-.sp-dd { position: relative; }
-.sp-ddmenu {
-  display: none; position: absolute; top: calc(100% + 5px); inset-inline-start: 0;
-  min-width: 200px; flex-direction: column; z-index: 60;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  box-shadow: 0 12px 34px rgb(var(--shade) / .2); padding: 5px;
-}
-.sp-dd.sp-open .sp-ddmenu { display: flex; }
-.sp-dd:last-child .sp-ddmenu { inset-inline-start: auto; inset-inline-end: 0; }
+/* ————— topbar dropdowns: the kernel's menu (kernel/src/ui/menu.css) —————
+   The rows below are the in-content pickers' (view, sort, code language, tone). */
 .sp-dditem {
   display: flex; align-items: center; gap: 9px; width: 100%;
   text-align: start; font: inherit; font-size: 13px; color: var(--ink-2);
@@ -1065,7 +1057,6 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 .sp-dditem-ico { display: inline-flex; color: var(--muted); flex: 0 0 auto; }
 .sp-dditem-ico svg { width: 16px; height: 16px; }
 .sp-dditem-lbl { flex: 1 1 auto; }
-.sp-caret .sp-btn { padding: 6px 5px; }
 .sp-panel-toggle { display: inline-flex; }
 
 /* ————— page icon ————— */
@@ -1301,7 +1292,6 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 /* ⋯ exists only where the bar has folded; the app's own commands live in
    Space ▾, which is always there */
 .sp-bar-fold .sp-more { display: inline-flex; }
-.sp-dd-caret { font-size: 10px; opacity: .6; margin-inline-start: -2px; }
 
 /* The tier starts at the DRAWER breakpoint (820px), not at 720. It was 720, and
    measured at 768 — an iPad in portrait — the bar still laid out 795px wide: the
@@ -1354,11 +1344,6 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
   .sp-dditem { padding-block: 11px; }
 }
 
-/* A menu opened from the right end of the bar must open INWARD. Anchoring
-   every dropdown to its start edge put the ⋯ and Save menus half off-screen at
-   375px — the items were there, just unreadable. */
-.sp-dd-end .sp-ddmenu { inset-inline-start: auto; inset-inline-end: 0; }
-.sp-ddmenu { max-width: calc(100vw - 20px); }
 
 /* ————— find & replace on a small screen —————
    Measured at a 575px viewport: the bar laid out 644px wide and started at
@@ -1387,7 +1372,7 @@ button.sp-callout-chip:hover { text-decoration: underline; text-underline-offset
 
 /* Save is the suite's shared split button (kernel/src/ui/savebutton.css):
    grey with nothing to save, ink-filled when there is. */
-.sp-split .sp-dd { display: flex; align-items: stretch; }
+.sp-split .bkm { display: flex; align-items: stretch; }
 
 /* ————— phone topbar: the second tier —————
    The first tier folds the six secondary actions into ⋯. That was not enough:

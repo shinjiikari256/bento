@@ -914,11 +914,13 @@ for (const [label, input, err] of [
   const barRule = css.slice(css.indexOf('.sp-bar {'), css.indexOf('}', css.indexOf('.sp-bar {')))
   ok(!/overflow-x:\s*(auto|scroll)/.test(barRule), 'the topbar does not scroll horizontally')
 
-  // a menu opened from the right end must open inward
-  ok(/\.sp-dd-end \.sp-ddmenu \{ inset-inline-start: auto; inset-inline-end: 0/.test(css),
+  // a menu opened from the right end must open inward — the kernel menu's
+  // alignEnd (kernel/src/ui/menu.css .bkm-end), asked for by both right-end menus
+  const kcss = nodeFs.readFileSync(new URL('../kernel/src/ui/menu.css', import.meta.url), 'utf8')
+  ok(/\.bkm\.bkm-end > \.bkm-menu \{\s*inset-inline-start: auto;\s*inset-inline-end: 0/.test(kcss),
     'right-end dropdowns open inward')
-  ok(/more\.classList\.add\('sp-more', 'sp-dd-end'\)/.test(ed) &&
-     /saveMore\.classList\.add\('sp-caret', 'sp-dd-end'\)/.test(ed),
+  ok(/\{ alignEnd: true, className: 'sp-more' \}/.test(ed) &&
+     /\{ alignEnd: true, className: 'sp-caret', triggerClass: 'bksv-caret' \}/.test(ed),
     '…and both right-end menus say so')
 }
 
