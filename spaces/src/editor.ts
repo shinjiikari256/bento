@@ -35,22 +35,27 @@ import { extractSpace, planGraft } from './portable'
 import { countOutsideTags, replaceOutsideTags } from './findreplace'
 import { asksForAnswer, evaluate, format, pageContext } from './calc'
 import { t, locale } from './i18n'
-import { openAbout } from './about'
+import { openAbout, type AboutKind } from './about'
 import { openGraphView } from './graph.ts'
 import {
   todayISO, stepDay, journalLabel, journalShort, isJournal, planJournal,
 } from './journal'
 import { canWriteInPlace, parseEnvelope } from '../../kernel/src/save.ts'
 import { offlineEnabled } from '../../kernel/src/net.ts'
-import { startSharing } from '../../kernel/src/sync/online.ts'
+import { disconnectOnline, joinFromDoc, startSharing } from '../../kernel/src/sync/online.ts'
 import * as shareModule from './share.ts'
 import { ICONS, type IconName } from './icons'
+import { openShortcuts } from '../../kernel/src/ui/sheet.ts'
+import { toast } from '../../kernel/src/ui/toast.ts'
+import '../../kernel/src/ui/toast.css'
+import '../../kernel/src/ui/savebutton.css'
 import { PropsPanel } from './props'
 import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import {
   internAsset, prepareImage, humanBytes, IMAGE_EMBED_BUDGET, MEDIA_EMBED_BUDGET, blobToDataUri,
 } from './assets'
 import { h } from '../../kernel/src/dom.ts'
+import { fitTopbar, type TopbarFit } from '../../kernel/src/ui/topbar.ts'
 import '../../kernel/src/ui/field.css'
 import { fieldize } from '../../kernel/src/ui/field.ts'
 import { createPanel, type Panel } from '../../kernel/src/ui/panel.ts'
@@ -112,7 +117,6 @@ export class Editor {
   private root: HTMLElement
   private main!: HTMLElement
   private sidebar!: HTMLElement
-  private statusEl!: HTMLElement
   private overlay: HTMLElement | null = null
   /** undo whatever the open popover attached to the window */
   private overlayReflow: (() => void) | null = null
@@ -132,7 +136,6 @@ export class Editor {
   private undoB: HTMLButtonElement | null = null
   private readB: HTMLButtonElement | null = null
   private redoB!: HTMLButtonElement
-  private dirtyDot!: HTMLElement
   private sidePanel!: Panel
   /** a single shared backdrop for whichever panel is open as a phone drawer —
    *  see syncDrawerScrim */
@@ -219,7 +222,8 @@ export class Editor {
     })
     this.store.on('tree', () => this.paintTree())
     this.store.on('page', () => { this.paintPage(); this.paintTree() })
-    this.store.on('doc', () => { this.status(t('Edited')); this.syncHistoryButtons(); this.syncDirty() })
+    // no "Edited" message: Save's colour already says there is something to save
+    this.store.on('doc', () => { this.syncHistoryButtons(); this.syncDirty() })
     // A REMOTE change moves the unsaved dot without claiming you made it —
     // 'doc' paints "Edited", 'dirty' paints only the dot. See store.setDirty.
     this.store.on('dirty', () => this.syncDirty())
@@ -233,10 +237,9 @@ export class Editor {
     this.root.className = 'sp-app'
 
     const bar = el('header', 'sp-bar')
-    // THE SUITE'S MARK, and the way into About — the same control slides has.
-    // A wordmark that is only decoration wastes the one place everyone looks
-    // for "what is this file, and what version": there was no route to About
-    // except a ⋯ menu nobody opens.
+    // THE SUITE'S MARK, and the way into the APP's card — which app, which
+    // version, where from — the same control slides and dash have. The space's
+    // own About is the ⓘ button; the reader's preferences are Settings.
     const mark = el('button', 'sp-mark')
     ;(mark as HTMLButtonElement).type = 'button'
     mark.innerHTML =
@@ -246,8 +249,8 @@ export class Editor {
       '<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>' +
       '<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>' +
       '</svg><b class="sp-mark-word">bento<span>/</span>spaces</b>'
-    mark.title = t('About this space')
-    mark.addEventListener('click', () => this.openAbout())
+    mark.title = t('About bento/spaces — version, licenses')
+    mark.addEventListener('click', () => this.openAbout('app'))
 
     // Pages panel toggle — on every width, like slides' Slides/Format toggles.
     // A sidebar you cannot put away is a sidebar you resent on a laptop.
@@ -260,7 +263,6 @@ export class Editor {
       this.store.runEdit('__title', () => { this.store.doc.title = title.value })
       document.title = `${title.value} — bento/spaces`
     })
-    this.statusEl = el('span', 'sp-status')
 
     // insert — the block menu, reachable without knowing "/" exists
     const insert = this.dropdown('plus', t('Insert'), t('Insert a block — text, headings, lists, code, images'), (menu, close) => {
@@ -324,7 +326,7 @@ export class Editor {
     const barActions: BarAction[] = [
       { icon: 'eye', label: t('Reading view'), hint: t('The pages without the editing tools'),
         run: () => this.toggleReading(),
-        keep: (b) => { this.readB = b } },
+        keep: (b) => { this.readB = b; b.setAttribute('aria-pressed', 'false') } },
     ]
 
     // Reached once a session or less. A button in the bar for something you do
@@ -337,17 +339,11 @@ export class Editor {
       { icon: 'board', label: t('New issue'), hint: '⌘⇧I', run: () => this.newIssue() },
       { icon: 'tag', label: t('Make this page an issue'), hint: t('Adds status, priority, assignee, estimate'),
         run: () => this.makeIssue() },
-      { icon: 'markdown', label: t('Import Markdown…'), hint: t('A folder of notes, or another space'),
-        run: () => this.openImport() },
       { icon: 'graph', label: t('Graph'), hint: t('Every page, and what links to what'),
         run: () => this.openGraph() },
-      { icon: 'print', label: t('Print or save as PDF'), hint: '⌘P', run: () => this.openPrint() },
-      { icon: 'info', label: t('About this space'), hint: t('Version, language, password, exports'),
-        run: () => this.openAbout() },
-      // A help screen only reachable by pressing the key it documents is a
-      // help screen for people who did not need it.
-      { icon: 'help', label: t('Keyboard shortcuts'), hint: '?', run: () => this.openHelp() },
     ]
+    // Print and import ride in Save's menu with the other file operations (the
+    // suite's bar layout); help is in Settings, and the ? key works anywhere.
 
     const inlineSecondary = barActions.map((a) => {
       const b = iconBtn(a.icon, a.hint && a.hint.length < 12 ? `${a.label} (${a.hint})` : a.label, a.run)
@@ -356,6 +352,40 @@ export class Editor {
       return b
     })
 
+    // Save ▾ — writing this space somewhere else, printing it, and bringing
+    // notes in: the file operations, in one list. ⋯ carries the same list once
+    // the bar has folded and the caret is gone.
+    const saveItems = (menu: HTMLElement, close: () => void) => {
+      menu.append(this.menuItem('copy', t('Save a copy…'), t('A second file — the original is left alone'), () => {
+        close(); void this.saveAs('copy')
+      }))
+      menu.append(this.menuItem('markdown', t('Export as Markdown…'), t('Every page, as one .md file'), () => {
+        close(); this.exportMarkdown()
+      }))
+      menu.append(this.menuItem('page', t('Export page as a space…'), t('One page and what is under it, as its own file'), () => {
+        close(); this.openExportSpace()
+      }))
+      menu.append(this.menuItem('print', t('Print or save as PDF'), '⌘P', () => { close(); this.openPrint() }))
+      menu.append(this.menuItem('markdown', t('Import Markdown…'), t('A folder of notes, or another space'), () => {
+        close(); this.openImport()
+      }))
+    }
+
+    // SPACE ▾ — this app's own commands (new page, the journal, issues, the
+    // graph), labelled so it says what it holds. It opens the right block,
+    // set off from the suite's shared controls by a divider: everything right
+    // of the divider is the same in every Bento app, everything left of it is
+    // this one's.
+    const spaceD = this.dropdown('page', t('Space'), t('Space — new pages, the journal, issues, the graph'), (menu, close) => {
+      for (const a of menuActions) {
+        menu.append(this.menuItem(a.icon, a.label, a.hint, () => { close(); a.run() }))
+      }
+    })
+    spaceD.classList.add('sp-space-dd')
+    spaceD.querySelector('button')?.append(el('span', 'sp-dd-caret', '▾'))
+    const barSep = el('span', 'sp-bar-sep')
+
+    // ⋯ — only where the bar has FOLDED: what it had to give up, one tap away.
     const more = this.dropdown('more', '', t('More'), (menu, close) => {
       // On a PHONE the ⋯ menu also carries the history pair and the other ways
       // to save. Measured at 390px with a coarse pointer: eleven bar controls
@@ -383,9 +413,6 @@ export class Editor {
           close(); this.store.redo(); this.repaint()
         }, { off: !this.store.canRedo }))
       }
-      for (const a of menuActions) {
-        menu.append(this.menuItem(a.icon, a.label, a.hint, () => { close(); a.run() }))
-      }
       // …and only THEN what the bar itself has had to give up. Listing these
       // unconditionally is what made ⋯ a duplicate of the visible row.
       if (this.isFolded()) {
@@ -394,15 +421,10 @@ export class Editor {
         }
       }
       if (this.isFolded()) {
-        menu.append(this.menuItem('copy', t('Save a copy…'), t('A second file — the original is left alone'), () => {
-          close(); void this.saveAs('copy')
-        }))
-        menu.append(this.menuItem('markdown', t('Export as Markdown…'), t('Every page, as one .md file'), () => {
-          close(); this.exportMarkdown()
-        }))
-        menu.append(this.menuItem('page', t('Export page as a space…'), t('One page and what is under it, as its own file'), () => {
-          close(); this.openExportSpace()
-        }))
+        saveItems(menu, close)
+        menu.append(this.menuItem('keyboard', t('Keyboard shortcuts'), '?', () => { close(); this.openHelp() }))
+        menu.append(this.menuItem('info', t('About this space'), '', () => { close(); this.openAbout('doc') }))
+        menu.append(this.menuItem('gear', t('Settings'), '', () => { close(); this.openAbout('settings') }))
       }
     })
     more.classList.add('sp-more', 'sp-dd-end')
@@ -415,27 +437,11 @@ export class Editor {
     // save is a split control, as in slides: the common action, and the
     // less-common ways of writing this document somewhere else
     const saveB = iconBtn('save', t('Save (⌘S)'), () => this.onSave?.())
-    saveB.classList.add('sp-primary')
+    saveB.classList.add('bksv-main')
     const saveLabel = h('span.sp-savelabel', { textContent: t('Save') })
     saveB.append(saveLabel)
-    // The unsaved dot lives ON Save, as in slides: the place you look to find
-    // out whether you need to press it is the button itself.
-    this.dirtyDot = el('span', 'sp-dirty')
-    this.dirtyDot.title = canWriteInPlace()
-      ? t('Unsaved changes — ⌘S rewrites this file')
-      : t('Unsaved changes — ⌘S downloads an updated copy')
-    saveB.append(this.dirtyDot)
-    const saveMore = this.dropdown('chevronDown', '', t('Other ways to save'), (menu, close) => {
-      menu.append(this.menuItem('copy', t('Save a copy…'), t('A second file — the original is left alone'), () => {
-        close(); void this.saveAs('copy')
-      }))
-      menu.append(this.menuItem('markdown', t('Export as Markdown…'), t('Every page, as one .md file'), () => {
-        close(); this.exportMarkdown()
-      }))
-      menu.append(this.menuItem('page', t('Export page as a space…'), t('One page and what is under it, as its own file'), () => {
-        close(); this.openExportSpace()
-      }))
-    })
+    this.saveBtn = saveB
+    const saveMore = this.dropdown('chevronDown', '', t('Other ways to save'), (menu, close) => saveItems(menu, close))
     saveMore.classList.add('sp-caret', 'sp-dd-end')
 
     // LEFT = the document (mark · title · save state · history), RIGHT = doing
@@ -443,47 +449,63 @@ export class Editor {
     // different toolbars.
     const history = el('div', 'sp-group sp-group-history')
     history.append(this.undoB, this.redoB)
-    const saveGroup = el('div', 'sp-split')
+    // the suite's Save (kernel/src/ui/savebutton.css): grey with nothing to
+    // save, ink-filled when there is — the colour IS the unsaved signal
+    const saveGroup = el('div', 'sp-split bksv')
+    const caretB = saveMore.querySelector('button')
+    if (caretB) {
+      caretB.classList.add('bksv-caret')
+      // the same ▾ every app's Save carries, not this app's chevron icon
+      caretB.innerHTML = '<span aria-hidden="true">▾</span>'
+    }
     saveGroup.append(saveB, saveMore)
+    this.saveGroup = saveGroup
     const inspB = iconBtn('panelRight', t('Properties — show or hide this block’s settings'),
       () => this.toggleInsp())
     inspB.classList.add('sp-insp-toggle')
 
+    // ABOUT is the space, SETTINGS is the reader (the suite's bar layout).
+    const aboutB = iconBtn('info', t('About this space'), () => this.openAbout('doc'))
+    aboutB.classList.add('sp-sec')
+    const keysB = iconBtn('keyboard', t('Keyboard shortcuts (?)'), () => this.openHelp())
+    keysB.classList.add('sp-sec')
+    const settingsB = iconBtn('gear', t('Settings — language, appearance and updates'), () => this.openAbout('settings'))
+    settingsB.classList.add('sp-sec', 'sp-settings')
+
+    // CENTRE = the app's own tools, left-aligned after the title.
+    const tools = el('div', 'sp-group sp-group-tools')
+    // Search and the reading-view eye close the centre block, at its end edge;
+    // Insert keeps its start
+    search.classList.add('sp-tools-end')
+    tools.append(insert, search, ...inlineSecondary)
+    // RIGHT = history first, then the properties panel, the live session,
+    // Save (its menu carries print and import), About, Settings, and ⋯.
     const right = el('div', 'sp-group sp-group-right')
-    right.append(insert, search, ...inlineSecondary, inspB, this.liveSlot, more, saveGroup)
+    // keyboard shortcuts are the bar's LAST icon, after ⋯ (every app alike)
+    right.append(spaceD, barSep, history, inspB, this.liveSlot, saveGroup, aboutB, settingsB, more, keysB)
 
-    // The status goes AFTER undo/redo, never before. It is transient text that
-    // grows from nothing to a whole sentence, and anything downstream of it in
-    // the flex flow gets shoved sideways every time it changes — measured at
-    // 36px on a plain edit and 246px entering reading view, which is more than
-    // a button's width, so undo lands where redo just was. Past the history
-    // group it grows into the slack the right group's margin-auto already
-    // holds, and nothing before it can move. Reported against slides as #300.
-    bar.append(pagesB, mark, title, history, this.statusEl, right)
+    // Messages are toasts (kernel/src/ui/toast.ts), not text in the bar: a
+    // status line that grew from nothing to a sentence shoved the controls
+    // around while it spoke (#300).
+    bar.append(mark, pagesB, title, tools, right)
 
-    // Drive the fit now, and again whenever the bar's size or its CONTENT
-    // changes. The ResizeObserver is the primary width signal — it fires for
-    // every viewport change, including a phone rotating, where matchMedia
-    // change events are unreliable under a driven viewport. The MutationObserver
-    // catches the constant-width case: the people count appearing when someone
-    // joins, the "Saved" tag flashing, the update chip arriving. Each of those
-    // clipped the end of the bar under the old breakpoints.
+    // kernel/src/ui/topbar.ts measures the bar and re-fits whenever its size
+    // or its CONTENT changes — the people count appearing when someone joins,
+    // the "Saved" tag flashing, the update chip arriving. Each of those
+    // clipped the end of the bar under the old 820/600 breakpoints.
     this.topbar = bar
-    this.barRO?.disconnect()
-    this.barRO = new ResizeObserver(() => this.fitTopbar())
-    this.barRO.observe(bar)
-    this.barMO?.disconnect()
-    this.barMO = new MutationObserver(() => this.fitTopbar())
-    this.barMO.observe(bar, {
-      childList: true, subtree: true, characterData: true,
-      // NOT 'class': fitTopbar's own tier flips are class changes on this very
-      // element, and observing them makes the fix for the loop (takeRecords)
-      // the only thing standing between here and a spin. Slides omits it for
-      // the same reason.
-      attributes: true, attributeFilter: ['style', 'hidden'],
+    this.barFit?.destroy()
+    this.barFit = fitTopbar(bar, {
+      tiers: ['sp-bar-compact', 'sp-bar-tight', 'sp-bar-fold'],
+      title,
+      titleMin: 110,
+      // Re-fitting starts by UNFOLDING, which would slam shut a menu somebody
+      // is reading — and the ⋯ menu's contents depend on the tier, so
+      // rebuilding it mid-read would change it under them.
+      hold: () => !!this.overlay,
     })
     // …and once the bar is actually in the document and has a width to measure
-    queueMicrotask(() => this.fitTopbar())
+    queueMicrotask(() => this.barFit?.refit())
 
     this.sidebar = el('nav', 'sp-side')
     this.main = el('main', 'sp-main')
@@ -581,10 +603,17 @@ export class Editor {
   }
 
   /** Undo/redo must LOOK unavailable when they are, or they read as broken. */
-  /** The dot on Save, and the only place the file's state is visible. */
+  /** Save's colour, and the only place the file's state is visible. */
   syncDirty(): void {
-    this.dirtyDot?.classList.toggle('sp-on', this.store.dirty)
+    const dirty = this.store.dirty
+    this.saveGroup?.classList.toggle('bksv-dirty', dirty)
+    // while it is filled, its tooltip says what pressing it will do
+    if (this.saveBtn) this.saveBtn.title = !dirty ? t('Save (⌘S)') : canWriteInPlace()
+      ? t('Unsaved changes — ⌘S rewrites this file')
+      : t('Unsaved changes — ⌘S downloads an updated copy')
   }
+  private saveGroup: HTMLElement | null = null
+  private saveBtn: HTMLElement | null = null
 
   private syncHistoryButtons(): void {
     if (this.undoB) this.undoB.disabled = !this.store.canUndo
@@ -641,13 +670,20 @@ export class Editor {
     onClick: () => void,
     state: { off?: boolean; selected?: boolean } = {},
   ): HTMLElement {
+    // One line per row, as in every Bento app's menus: the icon and the words.
+    // A hint that is a SHORTCUT ("⌘⌥N", "?") sits at the row's end as a key
+    // chip; a hint that is a sentence becomes the row's tooltip — a second
+    // line of small print under every item is what made these menus twice
+    // the height of the suite's others.
+    const chord = !!hint && (/[⌘⇧⌥⌃]/.test(hint) || hint.length <= 2)
     const b = h('button[role=menuitem][type=button]', {
       className: 'sp-dditem' + (state.off ? ' sp-off' : '') + (state.selected ? ' sp-sel' : ''),
-      innerHTML: `<span class="sp-result-ico">${ICONS[icon]}</span>` +
-        `<span class="sp-result-txt"><strong>${escapeHtml(label)}</strong>` +
-        (hint ? `<span>${escapeHtml(hint)}</span>` : '') + `</span>`,
+      innerHTML: `<span class="sp-dditem-ico">${ICONS[icon]}</span>` +
+        `<span class="sp-dditem-lbl">${escapeHtml(label)}</span>` +
+        (chord ? `<kbd class="sp-kbdchip">${escapeHtml(hint)}</kbd>` : ''),
       onclick: (e) => { e.stopPropagation(); onClick() },
     })
+    if (hint && !chord) b.title = hint
     if (state.off) b.setAttribute('aria-disabled', 'true')
     if (state.selected) b.setAttribute('aria-current', 'true')
     return b
@@ -693,54 +729,13 @@ export class Editor {
    *
    * This used to be `matchMedia('(max-width: 600px)')`, with a comment saying
    * the number was duplicated from the stylesheet on purpose. It is not needed
-   * at all now: fitTopbar puts the tier on the bar as a class, so the menu can
+   * at all now: the topbar fit puts the tier on the bar as a class, so the menu can
    * ASK what is on screen instead of re-deriving it from a width and hoping
    * the two agree. When they disagreed the symptom was a menu offering Undo
    * while Undo sat in the bar two centimetres away.
    */
   private isFolded(): boolean {
     return !!this.topbar?.classList.contains('sp-bar-fold')
-  }
-
-  /**
-   * Size the topbar by MEASURING it, not by width breakpoints.
-   *
-   * A px guess cannot answer the question being asked. The same buttons need
-   * different room at the same viewport width depending on browser zoom, OS
-   * text scaling, and how long the labels are in the reader's language — eight
-   * catalogs ship inside every file, and "Insert" is 76px in English and
-   * nothing like that in German. The bar's own CONTENT changes width too, at a
-   * fixed viewport: the people count appears when somebody joins a session.
-   * Each of those cases clipped the end of the bar under the old 820/600
-   * breakpoints. Slides settled this first (#239); this is its pattern.
-   *
-   * Start from the widest layout, step down a tier while the bar still
-   * overflows its own box.
-   */
-  private fitTopbar(): void {
-    const bar = this.topbar
-    if (!bar || !bar.isConnected) return
-    const tiers = ['sp-bar-compact', 'sp-bar-tight', 'sp-bar-fold']
-    // Re-fitting starts by UNFOLDING, which would slam shut a menu somebody is
-    // reading — and the ⋯ menu's contents depend on the tier, so rebuilding it
-    // mid-read would change it under them. The next resize runs this again.
-    if (this.overlay) return
-    // scrollWidth counts content sticking out of the padding box even with
-    // overflow visible, so this IS the clipped-controls condition. 1px of
-    // slack absorbs subpixel rounding at fractional zoom.
-    const overflow = () => bar.scrollWidth - bar.clientWidth > 1
-    // The title is the only shrinkable thing in the bar, so flexbox crushes it
-    // toward its floor before anything overflows. Waiting for hard overflow
-    // would mean full labels beside an unreadable document title.
-    const title = bar.querySelector<HTMLElement>('.sp-doctitle')
-    const cramped = () => overflow() || (!!title && title.getBoundingClientRect().width < 110)
-    bar.classList.remove(...tiers)
-    if (cramped()) bar.classList.add('sp-bar-compact')
-    if (cramped()) bar.classList.add('sp-bar-tight')
-    if (cramped()) bar.classList.add('sp-bar-fold')
-    // the class flips above queued mutation records of their own; drop them,
-    // or the observer re-runs this forever
-    this.barMO?.takeRecords()
   }
 
   /**
@@ -786,20 +781,9 @@ export class Editor {
     if (this.liveSlot) this.liveSlot.replaceWith(this.collab.button())
   }
 
+  /** A short message to the reader — the suite's toast. Empty clears it. */
   status(msg: string): void {
-    this.statusEl.textContent = msg
-    this.statusEl.classList.add('sp-on')
-    clearTimeout((this.statusEl as any)._t)
-    ;(this.statusEl as any)._t = setTimeout(() => {
-      this.statusEl.classList.remove('sp-on')
-      // The word must LEAVE the bar, not just fade out of it. This span is
-      // nowrap, so once "Edited" had been written once it held ~40px of the
-      // topbar for the rest of the session — and on a phone that width came
-      // out of the controls beside it. Cleared after the fade, never during.
-      setTimeout(() => {
-        if (!this.statusEl.classList.contains('sp-on')) this.statusEl.textContent = ''
-      }, 260)
-    }, 1800)
+    toast(msg)
   }
 
   // ---- the page tree ------------------------------------------------------
@@ -2765,8 +2749,7 @@ export class Editor {
   private session: import('./sync/session.ts').SyncSession | null = null
   private liveSlot!: HTMLElement
   private topbar: HTMLElement | null = null
-  private barRO: ResizeObserver | null = null
-  private barMO: MutationObserver | null = null
+  private barFit: TopbarFit | null = null
   private treeTimer: ReturnType<typeof setTimeout> | undefined
   private paintTreeSoon(): void {
     clearTimeout(this.treeTimer)
@@ -3175,27 +3158,10 @@ export class Editor {
     view.el.focus()
   }
 
+  /** Keyboard shortcuts — the suite's shared sheet (kernel/src/ui/sheet.ts);
+   *  the list is spaces'. */
   openHelp(): void {
     this.closeOverlay()
-    const returnFocus = document.activeElement as HTMLElement | null
-    const back = el('div', 'sp-overlay')
-    const card = el('div', 'sp-card sp-keys')
-    card.setAttribute('role', 'dialog')
-    card.setAttribute('aria-modal', 'true')
-    card.setAttribute('aria-label', t('Keyboard shortcuts'))
-
-    const close = () => {
-      back.remove()
-      document.removeEventListener('keydown', onKey, true)
-      returnFocus?.focus?.()
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); close() }
-    }
-
-    const h = el('h2', 'sp-card-h', t('Keyboard shortcuts'))
-    card.append(h)
-
     const groups: Array<[string, Array<[string, string]>]> = [
       [t('Writing'), [
         ['↵', t('A new block')],
@@ -3230,32 +3196,10 @@ export class Editor {
       ]],
     ]
 
-    // Two columns where there is room. In one column the four groups run to
-    // 23 rows and the last three fall off the bottom of the card — a help
-    // screen that hides the help, which is the same defect this pass just took
-    // out of the share panel. The grid collapses to one column on a phone,
-    // where scrolling a list is what you expect anyway.
-    const grid = el('div', 'sp-keys-grid')
-    for (const [title, rows] of groups) {
-      const g = el('section', 'sp-keys-g')
-      g.append(el('h3', 'sp-keys-h', title))
-      const list = el('dl', 'sp-keys-list')
-      for (const [key, what] of rows) {
-        const dt = el('dt', '', '')
-        dt.append(el('kbd', 'sp-kbd', key))
-        list.append(dt, el('dd', '', what))
-      }
-      g.append(list)
-      grid.append(g)
-    }
-    card.append(grid)
-
-    back.append(card)
-    back.addEventListener('click', (e) => { if (e.target === back) close() })
-    document.addEventListener('keydown', onKey, true)
-    document.body.append(back)
-    card.tabIndex = -1
-    card.focus()
+    openShortcuts({
+      title: t('Keyboard shortcuts'), closeLabel: t('Close'),
+      groups: groups.map(([title, rows]) => ({ title, rows: rows.map(([k, what]) => ({ label: what, keys: [k] })) })),
+    })
   }
 
   /**
@@ -4946,8 +4890,9 @@ export class Editor {
     this.collab?.sync()
   }
 
-  /** One About, one copy path — both entry points route through saveAs('copy'). */
-  private openAbout(): void {
+  /** One builder, three cards: the app ('app'), this space ('doc'), the
+   *  reader ('settings'). Both copy paths route through saveAs('copy'). */
+  private openAbout(kind: AboutKind = 'doc'): void {
     openAbout({
       store: this.store,
       onRepaint: () => this.build(),
@@ -4962,7 +4907,15 @@ export class Editor {
       onUpdateInPlace: (rel) => this.onUpdateInPlace?.(rel) ?? Promise.resolve(null),
       // both self-update writes carry this space's CRDT state, as ⌘S does
       onBeforeWrite: () => shareModule.stampSync(this.store, this.session),
-    })
+      onHelp: () => this.openHelp(),
+      onOffline: (on) => {
+        if (!this.session) return
+        if (on) disconnectOnline(this.session)
+        else joinFromDoc(this.session, this.store)
+        this.collab?.watchStatus()
+        this.collab?.sync()
+      },
+    }, kind)
   }
 
   // ---- routing ------------------------------------------------------------

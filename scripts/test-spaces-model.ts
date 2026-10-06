@@ -474,8 +474,8 @@ for (const [label, input, err] of [
   ok(/openHelp\(\): void/.test(ed), 'there is a shortcut list')
   ok(/e\.key === '\?' && !isTyping\(\)/.test(ed),
     "…opened by ? , behind the same isTyping guard as [ and ] (it is a character people type)")
-  ok(/label: t\('Keyboard shortcuts'\)/.test(ed),
-    '…and reachable from the menu, not only by the key it documents')
+  ok(/onHelp: \(\) => this\.openHelp\(\)/.test(ed),
+    '…and reachable from Settings, not only by the key it documents')
 
   // Pull the ⌘-letters out of the overlay's own table and demand a binding for
   // each. Letters only: the modifiers differ per branch and the point is that
@@ -862,17 +862,17 @@ for (const [label, input, err] of [
   ok(inTier('compact', /\.sp-primary span\.sp-savelabel \{ display: none/), "…including Save's")
   ok(inTier('tight', /\.sp-mark-word \{ display: none/), 'tight drops the wordmark, keeping the mark')
   ok(inTier('fold', /\.sp-sec \{ display: none/), 'fold moves the secondary row into ⋯')
-  // ⋯ is no longer fold-only: it is the home of the once-a-session commands, so
-  // gating it on the fold would put New page, the journal, import, print and
-  // About out of a desktop user's reach entirely.
-  ok(/^\.sp-more \{ display: inline-flex/m.test(css),
-    '⋯ is in the bar at EVERY width, being a home and not only an overflow')
-  ok(!/\.sp-bar-fold \.sp-more \{ display/.test(css), '…so it is not gated on the fold any more')
+  // The once-a-session commands live in Space ▾, which is always in the bar;
+  // ⋯ is the folded bar's overflow again, and nothing else.
+  ok(/^\.sp-more \{ display: none/m.test(css) && /\.sp-bar-fold \.sp-more \{ display: inline-flex/.test(css),
+    '⋯ appears only on a folded bar')
+  ok(/this\.dropdown\('page', t\('Space'\)/.test(ed) && /for \(const a of menuActions\)/.test(ed),
+    '…and the app\'s own commands live in Space ▾ at every width')
   ok(inTier('fold', /\.sp-mark \{ display: none/), '…and the mark goes (About is in ⋯)')
   ok(inTier('fold', /\.sp-group-history \{ display: none/), '…and the history pair')
   ok(inTier('fold', /\.sp-split \.sp-caret \{ display: none/), '…and the save caret')
-  ok(/\.sp-bar-fold \.sp-status \{\n\s*position: absolute/.test(css),
-    'the status message leaves the flow when folded, so it cannot move Save')
+  ok(/status\(msg: string\): void \{\s*toast\(msg\)/.test(ed) && !/sp-status/.test(ed),
+    'messages are toasts, never text in the bar — so none can move Save')
 
   // NO px query may govern the fold any more. A stray one would re-introduce
   // exactly the disagreement this replaced: CSS folding at one width while the
@@ -887,16 +887,12 @@ for (const [label, input, err] of [
     ok(!inQuery, `${sel.source.slice(0, 28)} is not inside a width query`)
   }
 
-  // The bar is sized by MEASUREMENT, and the measurement is the overflow of
-  // the bar's own box — not a number written down twice.
-  ok(/private fitTopbar\(\): void \{/.test(ed), 'fitTopbar exists')
-  ok(/bar\.scrollWidth - bar\.clientWidth/.test(ed), '…and it measures overflow rather than matching a width')
-  ok(/new ResizeObserver\(\(\) => this\.fitTopbar\(\)\)/.test(ed), 'a ResizeObserver drives it on viewport change')
-  ok(/new MutationObserver\(\(\) => this\.fitTopbar\(\)\)/.test(ed),
-    '…and a MutationObserver for content that changes width at a fixed viewport')
-  ok(/attributeFilter: \['style', 'hidden'\]/.test(ed),
-    "…which does NOT watch 'class', or its own tier flips would feed it")
-  ok(/this\.barMO\?\.takeRecords\(\)/.test(ed), '…and it drops the records its own mutations queue')
+  // The bar is sized by MEASUREMENT — the kernel fit (kernel/src/ui/topbar.ts,
+  // whose overflow test and observers scripts/test-ui-topbar.ts guards), fed
+  // this app's tiers, not a number written down twice.
+  ok(/this\.barFit = fitTopbar\(bar, \{/.test(ed), 'the bar is fitted by the kernel topbar fit')
+  ok(/tiers: \['sp-bar-compact', 'sp-bar-tight', 'sp-bar-fold'\]/.test(ed), '…with spaces\' own tiers, mildest first')
+  ok(/hold: \(\) => !!this\.overlay/.test(ed), '…and it holds still while a menu is open')
 
   // THE JS GATE ASKS THE DOM. It used to be matchMedia with the phone number
   // written down a second time, and the comment beside it admitted as much;
@@ -3177,8 +3173,9 @@ function fsTable(f: string): string {
   ok(main.indexOf('startTheme()') > main.indexOf('capturePristine()'),
     'startTheme() runs after capturePristine(), so no theme reaches a saved file')
   // and nothing writes it into the model
-  const app = src('appearance.ts')
-  ok(!/store|doc\.|commit/.test(app.replace(/\/\/[^\n]*/g, '')),
+  const ab = src('about.ts')
+  const app = ab.slice(ab.indexOf('// ---- appearance'), ab.indexOf('// ---- updates'))
+  ok(/themeSelect\(/.test(app) && !/store|doc\.|commit/.test(app.replace(/\/\/[^\n]*/g, '')),
     'the Appearance control never touches the store or the document')
   ok(!/theme/i.test(src('model.ts').match(/export interface Theme[\s\S]*?\n}/)?.[0]
        .replace(/^export interface Theme/, '') ?? '') ||

@@ -25,8 +25,9 @@
 // than a new toast system — it already exists, it already clears itself, and a
 // second transient-message mechanism in one app is one too many.
 
+import '../../kernel/src/ui/sharebutton.css'
 import { t } from './i18n.ts'
-import { ICONS } from './icons.ts'
+import { ICONS, type IconName } from './icons.ts'
 import type { Store } from './store.ts'
 import type { SyncSession } from './sync/session.ts'
 import { sharingOn, onlineTransport, joinFromDoc, stopSharing, rotateKeys } from '../../kernel/src/sync/online.ts'
@@ -131,9 +132,11 @@ export class CollabUi {
 
   /** The topbar control. Its LOOK is the state; its label never lies. */
   button(): HTMLButtonElement {
-    const b = h('button.sp-live', {
+    // The suite's Share button (kernel/src/ui/sharebutton.css): an ordinary
+    // bar button — icon, "Share", the peer count — with the state as its dot.
+    const b = h('button.sp-btn.sp-live.bksh', {
       type: 'button',
-      innerHTML: `<span class="sp-ico">${ICONS.people}</span><span class="sp-live-n"></span>`,
+      innerHTML: `${ICONS.share}<span class="sp-btnlabel">${t('Share')}</span><span class="sp-live-n"></span>`,
     })
     b.addEventListener('click', () => this.openPanel(b))
     this.btn = b
@@ -173,10 +176,8 @@ export class CollabUi {
     // sync over BroadcastChannel with no relay at all. The first version of
     // this button reported a peer count of 1 under the words "Not sharing
     // yet", which is a control contradicting itself in one glance.
-    const online = st === 'live' || st === 'connecting' || st === 'viewer'
-    b.classList.toggle('sp-live-on', st === 'live' || st === 'viewer')
-    b.classList.toggle('sp-live-off', !online)
-    b.classList.toggle('sp-live-wait', st === 'connecting')
+    b.classList.toggle('bksh-live', st === 'live' || st === 'viewer')
+    b.classList.toggle('bksh-wait', st === 'connecting')
     const count = b.querySelector('.sp-live-n')
     if (count) count.textContent = n > 0 ? String(n) : ''
     b.title = this.buttonTitle(st, n)
@@ -387,10 +388,10 @@ export class CollabUi {
       // SHARING IS FILES. Each of these saves a copy to send, and turns the
       // live session on — there is no separate start-a-session step.
       const acts = el('div', 'sp-pacts')
-      acts.append(this.action(t('Invite to edit…'),
+      acts.append(this.action('people', t('Invite to edit…'),
         t('Saves a copy to send. Whoever opens it edits this space live with you (end-to-end encrypted); you stay the owner and can remove them from the People list.'),
         () => { close(); this.host.shareCopy('invite') }))
-      acts.append(this.action(t('View-only copy…'),
+      acts.append(this.action('eye', t('View-only copy…'),
         t('A live viewer: follows every edit as it happens but can never change this space — the relay enforces it.'),
         () => { close(); this.host.shareCopy('viewonly') }))
 
@@ -398,7 +399,7 @@ export class CollabUi {
         // Reconnecting WITHOUT saving another copy. Without this the only way
         // back into a session you had stopped was to save a copy, which is how
         // one space becomes four files.
-        acts.append(this.action(t('Start live session'), t('Connect to the live session without saving a new copy — copies you sent earlier will meet you there.'), () => {
+        acts.append(this.action('sync', t('Start live session'), t('Connect to the live session without saving a new copy — copies you sent earlier will meet you there.'), () => {
           close()
           void this.host.goLive().then(() => {
             this.sync(); this.host.paintTree()
@@ -406,7 +407,7 @@ export class CollabUi {
           })
         }))
       } else {
-        acts.append(this.action(t('Stop sharing'), t('This copy goes offline; the others carry on'), () => {
+        acts.append(this.action('close', t('Stop sharing'), t('This copy goes offline; the others carry on'), () => {
           close()
           stopSharing(this.host.session, store)
           this.sync(); this.host.paintTree()
@@ -418,7 +419,7 @@ export class CollabUi {
       // re-mints the room, so every copy already sent stops syncing for good.
       // Remove (above) is the scalpel; this is the amputation.
       if (iAmOwner) {
-        acts.append(this.action(t('Reset access…'),
+        acts.append(this.action('lock', t('Reset access…'),
           t('Mints brand-new keys. Every previously sent copy stops syncing for good; share fresh copies afterwards.'),
           async () => {
             if (!(await confirmDialog({
@@ -436,10 +437,12 @@ export class CollabUi {
     })
   }
 
-  private action(label: string, hint: string, run: () => void): HTMLElement {
-    const b = h('button.sp-paction', { type: 'button', onclick: run })
-    b.append(el('strong', '', label))
-    if (hint) b.append(el('span', '', hint))
+  /** One line per action, as in slides' Share and every Bento menu: an icon
+   *  and the words, the explanation in the tooltip (ruling D2). */
+  private action(icon: IconName, label: string, hint: string, run: () => void): HTMLElement {
+    const b = h('button.sp-paction', { type: 'button', onclick: run, title: hint })
+    b.innerHTML = `<span class="sp-dditem-ico">${ICONS[icon]}</span>`
+    b.append(el('span', '', label))
     return b
   }
 

@@ -27,6 +27,9 @@
 //     and nothing added later can be made to by raising its own z-index.
 
 import { h } from '../../kernel/src/dom.ts'
+import { appCardLinks, createSheet, openAppCard, themeSelect } from '../../kernel/src/ui/sheet.ts'
+import '../../kernel/src/ui/dialog.css'
+import '../../kernel/src/ui/sheet.css'
 import { promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import '../../kernel/src/ui/field.css'
 import { createJsonEditor } from '../../kernel/src/ui/jsoneditor.ts'
@@ -42,8 +45,9 @@ import {
 } from '../../kernel/src/save.ts'
 import { clearVersions, clearRecovery, listVersions, type Snapshot } from '../../kernel/src/autosave.ts'
 import { t, localeChoices, locale, setLocale } from './i18n'
-import { appearanceSection } from './appearance'
-import { esc, textOf } from './sanitize'
+import { setTheme, themeChoice } from '../../kernel/src/theme.ts'
+import { offlineEnabled, setOffline } from '../../kernel/src/net.ts'
+import { textOf } from './sanitize'
 import { docForExport } from './model'
 import { duplicateAsNew } from './share.ts'
 import { htmlToMd } from './marks.ts'
@@ -97,7 +101,20 @@ export interface AboutHooks {
    * one does. "Update this file" is stamped inside the save queue instead.
    */
   onBeforeWrite?: () => void
+  /** "Keyboard shortcuts" — Settings carries the way into help */
+  onHelp?: () => void
+  /** Offline mode flipped: hang up the live session, or re-join it */
+  onOffline?: (on: boolean) => void
 }
+
+/**
+ * Which card. ONE builder, three cards (the suite's bar layout): the mark opens
+ * the APP's (which app, which version, where from), ⓘ About opens the SPACE's
+ * (what is in it, its properties, password, history, ways in and out), and
+ * Settings opens the READER's (updates, appearance, language, help) — what is
+ * kept in this browser and never written into the file.
+ */
+export type AboutKind = 'app' | 'doc' | 'settings'
 
 /**
  * The launch check's result, for the line the dialog opens on.
@@ -120,100 +137,64 @@ export async function launchUpdateCheck(): Promise<void> {
   lastAutoCheck = await checkForUpdates()
 }
 
-export function openAbout(hooks: AboutHooks): void {
+export function openAbout(hooks: AboutHooks, kind: AboutKind = 'doc'): void {
   const { store, onRepaint, onSaveCopy, onImport, onExportSpace, onWriteCopy, onStatus, onUpdateInPlace, onBeforeWrite } = hooks
   const doc = store.doc
-  const returnFocus = document.activeElement as HTMLElement | null
 
-  const back = h('div.sp-overlay.sp-overlay-about')
-  const card = h('div.sp-card.sp-about')
-  card.setAttribute('role', 'dialog')
-  card.setAttribute('aria-modal', 'true')
-  card.setAttribute('aria-label', t('About this space'))
-
-  const close = () => {
-    back.remove()
-    document.removeEventListener('keydown', onKey, true)
-    returnFocus?.focus?.()
-  }
-  // Capture-phase and on the DOCUMENT, as slides does: a dialog whose Escape
-  // handler hangs off its own element stops working the moment focus leaves it
-  // — which a <select> dropdown does on every platform.
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') { e.stopPropagation(); close() }
+  // The mark's card is the suite's shared app card (kernel/src/ui/sheet.ts),
+  // identical in every Bento app; About and Settings are shared sheets too.
+  if (kind === 'app') {
+    openAppCard({
+      app: 'spaces', version: APP_VERSION, format: doc.version ?? 1,
+      title: t('About bento/spaces — version, licenses'), closeLabel: t('Close'),
+      promoHtml: t('New to Bento? Find templates, the gallery and the AI editing guide at {home} — or ⭐ it on {gh}.', appCardLinks),
+      notes: [
+        t('Checks contact the release server and send nothing about you or this document — no ids, no telemetry.'),
+        t('bento/spaces is MIT-licensed and carries no third-party runtime — the full notices travel in this file’s source.'),
+      ],
+    })
+    return
   }
 
-  // ---- small builders ----------------------------------------------------
-  // NOTE: this local is named `headingEl`, not `h` — it would otherwise shadow
-  // the imported `h()` DOM builder used throughout this function's scope.
-  const headingEl = (text: string) => h('h2.sp-card-h', { textContent: text })
+  const sheet = createSheet({ title: kind === 'settings' ? t('Settings') : t('About this space'), closeLabel: t('Close') })
+  const card = sheet.body
+  const close = () => sheet.close()
+  // Every block below is built in one pass and tagged with the card it belongs
+  // to as it is appended; `keepOnly` drops the other card's blocks at the end.
+  // One pass rather than two builders, because the blocks share the helpers,
+  // `close` and the update check's state.
+  const marks: Array<[number, AboutKind]> = []
+  const enter = (k: AboutKind) => { marks.push([card.childElementCount, k]) }
+  const keepOnly = () => {
+    const kids = [...card.children]
+    kids.forEach((el, i) => {
+      let k: AboutKind = 'doc'
+      for (const [at, mk] of marks) if (i >= at) k = mk
+      if (k !== kind) el.remove()
+    })
+  }
+
+  // ---- small builders: the sheet's --------------------------------------
   /** A section with a real heading, not one more control in a flat stack. */
   const section = (title: string, ...kids: Array<Node | null>) => {
-    const s = h('section.sp-ab-sec')
-    s.append(headingEl(title))
-    for (const k of kids) if (k) s.append(k)
-    card.append(s)
-    return s
+    const sec = sheet.section(title)
+    for (const k of kids) if (k) sec.append(k)
+    return sec
   }
-  const note = (text: string, cls = '') =>
-    h('p', { className: 'sp-note' + (cls ? ' ' + cls : ''), textContent: text })
-  const row = (label: string, node: HTMLElement) => {
-    const r = h('div.sp-row')
-    const s = h('span', { textContent: label })
-    r.append(s, node)
-    return r
+  const note = (text: string, cls = '') => {
+    const n = sheet.note(text)
+    if (cls) n.classList.add(...cls.split(' '))
+    return n
   }
-  const button = (label: string, fn: () => void, primary = false) => {
-    const b = h('button', { className: 'sp-btn' + (primary ? ' sp-primary' : ''), textContent: label })
-    b.addEventListener('click', fn)
-    return b
-  }
-  const actions = (...kids: HTMLElement[]) => {
-    const d = h('div.sp-actions')
-    d.append(...kids)
-    return d
-  }
-  const mono = (s: string) => h('span.sp-mono', { textContent: s })
-  const check = (label: string, on: boolean, fn: (v: boolean) => void) => {
-    const l = h('label.sp-ab-check')
-    const cb = h('input', { type: 'checkbox', checked: on })
-    cb.addEventListener('change', () => fn(cb.checked))
-    l.append(cb, document.createTextNode(' ' + label))
-    return l
-  }
+  const row = sheet.row
+  const button = (label: string, fn: () => void, primary = false) => sheet.button(label, fn, { primary })
+  const actions = sheet.actions
+  const mono = sheet.value
+  const check = sheet.check
   const say = (message: string) => { onStatus?.(message) }
 
-  // ---- what this is ------------------------------------------------------
-  // The same head slides uses: the suite's mark, the app, the version, and a
-  // gentle route back to the site. A dialog that opens with a section heading
-  // does not tell you what you are looking at.
-  const head = h('div.sp-about-head')
-  head.innerHTML =
-    '<a class="sp-about-logo" href="https://bento.page" target="_blank" rel="noopener">' +
-    '<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">' +
-    '<rect width="32" height="32" rx="7" fill="#16273E"/>' +
-    '<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>' +
-    '<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>' +
-    '<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>' +
-    '</svg><div><b>bento<span style="color:#FF9E8A">/</span>spaces</b>' +
-    `<span>v${esc(APP_VERSION)} · ${esc(t('format v{v}', { v: String(doc.version ?? 1) }))}</span></div></a>`
-  head.querySelector('a')?.setAttribute('title', t('Visit bento.page (opens in a new tab)'))
-  card.append(head)
-
-  const promo = h('p.sp-ab-promo')
-  // The one innerHTML with markup in it, and the markup is OURS: two anchors
-  // built here and interpolated into a translated sentence. Nothing from the
-  // document, the network or a catalog's placeholder value reaches it.
-  promo.innerHTML = t(
-    'New to Bento? Find templates, the gallery and the AI editing guide at {home} — or ⭐ it on {gh}.',
-    {
-      home: '<a href="https://bento.page" target="_blank" rel="noopener">bento.page</a>',
-      gh: '<a href="https://github.com/nyblnet/bento" target="_blank" rel="noopener">GitHub</a>',
-    },
-  )
-  card.append(promo)
-
   // ---- what is in it -----------------------------------------------------
+  enter('doc')
   // The numbers a person actually wants, and then the one that explains the
   // others: where the weight is. A space is big because of its images, always,
   // and a readout that says "4.2 MB" without saying that has told you nothing
@@ -264,7 +245,7 @@ export function openAbout(hooks: AboutHooks): void {
   // Its name is the one property of a space anybody edits here; the rest are
   // facts about it, shown because a file you cannot identify is a file you
   // cannot support.
-  const titleIn = h('input.sp-input', { type: 'text', value: doc.title, disabled: store.readOnly })
+  const titleIn = h('input.bks-input', { type: 'text', value: doc.title, disabled: store.readOnly })
   titleIn.addEventListener('change', () => {
     const next = titleIn.value.trim() || 'Untitled'
     titleIn.value = next
@@ -272,12 +253,36 @@ export function openAbout(hooks: AboutHooks): void {
     onRepaint()
   })
   const props = section(t('Document properties'))
-  const titleRow = h('div.sp-ab-field')
-  const titleLbl = h('label', { textContent: t('Title') })
-  titleRow.append(titleLbl, titleIn)
-  props.append(titleRow)
+  props.append(row(t('Title'), titleIn))
   props.append(row(t('Document id'), mono(doc.docId)))
   if (doc.modified) props.append(row(t('Last saved'), mono(shortStamp(doc.modified))))
+
+  // ---- the reader's settings: the suite's order ---------------------------
+  enter('settings')
+  // ---- language ----------------------------------------------------------
+  const sel = h('select.bks-select')
+  for (const c of localeChoices()) {
+    const o = h('option', { value: c.code, textContent: c.label })
+    if (c.code === locale()) o.selected = true
+    sel.append(o)
+  }
+  sel.addEventListener('change', () => {
+    setLocale(sel.value)
+    close()
+    onRepaint()
+  })
+  section(
+    t('Language'),
+    row(t('Interface language'), sel),
+    // the same rule as slides: language follows the READER, never the document
+    note(t('Language follows whoever opens the file. It is never written into the document.')),
+  )
+
+  // ---- appearance --------------------------------------------------------
+  // The same row every Bento app's Settings carries; applied live — the theme
+  // is CSS variables, so the dialog itself changes under the picker.
+  section(t('Appearance'), row(t('Theme'), themeSelect(
+    { auto: t('Match my system'), light: t('Light'), dark: t('Dark') }, themeChoice(), (v) => setTheme(v))))
 
   // ---- updates -----------------------------------------------------------
   const upSec = section(t('Updates'))
@@ -294,6 +299,15 @@ export function openAbout(hooks: AboutHooks): void {
   const checkBtn = button(t('Check for updates'), () => { void runCheck() })
   upSec.append(actions(checkBtn), upStatus)
   upSec.append(check(t('Check for updates automatically at launch'), autoCheckEnabled(), (on) => setAutoCheck(on)))
+  // the hard no-network switch every Bento app's Settings carries: update
+  // checks AND the live session. Same-machine tab sync is not networking.
+  upSec.append(check(t('Offline mode — block all network features (updates, online collaboration)'), offlineEnabled(), (on) => {
+    const stuck = setOffline(on)
+    hooks.onOffline?.(on)
+    say(!stuck
+      ? t('Offline mode is on for this tab, but could not be saved — this browser is blocking site data, so it will not survive a reload')
+      : on ? t('Offline mode on — nothing leaves this computer') : t('Offline mode off — online features re-enabled'))
+  }))
   upSec.append(note(t('An update check is the only network this app makes on its own. It asks the release server for a signed manifest and sends nothing about you or this document — no ids, no telemetry.')))
 
   async function runCheck(): Promise<void> {
@@ -422,31 +436,8 @@ export function openAbout(hooks: AboutHooks): void {
     return done
   }
 
-  // ---- appearance --------------------------------------------------------
-  // Beside Language, because they are the same kind of thing: preferences that
-  // belong to whoever opened the file, not to the file.
-  card.append(...appearanceSection())
-
-  // ---- language ----------------------------------------------------------
-  const sel = h('select.sp-select.bk-field')
-  for (const c of localeChoices()) {
-    const o = h('option', { value: c.code, textContent: c.label })
-    if (c.code === locale()) o.selected = true
-    sel.append(o)
-  }
-  sel.addEventListener('change', () => {
-    setLocale(sel.value)
-    close()
-    onRepaint()
-  })
-  section(
-    t('Language'),
-    row(t('Interface language'), sel),
-    // the same rule as slides: language follows the READER, never the document
-    note(t('Language follows whoever opens the file. It is never written into the document.')),
-  )
-
   // ---- password ----------------------------------------------------------
+  enter('doc')
   const pwSec = section(t('Password'))
   const pwNote = note(isEncryptionActive()
     ? t('This space is encrypted. Saves stay encrypted.')
@@ -638,7 +629,7 @@ export function openAbout(hooks: AboutHooks): void {
       close()
       say(t('Document replaced — ⌘Z undoes'))
     })
-    apply.classList.add('sp-ab-go')
+    apply.classList.add('bks-danger-fill')
     wrap.append(ta, actions(apply, button(t('Cancel'), dismiss)))
     host.append(wrap)
     ta.focus()
@@ -673,7 +664,7 @@ export function openAbout(hooks: AboutHooks): void {
       if (opts.form) opts.form(panel, dismiss)
       else {
         const go = button(opts.go ?? label, () => { opts.run?.(); dismiss() })
-        go.classList.add('sp-ab-go')
+        go.classList.add('bks-danger-fill')
         panel.append(actions(go, button(t('Cancel'), dismiss)))
       }
       host.append(panel)
@@ -681,41 +672,17 @@ export function openAbout(hooks: AboutHooks): void {
       b.setAttribute('aria-expanded', 'true')
       panel.scrollIntoView({ block: 'nearest' })
     })
-    b.classList.add('sp-ab-danger')
+    b.classList.add('bks-danger')
     b.setAttribute('aria-expanded', 'false')
     return b
   }
 
-  // ---- fine print ---------------------------------------------------------
-  const fine = h('p.sp-ab-fine', {
-    textContent: t('bento/spaces is MIT-licensed and carries no third-party runtime — the full notices travel in this file’s source.'),
-  })
-  card.append(fine)
-
-  const foot = h('div.sp-ab-foot')
-  foot.append(button(t('Close'), close, true))
-  card.append(foot)
-
-  // ---- focus ---------------------------------------------------------------
-  // Trapped, because this is a modal: Tab off either end wraps rather than
-  // walking into an editor the reader cannot see.
-  card.addEventListener('keydown', (e) => {
-    if (e.key !== 'Tab') return
-    const f = [...card.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select, textarea')]
-      .filter((el) => el.offsetParent !== null)
-    if (!f.length) return
-    const first = f[0]
-    const last = f[f.length - 1]
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-  })
-
-  back.append(card)
-  back.addEventListener('mousedown', (e) => { if (e.target === back) close() })
-  document.addEventListener('keydown', onKey, true)
-  document.body.append(back)
-  checkBtn.focus()
+  keepOnly()
+  // the way across beside the way out: About → Settings
+  if (kind === 'doc') sheet.foot(button(t('Settings'), () => { close(); openAbout(hooks, 'settings') }))
+  sheet.open()
+  if (kind === 'settings') checkBtn.focus()
+  else card.querySelector<HTMLElement>('button, input, a[href]')?.focus()
 }
 
 /**
