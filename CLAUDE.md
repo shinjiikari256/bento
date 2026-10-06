@@ -517,7 +517,13 @@ names provisional.
   syncLinkedCharts — derive-not-commit, re-renders) recomputes each anchored
   endpoint on the element's border toward the other end whenever anything moves.
   Dragging an endpoint by hand detaches that end. Dangling refs are dropped.
-- `src/editor/` — vanilla-TS editor. Moveable + Selecto handle manipulation.
+- `src/editor/` — vanilla-TS editor. `panels.ts`/`editor.ts` build their DOM
+  through `../../../kernel/src/dom.ts`'s `h(abbr, props)` (a CSS-selector-
+  shaped element builder — `h('input.foo[type=url]', { value, onchange })`
+  instead of `createElement` + one property assignment per line), shared
+  with `dash`/`spaces`/`type`. A local variable literally named `h` shadows
+  the import in its own scope — grep for that before adding a new one.
+  Moveable + Selecto handle manipulation.
   Interaction modifiers: Shift = keep-ratio resize / axis-locked drag / 15°
   rotate snap; Alt/Option = resize from CENTER (deep-select exempts
   Moveable's control box, so Alt-on-a-handle means center-scale);

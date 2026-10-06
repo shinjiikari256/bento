@@ -137,7 +137,7 @@ const panels = read('slides/src/editor/panels.ts')
   ok(/if \(diff === 'labels'\)[\s\S]*label\.textContent = r\.label/.test(ui), 'a labels-only change patches text in place')
   ok(!/store\.on\(/.test(ui) && !/'selection'/.test(ui), 'the list has no store subscription of its own — the panel drives it, and selection never rebuilds rows')
   const acc = panels.slice(panels.indexOf('private applyAccordion()'), panels.indexOf('// --- builders'))
-  ok(/if \(h\.dataset\.acc\) continue/.test(acc) && /h\.nextElementSibling/.test(acc), 'the accordion attaches one click handler per header for its lifetime and finds the body live (the Layers h3 outlives rebuilds)')
+  ok(/if \(head\.dataset\.acc\) continue/.test(acc) && /head\.nextElementSibling/.test(acc), 'the accordion attaches one click handler per header for its lifetime and finds the body live (the Layers h3 outlives rebuilds)')
 }
 ok(/setOrder: \(elements\) => this\.store\.commit\(/.test(panels), 'a move is one store.commit — one undo step, no new field')
 ok(/'Layers'\]\)/.test(panels.slice(panels.indexOf('CLOSED_BY_DEFAULT ='), panels.indexOf('CLOSED_BY_DEFAULT =') + 200)), 'closed by default (opened state persists per title like the other sections)')

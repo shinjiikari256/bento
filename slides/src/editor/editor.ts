@@ -12,6 +12,7 @@ import {
   paginates, inLinearFlow,
   type ChartElement, type ShapeKind, type Slide, type SlideElement, type TableElement } from '../model'
 import { THEME_CHOICES, setTheme, themeChoice } from '../../../kernel/src/theme.ts'
+import { h } from '../../../kernel/src/dom.ts'
 import type { InPlaceOutcome } from '../update'
 import { APP_VERSION, applyUpdate, applyUpdateInPlace, autoCheckEnabled, canUpdateInPlace, checkForUpdates, compareVersions, offlineEnabled, sandboxed, setAutoCheck, setOffline } from '../update'
 import { CHART_PRESETS } from '../charts'
@@ -124,10 +125,10 @@ export function canWriteDeck(collab: { role?: string } | undefined): boolean {
  */
 let menuDescSeq = 0
 function menuLabel(label: string, desc: string, row: HTMLElement): HTMLSpanElement {
-  if (!desc) return Object.assign(document.createElement('span'), { textContent: label })
-  const span = document.createElement('span')
-  const name = Object.assign(document.createElement('span'), { className: 'ed-mi-name', textContent: label })
-  const note = Object.assign(document.createElement('span'), { className: 'ed-sr-only', textContent: desc, id: `ed-mi-desc-${++menuDescSeq}` })
+  if (!desc) return h('span', { textContent: label })
+  const span = h('span')
+  const name = h('span.ed-mi-name', { textContent: label })
+  const note = h('span.ed-sr-only', { textContent: desc, id: `ed-mi-desc-${++menuDescSeq}` })
   span.append(name, note)
   row.title = desc
   row.setAttribute('aria-label', label)
@@ -271,15 +272,14 @@ export class Editor {
     // overflows (4+ clips the corner controls at that width — measured).
     const MAX = 3
     for (const peer of peers.slice(0, MAX)) {
-      const chip = document.createElement('button')
-      chip.className = 'ed-avatar'
-      chip.style.background = peer.color
-      chip.textContent = (peer.name || '?').trim().charAt(0).toUpperCase() || '?'
       const idx = this.store.doc.slides.findIndex((s) => s.id === peer.slide)
-      chip.title =
-        idx >= 0
+      const chip = h('button.ed-avatar', {
+        style: { background: peer.color },
+        textContent: (peer.name || '?').trim().charAt(0).toUpperCase() || '?',
+        title: idx >= 0
           ? t('{name} — on slide {n} (click to follow)', { name: peer.name, n: idx + 1 })
-          : peer.name
+          : peer.name,
+      })
       chip.addEventListener('click', () => {
         const i = this.store.doc.slides.findIndex((s) => s.id === peer.slide)
         if (i >= 0) this.store.goTo(i)
@@ -288,10 +288,10 @@ export class Editor {
     }
     const extra = peers.length - MAX
     if (extra > 0) {
-      const more = document.createElement('button')
-      more.className = 'ed-avatar ed-avatar-more'
-      more.textContent = `+${extra}`
-      more.title = t('{n} more — click to see everyone', { n: extra })
+      const more = h('button.ed-avatar.ed-avatar-more', {
+        textContent: `+${extra}`,
+        title: t('{n} more — click to see everyone', { n: extra }),
+      })
       more.addEventListener('click', () => {
         this.shareWrap.classList.add('open')
         this.renderSharePanel()
@@ -319,9 +319,7 @@ export class Editor {
     // A real button: it opens About, so it takes focus, answers Enter/Space and
     // has a name a screen reader can read (the visible word is hidden at the
     // tight tier and on phones, leaving only the mark).
-    const logo = document.createElement('button')
-    logo.type = 'button'
-    logo.className = 'ed-logo'
+    const logo = h('button.ed-logo[type=button]')
     logo.setAttribute('aria-label', t('About bento/slides — version, updates, licenses'))
     logo.innerHTML =
       `<svg class="ed-logo-mark" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">` +
@@ -332,11 +330,11 @@ export class Editor {
       `</svg> <b>bento<span style="color:#FF9E8A">/</span>slides</b>`
     logo.title = t('About bento/slides — version, updates, licenses')
     logo.addEventListener('click', () => this.openAbout())
-    const title = document.createElement('input')
-    title.className = 'ed-title'
-    title.title = t('Deck title — shown in the tab, on {{title}} fields, and as the suggested file name')
-    title.value = this.store.doc.title
-    title.spellcheck = false
+    const title = h('input.ed-title', {
+      title: t('Deck title — shown in the tab, on {{title}} fields, and as the suggested file name'),
+      value: this.store.doc.title,
+      spellcheck: false,
+    })
     title.addEventListener('change', () => {
       this.store.commit(() => { this.store.doc.title = title.value || 'Untitled' })
       this.syncWindowTitle()
@@ -652,8 +650,7 @@ export class Editor {
   private makeResizer(side: 'left' | 'right'): HTMLElement {
     const handle = div('ed-resizer')
     handle.title = t('Drag to resize · double-click to reset')
-    const toggle = document.createElement('button')
-    toggle.className = 'ed-panel-toggle'
+    const toggle = h('button.ed-panel-toggle')
     toggle.addEventListener('click', (ev) => {
       ev.stopPropagation()
       this.togglePanel(side)
@@ -755,10 +752,8 @@ export class Editor {
           ? (b.firstElementChild as HTMLElement | null)
           : b
         if (face && !face.querySelector('span') && face.title) {
-          const lab = document.createElement('span')
-          lab.dataset.phoneLabel = '1'
           // "Redo (⇧⌘Z)" -> "Redo"; "Not sharing yet — click…" -> "Not sharing yet"
-          lab.textContent = face.title.split('(')[0].split('—')[0].trim()
+          const lab = h('span', { dataset: { phoneLabel: '1' }, textContent: face.title.split('(')[0].split('—')[0].trim() })
           face.appendChild(lab)
         }
         p.moreMenu.appendChild(b)
@@ -946,8 +941,7 @@ export class Editor {
       return el
     }
     const item = (icon: string, label: string, title: string, onClick: () => void) => {
-      const b = document.createElement('button')
-      b.className = 'ed-btn'
+      const b = h('button.ed-btn', { title })
       if (icon) b.innerHTML = icon
       b.appendChild(menuLabel(label, title, b))
       b.addEventListener('click', () => {
@@ -1207,17 +1201,10 @@ export class Editor {
     document.querySelector('.ed-about-overlay')?.remove()
     const overlay = div('ed-about-overlay')
     const box = div('ed-about')
-    const h = document.createElement('div')
-    h.className = 'ed-about-h'
-    h.textContent = t('Replace from JSON')
-    const ta = document.createElement('textarea')
-    ta.className = 'ed-about-json'
-    ta.rows = 8
-    ta.placeholder = t('Paste document JSON here…')
+    const hEl = h('div.ed-about-h', { textContent: t('Replace from JSON') })
+    const ta = h('textarea.ed-about-json', { rows: 8, placeholder: t('Paste document JSON here…') })
     const row = div('ed-about-row')
-    const applyB = document.createElement('button')
-    applyB.className = 'ed-btn ed-btn-primary'
-    applyB.textContent = t('Apply')
+    const applyB = h('button.ed-btn.ed-btn-primary', { textContent: t('Apply') })
     applyB.addEventListener('click', () => {
       // The pasted text is foreign input, full or compact (src/compact.ts):
       // the gate rebuilds it (restoregate.ts sanitizeDoc), and with `live` the
@@ -1246,12 +1233,10 @@ export class Editor {
         setTimeout(() => { applyB.textContent = t('Apply') }, 1800)
       }
     })
-    const cancelB = document.createElement('button')
-    cancelB.className = 'ed-btn'
-    cancelB.textContent = t('Cancel')
+    const cancelB = h('button.ed-btn', { textContent: t('Cancel') })
     cancelB.addEventListener('click', () => overlay.remove())
     row.append(applyB, cancelB)
-    box.append(h, ta, row)
+    box.append(hEl, ta, row)
     overlay.appendChild(box)
     overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove() })
     document.body.appendChild(overlay)
@@ -1276,8 +1261,7 @@ export class Editor {
 
   private promptPassword(): Promise<string | null> {
     return new Promise((resolve) => {
-      const dlg = document.createElement('dialog')
-      dlg.className = 'ed-dialog ed-pwdialog'
+      const dlg = h('dialog.ed-dialog.ed-pwdialog')
       dlg.innerHTML =
         `<h2>${t('Encrypt with password…').replace(/…$/, '')}</h2>` +
         `<p>${t('The password cannot be recovered — if it is lost, the file is lost.')}</p>` +
@@ -1372,8 +1356,7 @@ export class Editor {
     // plain menu rows, as in Save as — the section heading and the icons mark
     // them as commands; boxing each one only made the panel busier
     const action = (icon: string, label: string, onClick: () => void, title = '') => {
-      const b = document.createElement('button')
-      b.className = 'ed-btn ed-share-btn'
+      const b = h('button.ed-btn.ed-share-btn')
       if (icon) b.innerHTML = icon
       b.appendChild(menuLabel(label, title, b))
       b.addEventListener('click', onClick)
@@ -1383,12 +1366,9 @@ export class Editor {
     // your display name — self-managed, stored in this browser only, shown
     // to collaborators via presence (shared with the comments feature)
     const nameRow = div('ed-share-name')
-    const nameLabel = document.createElement('label')
-    nameLabel.textContent = t('Your name')
+    const nameLabel = h('label', { textContent: t('Your name') })
     nameRow.title = t('Shown next to your cursor and in the People list — stored only in this browser.')
-    const nameInput = document.createElement('input')
-    nameInput.type = 'text'
-    nameInput.placeholder = t('Guest')
+    const nameInput = h('input', { type: 'text', placeholder: t('Guest') })
     try {
       nameInput.value = lsGet('bento-author') ?? ''
     } catch {
@@ -1433,14 +1413,10 @@ export class Editor {
         label.textContent = t('People')
         panel.appendChild(label)
         const me = div('ed-share-peer ed-share-me')
-        const who = document.createElement('span')
-        who.className = 'who'
         let myName = t('Guest')
         myName = lsGet('bento-author') || myName
-        who.textContent = `${myName} (${t('you')})`
-        const where = document.createElement('span')
-        where.className = 'where'
-        where.textContent = [roleLabel(myRole), fp(myPub)].filter(Boolean).join(' · ')
+        const who = h('span.who', { textContent: `${myName} (${t('you')})` })
+        const where = h('span.where', { textContent: [roleLabel(myRole), fp(myPub)].filter(Boolean).join(' · ') })
         me.title = myPub
           ? t('Your key on THIS device: {fp}. Another device counts as a new person until the owner removes it.', { fp: fp(myPub) })
           : t('View-only copy — it holds no signing key.')
@@ -1451,18 +1427,12 @@ export class Editor {
     if (peers.length) {
       const list = div('ed-share-peers')
       for (const peer of peers) {
-        const row = document.createElement('button')
-        row.className = 'ed-share-peer'
-        const dot = document.createElement('span')
-        dot.className = 'dot'
-        dot.style.background = peer.color
-        const who = document.createElement('span')
-        who.className = 'who'
-        who.textContent = peer.editing ? `${peer.name} ✏️` : peer.name
+        const row = h('button.ed-share-peer')
+        const dot = h('span.dot', { style: { background: peer.color } })
+        const who = h('span.who', { textContent: peer.editing ? `${peer.name} ✏️` : peer.name })
         // a pub-carrying peer's name is bound to its signing key, not just typed
         if (peer.pub) who.title = t('Key-verified identity') + ` · ${fp(peer.pub)}`
-        const where = document.createElement('span')
-        where.className = 'where'
+        const where = h('span.where')
         const idx = this.store.doc.slides.findIndex((s) => s.id === peer.slide)
         where.textContent = [roleLabel(peer.role), idx >= 0 ? t('slide {n}', { n: idx + 1 }) : ''].filter(Boolean).join(' · ')
         row.append(dot, who, where)
@@ -1471,10 +1441,10 @@ export class Editor {
           if (idx >= 0) this.store.goTo(idx)
         })
         if (iAmOwner && peer.pub && peer.pub !== cme!.owner) {
-          const kick = document.createElement('span')
-          kick.className = 'kick'
-          kick.textContent = '✕'
-          kick.title = t('Remove {name} — revokes this device’s access; everyone else is unaffected', { name: peer.name })
+          const kick = h('span.kick', {
+            textContent: '✕',
+            title: t('Remove {name} — revokes this device’s access; everyone else is unaffected', { name: peer.name }),
+          })
           kick.addEventListener('click', async (ev) => {
             ev.stopPropagation()
             if (!confirm(t('Remove {name} from this deck? Their copy drops to read-only.', { name: peer.name }))) return
@@ -1617,9 +1587,9 @@ export class Editor {
     document.querySelector('.ed-about-overlay')?.remove()
     const overlay = div('ed-about-overlay')
     const box = div('ed-about')
-    const h = div('ed-about-h')
-    h.textContent = t('Languages')
-    box.appendChild(h)
+    const hEl = div('ed-about-h')
+    hEl.textContent = t('Languages')
+    box.appendChild(hEl)
 
     const listHost = div('ed-lang-manage')
     box.appendChild(listHost)
@@ -1639,10 +1609,8 @@ export class Editor {
       const row = (label: string, sub: string, actions: HTMLElement[] = [], host: HTMLElement = listHost) => {
         const r = div('ed-lang-row')
         const txt = div('ed-lang-txt')
-        const n = document.createElement('b')
-        n.textContent = label
-        const s = document.createElement('span')
-        s.textContent = sub
+        const n = h('b', { textContent: label })
+        const s = h('span', { textContent: sub })
         txt.append(n, s)
         r.appendChild(txt)
         if (actions.length) {
@@ -1656,10 +1624,7 @@ export class Editor {
       section(t('In this file'), t('Travels with the deck — anyone you send it to gets these too.'))
       row('English, ' + bundled.map((c) => c.label).join(', '), t('Included in every Bento'))
       for (const p of packsInFile()) {
-        const rm = document.createElement('button')
-        rm.className = 'ed-btn'
-        rm.textContent = t('Remove')
-        rm.title = t('Take out of the file — applies when you next save')
+        const rm = h('button.ed-btn', { textContent: t('Remove'), title: t('Take out of the file — applies when you next save') })
         rm.addEventListener('click', () => {
           unstageFromFile(p.lang)
           this.build()
@@ -1699,10 +1664,7 @@ export class Editor {
       // on the endonym AND the code means someone who knows "nl" but not
       // "Nederlands" (or the reverse) finds it either way.
       if (all.length > SEARCH_FROM) {
-        const search = document.createElement('input')
-        search.type = 'search'
-        search.className = 'ed-lang-search'
-        search.placeholder = t('Search languages')
+        const search = h('input.ed-lang-search', { type: 'search', placeholder: t('Search languages') })
         search.addEventListener('input', () => renderAvail(search.value))
         listHost.appendChild(search)
       }
@@ -1730,10 +1692,7 @@ export class Editor {
       // One destination. A pack lives in the FILE — see packs.ts for why the
       // "on this computer" option was removed rather than kept alongside.
       const addRow = (p: import('../packs').PackListing, host: HTMLElement) => {
-        const add = document.createElement('button')
-        add.className = 'ed-btn'
-        add.textContent = t('Add')
-        add.title = t('Put it in the deck — written when you next save.')
+        const add = h('button.ed-btn', { textContent: t('Add'), title: t('Put it in the deck — written when you next save.') })
         add.addEventListener('click', async () => {
           add.disabled = true
           add.textContent = t('Adding…')
@@ -1758,9 +1717,7 @@ export class Editor {
     await paint()
 
     const row = div('ed-about-row')
-    const close = document.createElement('button')
-    close.className = 'ed-btn'
-    close.textContent = t('Done')
+    const close = h('button.ed-btn', { textContent: t('Done') })
     close.addEventListener('click', () => overlay.remove())
     row.appendChild(close)
     box.appendChild(row)
@@ -1934,9 +1891,9 @@ export class Editor {
     const sections: Array<[string, Slide[], boolean]> = [[t('Built-in'), builtinLayouts(doc.size), false]]
     if (doc.layouts?.length) sections.push([t('This document'), doc.layouts, true])
     for (const [label, layouts, custom] of sections) {
-      const h = div('ed-layoutpick-h')
-      h.textContent = label
-      pick.appendChild(h)
+      const head = div('ed-layoutpick-h')
+      head.textContent = label
+      pick.appendChild(head)
       const grid = div('ed-layoutpick-grid')
       for (const ly of layouts) {
         const item = div('ed-layoutpick-item')
@@ -1950,10 +1907,7 @@ export class Editor {
           else this.applyLayoutToCurrent(ly)
         })
         if (custom) {
-          const del = document.createElement('button')
-          del.className = 'ed-layoutpick-del'
-          del.textContent = '✕'
-          del.title = t('Delete this layout')
+          const del = h('button.ed-layoutpick-del', { textContent: '✕', title: t('Delete this layout') })
           del.addEventListener('click', (ev) => {
             ev.stopPropagation()
             this.store.commit(() => {
@@ -2010,10 +1964,7 @@ export class Editor {
   private insertGap(at: number): HTMLElement {
     const gap = div('ed-insertgap')
     gap.title = t('Insert slide here')
-    const plus = document.createElement('button')
-    plus.className = 'ed-insertgap-btn'
-    plus.textContent = '＋'
-    plus.tabIndex = -1
+    const plus = h('button.ed-insertgap-btn', { textContent: '＋', tabIndex: -1 })
     gap.appendChild(plus)
     gap.addEventListener('click', () => this.openLayoutPicker(gap, { kind: 'insert', at }))
     return gap
@@ -2205,8 +2156,7 @@ export class Editor {
     box.id = 'bento-print'
     // page geometry follows the deck's aspect (width normalised to 1600)
     const pageH = Math.round((1600 * this.store.doc.size.height) / this.store.doc.size.width)
-    const pageCss = document.createElement('style')
-    pageCss.textContent = `@page { size: 1600px ${pageH}px; margin: 0; } #bento-print .bp-page { height: ${pageH}px; }`
+    const pageCss = h('style', { textContent: `@page { size: 1600px ${pageH}px; margin: 0; } #bento-print .bp-page { height: ${pageH}px; }` })
     box.appendChild(pageCss)
     for (const slide of this.store.doc.slides) {
       if (!inLinearFlow(slide)) continue
@@ -2238,9 +2188,7 @@ export class Editor {
   // --- insert image ------------------------------------------------------------------
 
   private pickImage() {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
+    const input = h('input', { type: 'file', accept: 'image/*' })
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       if (!file) return
@@ -2307,9 +2255,7 @@ export class Editor {
   }
 
   private pickMedia() {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'video/*,audio/*'
+    const input = h('input', { type: 'file', accept: 'video/*,audio/*' })
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       if (!file) return
@@ -2338,10 +2284,9 @@ export class Editor {
       this.canvas.insert(defaultMedia(kind, src, { w, h, x: (dw - w) / 2, y: (dh - h) / 2 }))
       return
     }
-    const probe = document.createElement('video')
+    const probe = h('video', { preload: 'metadata' })
     const place = (w: number, h: number) =>
       this.canvas.insert(defaultMedia('video', src, { w: Math.round(w), h: Math.round(h), x: (dw - w) / 2, y: (dh - h) / 2 }))
-    probe.preload = 'metadata'
     probe.onloadedmetadata = () => {
       const ar = probe.videoWidth && probe.videoHeight ? probe.videoWidth / probe.videoHeight : 16 / 9
       const w = Math.min(dw * 0.6, 640)
@@ -2737,17 +2682,14 @@ export class Editor {
     if (this.store.doc.readonly) return // player file: not this person's upgrade
 
     const bar = div('ed-recover')
-    const msg = document.createElement('span')
-    msg.textContent = t('Updated to v{v}.', { v: APP_VERSION })
-    const what = document.createElement('a')
-    what.className = 'ed-btn'
-    what.href = `https://github.com/nyblnet/bento/releases/tag/v${APP_VERSION}`
-    what.target = '_blank'
-    what.rel = 'noopener'
-    what.textContent = t('What’s new →')
-    const ok = document.createElement('button')
-    ok.className = 'ed-btn ed-btn-primary'
-    ok.textContent = t('Got it')
+    const msg = h('span', { textContent: t('Updated to v{v}.', { v: APP_VERSION }) })
+    const what = h('a.ed-btn', {
+      href: `https://github.com/nyblnet/bento/releases/tag/v${APP_VERSION}`,
+      target: '_blank',
+      rel: 'noopener',
+      textContent: t('What’s new →'),
+    })
+    const ok = h('button.ed-btn.ed-btn-primary', { textContent: t('Got it') })
     ok.addEventListener('click', () => bar.remove())
     bar.append(msg, what, ok)
     document.body.appendChild(bar)
@@ -2864,11 +2806,8 @@ export class Editor {
     if (canWriteInPlace()) return
     if (lsGet(SAVE_NOTICE_KEY) === 'seen') return
     const bar = div('ed-recover')
-    const msg = document.createElement('span')
-    msg.textContent = t('This browser can’t rewrite files in place. ⌘S will download an updated copy instead — your work is also kept in this browser and offered back if you reopen.')
-    const ok = document.createElement('button')
-    ok.className = 'ed-btn ed-btn-primary'
-    ok.textContent = t('Got it')
+    const msg = h('span', { textContent: t('This browser can’t rewrite files in place. ⌘S will download an updated copy instead — your work is also kept in this browser and offered back if you reopen.') })
+    const ok = h('button.ed-btn.ed-btn-primary', { textContent: t('Got it') })
     ok.addEventListener('click', () => { lsSet(SAVE_NOTICE_KEY, 'seen'); bar.remove() })
     bar.append(msg, ok)
     document.body.appendChild(bar)
@@ -2878,11 +2817,8 @@ export class Editor {
     document.querySelector('.ed-recover')?.remove()
     const bar = div('ed-recover')
     const when = new Date(snap.at).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })
-    const msg = document.createElement('span')
-    msg.textContent = t('Unsaved changes from {when} were found.', { when })
-    const restore = document.createElement('button')
-    restore.className = 'ed-btn ed-btn-primary'
-    restore.textContent = t('Restore')
+    const msg = h('span', { textContent: t('Unsaved changes from {when} were found.', { when }) })
+    const restore = h('button.ed-btn.ed-btn-primary', { textContent: t('Restore') })
     restore.addEventListener('click', () => {
       // gated again against the document as it is NOW: the live session may
       // have been joined or rotated since the banner appeared, and the identity
@@ -2895,9 +2831,7 @@ export class Editor {
       bar.remove()
       this.toast(t('Restored your unsaved changes'))
     })
-    const dismiss = document.createElement('button')
-    dismiss.className = 'ed-btn'
-    dismiss.textContent = t('Discard')
+    const dismiss = h('button.ed-btn', { textContent: t('Discard') })
     dismiss.addEventListener('click', () => { void clearRecovery(this.store.doc.docId); bar.remove() })
     bar.append(msg, restore, dismiss)
     document.body.appendChild(bar)
@@ -2909,19 +2843,15 @@ export class Editor {
     document.querySelector('.ed-about-overlay')?.remove()
     const overlay = div('ed-about-overlay')
     const box = div('ed-about ed-version-box')
-    const h = document.createElement('h2')
-    h.textContent = t('Version history')
-    box.appendChild(h)
+    const hEl = h('h2', { textContent: t('Version history') })
+    box.appendChild(hEl)
     if (!versions.length) {
-      const empty = document.createElement('p')
-      empty.className = 'ed-about-fine'
-      empty.textContent = t('No saved versions yet — they accumulate as you edit and save.')
+      const empty = h('p.ed-about-fine', { textContent: t('No saved versions yet — they accumulate as you edit and save.') })
       box.appendChild(empty)
     } else {
       const list = div('ed-version-list')
       versions.forEach((v, i) => {
-        const rowEl = document.createElement('button')
-        rowEl.className = 'ed-version-row'
+        const rowEl = h('button.ed-version-row')
         const when = new Date(v.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         rowEl.innerHTML = `<span class="vh-when">${when}</span>` +
           `<span class="vh-tag">${i === 0 ? t('most recent') : ''}</span>` +
@@ -2957,9 +2887,8 @@ export class Editor {
     document.querySelector('.ed-about-overlay')?.remove()
     const overlay = div('ed-about-overlay')
     const box = div('ed-about ed-help-box')
-    const h = document.createElement('h2')
-    h.textContent = t('Shortcuts & tips')
-    box.appendChild(h)
+    const hEl = h('h2', { textContent: t('Shortcuts & tips') })
+    box.appendChild(hEl)
     // Two explicit columns, placed by hand for balance + theme: LEFT = general
     // shortcuts & tips, RIGHT = the line/curve/path pointer-editing features.
     // (Auto column-count balanced poorly with these chunky, unsplittable sections.)
@@ -2971,7 +2900,7 @@ export class Editor {
     const mod = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'
     const section = (col: HTMLElement, title: string, rows: Array<[string, string]>) => {
       const sec = div('ed-help-sec')
-      const st = document.createElement('h3'); st.textContent = title; sec.appendChild(st)
+      const st = h('h3', { textContent: title }); sec.appendChild(st)
       for (const [k, d] of rows) {
         const r = div('ed-help-row')
         r.innerHTML = `<kbd></kbd><span></span>`
@@ -3028,21 +2957,22 @@ export class Editor {
       ['Esc', t('End the show')],
     ])
     const tips = div('ed-help-sec')
-    const tt = document.createElement('h3'); tt.textContent = t('Good to know'); tips.appendChild(tt)
-    const ul = document.createElement('ul'); ul.className = 'ed-help-tips'
+    const tt = h('h3', { textContent: t('Good to know') }); tips.appendChild(tt)
+    const ul = h('ul.ed-help-tips')
     for (const tip of [
       t('Paste an image or text straight onto the canvas with ⌘V.'),
       t('Copy a slide (⌘C with nothing selected) and paste it into another Bento deck.'),
       t('Make a chart from a table and it stays linked — edit the table, the chart updates.'),
       t('Your work auto-saves; restore earlier versions from Save → Version history.'),
-    ]) { const li = document.createElement('li'); li.textContent = tip; ul.appendChild(li) }
+    ]) { const li = h('li', { textContent: tip }); ul.appendChild(li) }
     tips.appendChild(ul); colL.appendChild(tips)
     const more = div('ed-help-more')
-    const link = document.createElement('a')
-    link.href = 'https://bento.page/help'
-    link.target = '_blank'
-    link.rel = 'noopener'
-    link.textContent = t('Full guide at bento.page/help →')
+    const link = h('a', {
+      href: 'https://bento.page/help',
+      target: '_blank',
+      rel: 'noopener',
+      textContent: t('Full guide at bento.page/help →'),
+    })
     more.appendChild(link)
     box.appendChild(more)
     overlay.appendChild(box)
@@ -3519,9 +3449,7 @@ export class Editor {
           : t('This file carries its own app — it works offline, forever, as is.')
 
     const row = div('ed-about-row')
-    const checkB = document.createElement('button')
-    checkB.className = 'ed-btn'
-    checkB.textContent = t('Check for updates')
+    const checkB = h('button.ed-btn', { textContent: t('Check for updates') })
     checkB.disabled = sandboxed() // nothing to check from inside an embedded view
     checkB.addEventListener('click', async () => {
       checkB.disabled = true
@@ -3580,9 +3508,7 @@ export class Editor {
               ? t('This window is still running v{v} — reload to finish. A v{v} backup was downloaded.', { v: APP_VERSION })
               : t("This window is still running v{v}. If you overwrote the file that's open here, reload; otherwise open the file you saved.", { v: APP_VERSION })
           after.appendChild(note)
-          const reloadB = document.createElement('button')
-          reloadB.className = 'ed-btn ed-btn-primary'
-          reloadB.textContent = t('Reload into new version')
+          const reloadB = h('button.ed-btn.ed-btn-primary', { textContent: t('Reload into new version') })
           reloadB.addEventListener('click', () => {
             this.store.setDirty(false) // disk already holds this exact document
             // Hand a note to the version we are about to become. sessionStorage
@@ -3601,21 +3527,21 @@ export class Editor {
         // them: the per-version release page, which publish-site.mjs creates
         // for every release, so the link cannot dangle. First in the action
         // row deliberately: reading before deciding is the point.
-        const notesLink = document.createElement('a')
-        notesLink.className = 'ed-btn'
-        notesLink.href = `https://github.com/nyblnet/bento/releases/tag/v${release.version}`
-        notesLink.target = '_blank'
-        notesLink.rel = 'noopener'
-        notesLink.textContent = t('What’s new →')
-        notesLink.title = t('Read the release notes for v{v} (opens in a new tab)', { v: release.version })
+        const notesLink = h('a.ed-btn', {
+          href: `https://github.com/nyblnet/bento/releases/tag/v${release.version}`,
+          target: '_blank',
+          rel: 'noopener',
+          textContent: t('What’s new →'),
+          title: t('Read the release notes for v{v} (opens in a new tab)', { v: release.version }),
+        })
         actions.appendChild(notesLink)
 
-        const inPlaceB = document.createElement('button')
-        inPlaceB.className = 'ed-btn ed-btn-primary'
-        inPlaceB.textContent = canUpdateInPlace() ? t('Update this file') : t('Update this file…')
-        inPlaceB.title = canUpdateInPlace()
-          ? t('Downloads a backup of the current version, then rewrites this file on disk as the new version — document untouched.')
-          : t('Verifies and builds the new version with this document inside, then asks where to save it — pick the file you have open to update it.')
+        const inPlaceB = h('button.ed-btn.ed-btn-primary', {
+          textContent: canUpdateInPlace() ? t('Update this file') : t('Update this file…'),
+          title: canUpdateInPlace()
+            ? t('Downloads a backup of the current version, then rewrites this file on disk as the new version — document untouched.')
+            : t('Verifies and builds the new version with this document inside, then asks where to save it — pick the file you have open to update it.'),
+        })
         inPlaceB.addEventListener('click', async () => {
           inPlaceB.disabled = true
           inPlaceB.textContent = t('Verifying…')
@@ -3628,10 +3554,10 @@ export class Editor {
         })
         actions.appendChild(inPlaceB)
 
-        const getB = document.createElement('button')
-        getB.className = 'ed-btn'
-        getB.textContent = t('Download updated copy')
-        getB.title = t('Downloads the new version with this document inside. The file you have now is not touched.')
+        const getB = h('button.ed-btn', {
+          textContent: t('Download updated copy'),
+          title: t('Downloads the new version with this document inside. The file you have now is not touched.'),
+        })
         getB.addEventListener('click', async () => {
           getB.disabled = true
           getB.textContent = t('Verifying…')
@@ -3655,13 +3581,10 @@ export class Editor {
     // auto-update) rather than anywhere near the document's own settings.
     // "Auto" is first and is the default: most people want their machine's
     // choice, and the explicit options exist for the ones who do not.
-    const themeRow = document.createElement('label')
-    themeRow.className = 'ed-about-auto'
-    const themeSel = document.createElement('select')
+    const themeRow = h('label.ed-about-auto')
+    const themeSel = h('select')
     for (const c of THEME_CHOICES) {
-      const o = document.createElement('option')
-      o.value = c
-      o.textContent = c === 'auto' ? t('Match my system') : c === 'light' ? t('Light') : t('Dark')
+      const o = h('option', { value: c, textContent: c === 'auto' ? t('Match my system') : c === 'light' ? t('Light') : t('Dark') })
       if (c === themeChoice()) o.selected = true
       themeSel.appendChild(o)
     }
@@ -3669,22 +3592,16 @@ export class Editor {
     themeRow.append(document.createTextNode(t('Appearance') + ' '), themeSel)
     box.appendChild(themeRow)
 
-    const autoRow = document.createElement('label')
-    autoRow.className = 'ed-about-auto'
-    const autoCb = document.createElement('input')
-    autoCb.type = 'checkbox'
-    autoCb.checked = autoCheckEnabled()
+    const autoRow = h('label.ed-about-auto')
+    const autoCb = h('input', { type: 'checkbox', checked: autoCheckEnabled() })
     autoCb.addEventListener('change', () => setAutoCheck(autoCb.checked))
     autoRow.append(autoCb, document.createTextNode(' ' + t('Check for updates automatically at launch')))
     box.appendChild(autoRow)
 
     // photos shrink at insert (editor/shrink.ts) — an authoring preference for
     // this browser, like the update check; never in the document
-    const shrinkRow = document.createElement('label')
-    shrinkRow.className = 'ed-about-auto'
-    const shrinkCb = document.createElement('input')
-    shrinkCb.type = 'checkbox'
-    shrinkCb.checked = shrinkEnabled()
+    const shrinkRow = h('label.ed-about-auto')
+    const shrinkCb = h('input', { type: 'checkbox', checked: shrinkEnabled() })
     shrinkCb.addEventListener('change', () => setShrinkEnabled(shrinkCb.checked))
     shrinkRow.append(shrinkCb, document.createTextNode(' ' + t('Shrink photos on insert (2560 px, screenshots and logos stay sharp)')))
     shrinkRow.title = t('A pasted phone photo is stored at slide resolution instead of full size. Off: pictures are stored exactly as they come.')
@@ -3692,14 +3609,12 @@ export class Editor {
 
     // the explicit pass over pictures already in the deck (editor/compressdeck.ts):
     // dry run → the real numbers in a confirmation → one undo step
-    const compressRow = document.createElement('div')
-    compressRow.className = 'ed-about-auto'
-    const compressBtn = document.createElement('button')
-    compressBtn.className = 'ed-btn'
-    compressBtn.textContent = t('Compress pictures in this deck…')
-    compressBtn.title = t('Re-encodes every photo already in the deck at up to 2560 px; screenshots and logos stay sharp. Undo restores them until you save.')
-    const compressNote = document.createElement('span')
-    compressNote.className = 'ed-hint'
+    const compressRow = h('div.ed-about-auto')
+    const compressBtn = h('button.ed-btn', {
+      textContent: t('Compress pictures in this deck…'),
+      title: t('Re-encodes every photo already in the deck at up to 2560 px; screenshots and logos stay sharp. Undo restores them until you save.'),
+    })
+    const compressNote = h('span.ed-hint')
     compressBtn.addEventListener('click', () => { void this.compressDeckPictures(compressBtn, compressNote, overlay) })
     compressRow.append(compressBtn, compressNote)
     box.appendChild(compressRow)
@@ -3707,11 +3622,8 @@ export class Editor {
     // the hard no-network switch: blocks update checks AND online
     // collaboration for this browser. Same-machine tab sync is not
     // networking and stays on.
-    const offRow = document.createElement('label')
-    offRow.className = 'ed-about-auto'
-    const offCb = document.createElement('input')
-    offCb.type = 'checkbox'
-    offCb.checked = offlineEnabled()
+    const offRow = h('label.ed-about-auto')
+    const offCb = h('input', { type: 'checkbox', checked: offlineEnabled() })
     offCb.addEventListener('change', () => {
       // setOffline reports whether the preference PERSISTED. It holds for this
       // session either way (net.ts keeps it in memory), but a switch that
@@ -3737,22 +3649,15 @@ export class Editor {
 
     // Document properties → fillable {{author}} {{company}} {{subject}} {{event}} fields
     const metaWrap = div('ed-about-row ed-about-meta-wrap')
-    const metaTitle = document.createElement('div')
-    metaTitle.className = 'ed-about-h'
-    metaTitle.textContent = t('Document properties')
+    const metaTitle = h('div.ed-about-h', { textContent: t('Document properties') })
     metaWrap.appendChild(metaTitle)
-    const metaHint = document.createElement('p')
-    metaHint.className = 'ed-hint'
-    metaHint.innerHTML = t('Type <b>{{author}}</b>, <b>{{company}}</b>, <b>{{subject}}</b> or <b>{{event}}</b> in any text box and it fills in from here — everywhere at once. Handy for title slides and footers.')
+    const metaHint = h('p.ed-hint', { innerHTML: t('Type <b>{{author}}</b>, <b>{{company}}</b>, <b>{{subject}}</b> or <b>{{event}}</b> in any text box and it fills in from here — everywhere at once. Handy for title slides and footers.') })
     metaWrap.appendChild(metaHint)
     const ensureMeta = () => (this.store.doc.meta ??= {})
     const metaField = (label: string, get: () => string, set: (v: string) => void) => {
       const row = div('ed-about-meta')
-      const l = document.createElement('label')
-      l.textContent = label
-      const inp = document.createElement('input')
-      inp.type = 'text'
-      inp.value = get()
+      const l = h('label', { textContent: label })
+      const inp = h('input', { type: 'text', value: get() })
       inp.addEventListener('change', () => this.store.commit(() => set(inp.value.trim())))
       row.append(l, inp)
       metaWrap.appendChild(row)
@@ -3810,19 +3715,12 @@ export class Editor {
     }
     const n = run.shrunk.length
     const pct = Math.round((1 - run.after / run.before) * 100)
-    const body = document.createElement('div')
-    const sum = document.createElement('p')
-    sum.textContent = t('{n} pictures · {before} → {after} (−{pct}%)', { n: String(n), before: fmtBytes(run.before), after: fmtBytes(run.after), pct: String(pct) })
-    const hint = document.createElement('p')
-    hint.className = 'ed-hint'
-    hint.textContent = t('Graphics and logos stay lossless; photos are re-encoded at up to 2560 px. ⌘Z undoes it until you save.')
+    const body = h('div')
+    const sum = h('p', { textContent: t('{n} pictures · {before} → {after} (−{pct}%)', { n: String(n), before: fmtBytes(run.before), after: fmtBytes(run.after), pct: String(pct) }) })
+    const hint = h('p.ed-hint', { textContent: t('Graphics and logos stay lossless; photos are re-encoded at up to 2560 px. ⌘Z undoes it until you save.') })
     body.append(sum, hint)
-    const cancel = document.createElement('button')
-    cancel.className = 'ed-btn'
-    cancel.textContent = t('Cancel')
-    const go = document.createElement('button')
-    go.className = 'ed-btn ed-primary'
-    go.textContent = t('Compress')
+    const cancel = h('button.ed-btn', { textContent: t('Cancel') })
+    const go = h('button.ed-btn.ed-primary', { textContent: t('Compress') })
     const dlg = createDialog({ title: t('Compress pictures in this deck'), content: body, actions: [cancel, go] })
     cancel.addEventListener('click', () => dlg.close())
     go.addEventListener('click', () => {
@@ -3964,9 +3862,7 @@ function cloneElement(el: SlideElement): SlideElement {
 
 // tiny DOM helpers
 function div(cls: string): HTMLElement {
-  const d = document.createElement('div')
-  d.className = cls
-  return d
+  return h('div', { className: cls })
 }
 
 function btn(
@@ -3975,9 +3871,7 @@ function btn(
   onClick: (ev: MouseEvent) => void,
   title?: string,
 ): HTMLElement {
-  const b = document.createElement('button')
-  b.className = 'ed-btn'
-  b.innerHTML = label ? `${icon}<span>${label}</span>` : icon
+  const b = h('button.ed-btn', { innerHTML: label ? `${icon}<span>${label}</span>` : icon })
   if (title) b.title = title
   b.addEventListener('click', onClick)
   return b
