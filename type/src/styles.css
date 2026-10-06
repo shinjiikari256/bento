@@ -209,7 +209,7 @@ html, body {
   /* A grid item's automatic minimum size is its MIN-CONTENT width, so without
      this the bar simply refused to be narrower than its buttons (measured:
      1135px inside a 1000px window) and #app clipped the overflow. Its own
-     scrollWidth then equalled its clientWidth, so fitBar's overflow test could
+     scrollWidth then equalled its clientWidth, so the fit's overflow test could
      never fire and the tiers never engaged — the bar looked fine to the code
      and was cut off on screen. */
   min-width: 0;
@@ -235,7 +235,7 @@ html, body {
      shrinking at and will crush the title toward zero before it ever counts
      as "overflow" (measured: 16px wide, narrower than a single glyph) — the
      t-bar-tight/-fold flex-basis steps below are what SHOULD do the shrinking;
-     this is the backstop for whatever gap remains, and the last width fitBar's
+     this is the backstop for whatever gap remains, and the last width the fit's
      tooTight() check treats as still-readable before it gives up and folds
      the title away entirely (see .t-bar-micro). */
   min-width: 72px;
@@ -252,6 +252,17 @@ html, body {
 }
 
 .t-right { margin-inline-start: auto; display: flex; align-items: center; gap: 4px; }
+/* a dead bar control (undo with nothing to undo): the suite's 0.35 */
+.t-btn[disabled] { opacity: 0.35; cursor: default; }
+/* the centre: the app's own tools, left-aligned after the title */
+.t-tools { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; }
+/* the document's figures close the CENTRE block, at its end edge, and a
+   divider parts them from the suite's controls (undo · redo …) */
+/* Find and Review ▾ sit at the centre block's END, left of the document's
+   figures and parted from them by a divider; Insert keeps the start */
+.t-tools > #gReview { margin-inline-start: auto; padding-inline-start: 0; border-inline-start: 0; }
+.t-tools > .t-status { padding-inline-start: 2px; }
+.t-bar-sep { align-self: center; width: 1px; height: 20px; margin-inline: 4px; background: var(--line); flex: 0 0 auto; }
 .t-group { display: flex; align-items: center; gap: 2px; }
 .t-group + .t-group { margin-inline-start: 6px; padding-inline-start: 6px;
   border-inline-start: 1px solid var(--line); }
@@ -291,6 +302,24 @@ html, body {
 }
 .t-menu button:hover { background: var(--chrome-2); }
 .t-menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
+/* a row's shortcut, at its end edge, drawn as a key — as the shortcuts sheet does */
+.t-kbd {
+  margin-inline-start: auto; padding: 1px 6px; flex: 0 0 auto;
+  font: inherit; font-size: 11.5px; color: var(--muted); white-space: nowrap;
+  background: var(--chrome-2); border: 1px solid var(--line); border-radius: 5px;
+}
+.t-menu button:has(> .t-kbd) > span { margin-inline-end: 16px; }
+/* a bar button's chip only shows once it has folded into ⋯ */
+.t-mkbd { display: none; }
+.t-menu .t-mkbd { display: inline; }
+/* a menu opening from the centre tools reads from its start edge */
+.t-menu.t-menu-start { inset-inline-end: auto; inset-inline-start: 0; }
+.t-menu.t-menu-start button { white-space: nowrap; }
+/* ⋯ exists only where the bar has folded; Save ▾ and Review ▾ carry the rest */
+.t-more-wrap { display: none; }
+.t-savewrap > .t-menuwrap { display: flex; }
+.t-dd-caret { font-size: 10px; opacity: .6; margin-inline-start: -2px; }
+.t-bar-fold .t-more-wrap { display: block; }
 /* A bar button (`.t-btn`) reparented into the ⋯ menu at the fold tier
    (main.ts setBarFolded) is still a `.t-btn` — its OWN rules (inline-flex,
    fixed min-width) would make it a stray icon chip in a list of full-width
@@ -311,7 +340,7 @@ html, body {
    fitTopbar explains why at length: browser zoom, OS text scaling and wider
    translations all change how much room the same buttons need at the same
    viewport width, and each one clipped the end of the bar).
-   The tiers are applied by fitBar() in main.ts, widest first. */
+   The tiers are applied by the kernel fitTopbar() from main.ts, widest first. */
 .t-bar-compact .t-lbl { display: none; }
 /* `#moreMenu` is DOM-nested inside `.t-bar` (`.t-menuwrap` sits in `.t-right`),
    so the rule above also matched every `.t-lbl` INSIDE the ⋯ menu — meaning
@@ -323,9 +352,15 @@ html, body {
    specificity as the rule it corrects, so it only wins by coming after it. */
 .t-menu .t-lbl { display: inline; }
 .t-bar-compact .t-primary { padding: 6px 9px; }
+/* Save keeps its word until the fold: it is the one control named, not guessed */
+.t-bar-compact .bksv-main > .t-lbl { display: inline; }
+.t-bar-compact .bksh > .t-lbl { display: inline; } /* Share is named, as Save is */
+.t-bar-fold .bksh > .t-lbl { display: none; }
+.t-bar-fold .bksv-main > .t-lbl { display: none; }
 .t-bar-tight .t-mark-word { display: none; }
 .t-bar-tight .t-doctitle { flex-basis: 160px; }
 .t-bar-fold .t-status { display: none; }
+.t-bar-fold .t-tools > .t-bar-sep { display: none; } /* it parts the figures, gone here */
 .t-bar-fold .t-doctitle { flex-basis: 110px; }
 .t-bar-fold .t-group + .t-group { margin-inline-start: 2px; padding-inline-start: 2px; }
 /* Everything the fold tier could move into ⋯ (main.ts FOLD_GROUPS) is gone
@@ -337,6 +372,11 @@ html, body {
    nowhere left to shrink. Drop it cleanly instead of crushing it below one
    legible character — the window title and the About dialog still show it. */
 .t-bar-micro .t-doctitle { display: none; }
+/* folded: redo, ⓘ, Settings and shortcuts leave the bar for their rows in ⋯
+   (one place at any width), as slides' fold does */
+.t-menu .t-fold-only { display: none; }
+.t-bar-fold #info, .t-bar-fold #redo, .t-bar-fold #theme, .t-bar-fold #keys { display: none; }
+.t-bar-fold .t-menu .t-fold-only { display: flex; }
 
 /* ————— the page ————— */
 .t-scroll {
@@ -498,21 +538,9 @@ html, body {
 }
 .t-dlg .t-row > span:first-child { flex: 0 0 120px; color: var(--muted); font-size: 13px; }
 .t-about-blurb { font-size: 13.5px; line-height: 1.5; color: var(--ink-2); margin: 6px 0; }
-.t-about-val { font-size: 13px; color: var(--ink-2); margin: 4px 0; }
-.t-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .t-note { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 6px 0 0; }
-.t-about-head { margin-bottom: 4px; }
 .t-replace-json { margin-top: 8px; }
 .t-replace-json-panel .t-row { margin-top: 6px; }
-.t-about-logo {
-  display: inline-flex; align-items: center; gap: 10px;
-  text-decoration: none; color: inherit;
-}
-.t-about-logo b { display: block; font-size: 15px; white-space: nowrap; }
-/* Scoped to the version line. Unscoped, this also caught the brand slash
-   INSIDE the <b> — `bento<span>/</span>type` — turning it into a block and
-   breaking the wordmark across three lines. */
-.t-about-logo > div > span { display: block; font-size: 12px; color: var(--muted); }
 
 /* `hidden` must actually hide. A class that sets `display` beats the hidden
    attribute's UA rule, so `.t-btn[hidden]` stayed inline-flex and the

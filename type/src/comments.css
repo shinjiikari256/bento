@@ -8,21 +8,6 @@
    comments.ts, and vite folds it into the single shipped <style> tag same as
    every other app stylesheet. */
 
-/* ---- "You" name field, About dialog ------------------------------------ */
-
-.t-about-name-input {
-  width: 100%;
-  max-width: 220px;
-  font: inherit;
-  font-size: 12px;
-  padding: 4px 7px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--field, var(--chrome));
-  color: var(--ink);
-}
-.t-about-name-input:focus { border-color: var(--blue, var(--accent)); outline: none; }
-
 /* ---- per-message edit/delete -------------------------------------------
    Small ghost buttons beside a message's byline, shown only on a message
    whose author matches the name currently in localStorage — see

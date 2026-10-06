@@ -15,8 +15,10 @@ import { t } from './i18n.ts';
 import { tools, menuItems, panels, matchKey, readyFns, paginatedFns, selectionFns, text as labelText, type FeatureContext } from './features.ts';
 import './registry.ts';   // side-effect: every feature module registers itself
 import { i18nApi } from '../../kernel/src/i18n.ts';
-import { openAbout } from './about.ts';
-import { startTheme, setTheme, themeChoice, type ThemeChoice } from '../../kernel/src/theme.ts';
+import { openAbout, type AboutKind } from './about.ts';
+import { onThemeChange, startTheme } from '../../kernel/src/theme.ts';
+import { openShortcuts } from '../../kernel/src/ui/sheet.ts';
+import '../../kernel/src/ui/savebutton.css';
 import { parseDoc, emptyDoc, uid, wordCount, type TypeDoc } from './model.ts';
 import { gateRestored } from './restoregate.ts';
 import { Store } from './store.ts';
@@ -29,6 +31,7 @@ import { h } from '../../kernel/src/dom.ts';
 import { promptDialog } from '../../kernel/src/ui/promptdialog.ts';
 import { createPanel } from '../../kernel/src/ui/panel.ts';
 import '../../kernel/src/ui/panel.css';
+import { fitTopbar } from '../../kernel/src/ui/topbar.ts';
 
 // Tell the kernel who this app is — must precede any kernel module use
 // (window title suffix, save-picker label, update manifest).
@@ -112,30 +115,51 @@ app.innerHTML = `
     </button>
     <button id="sidebar" class="t-btn" type="button"></button>
     <input id="doctitle" class="t-doctitle" spellcheck="false">
-    <span class="t-status" id="status"></span>
-
-    <div class="t-right">
+    <div class="t-tools">
       <div class="t-group" id="gFormat"></div>
       <div class="t-group" id="gInsert"></div>
       <div class="t-group" id="gReview"></div>
+      <div class="t-menuwrap t-review-wrap">
+        <button id="reviewMore" class="t-btn" type="button" aria-haspopup="menu"></button>
+        <div class="t-menu t-menu-start" id="reviewMenu" hidden>
+          <button id="review" type="button"></button>
+        </div>
+      </div>
+      <span class="t-bar-sep" aria-hidden="true"></span>
+      <span class="t-status" id="status"></span>
+    </div>
+
+    <div class="t-right">
+      <span class="t-bar-sep" aria-hidden="true"></span>
       <div class="t-group">
         <button id="undo" class="t-btn" type="button"></button>
         <button id="redo" class="t-btn" type="button"></button>
       </div>
       <button id="props" class="t-btn" type="button"></button>
-      <button id="theme" class="t-btn" type="button"></button>
-      <button id="save" class="t-btn t-primary" type="button"></button>
-      <div class="t-menuwrap">
-        <button id="more" class="t-btn" type="button"></button>
-        <div class="t-menu" id="moreMenu" hidden>
-          <button id="snap" type="button"></button>
-          <button id="review" type="button"></button>
-          <button id="sign" type="button"></button>
-          <div class="t-menu-sep"></div>
-          <button id="print" type="button"></button>
-          <button id="about" type="button"></button>
+      <div class="bksv t-savewrap">
+        <button id="save" class="t-btn bksv-main" type="button"></button>
+        <div class="t-menuwrap">
+          <button id="saveMore" class="t-btn bksv-caret" type="button" aria-haspopup="menu"></button>
+          <div class="t-menu" id="saveMenu" hidden>
+            <button id="snap" type="button"></button>
+            <button id="sign" type="button"></button>
+            <div class="t-menu-sep"></div>
+            <button id="print" type="button"></button>
+          </div>
         </div>
       </div>
+      <button id="info" class="t-btn" type="button"></button>
+      <button id="theme" class="t-btn" type="button"></button>
+      <div class="t-menuwrap t-more-wrap">
+        <button id="more" class="t-btn" type="button"></button>
+        <div class="t-menu" id="moreMenu" hidden>
+          <button id="redoRow" class="t-fold-only" type="button"></button>
+          <button id="infoRow" class="t-fold-only" type="button"></button>
+          <button id="themeRow" class="t-fold-only" type="button"></button>
+          <button id="keysRow" class="t-fold-only" type="button"></button>
+        </div>
+      </div>
+      <button id="keys" class="t-btn" type="button"></button>
     </div>
   </header>
   <div class="t-main">
@@ -246,14 +270,23 @@ label('props', ICONS.panelRight, t('Format — show or hide the properties panel
 label('undo', ICONS.undo, t('Undo (⌘Z)'));
 label('redo', ICONS.redo, t('Redo (⇧⌘Z)'));
 label('save', ICONS.save, t('Save (⌘S)'), t('Save'));
-label('more', ICONS.more, t('More — revisions, signing, print'));
+label('more', ICONS.more, t('More'));
+label('reviewMore', ICONS.review, t('Review — tracked changes and comments'), t('Review'));
+// the ▾ every bar menu with a label carries (Save ▾, Space ▾ in spaces)
+byId('reviewMore').insertAdjacentHTML('beforeend', '<span class="t-dd-caret" aria-hidden="true">▾</span>');
+byId('saveMore').innerHTML = '<span aria-hidden="true">▾</span>';
+byId('saveMore').title = t('Save as… — snapshot, signing, print, bibliography');
 label('snap', ICONS.history, '', t('Snapshot'));
 label('review', ICONS.review, '', t('Review changes…'));
 label('sign', ICONS.sign, '', t('Sign…'));
 label('print', ICONS.print, '', t('Print or PDF…'));
-label('about', ICONS.sync, '', t('About bento/type'));
-byId('mark').title = t('About bento/type — version, updates, language');
-const showAbout = () => openAbout({
+// ⓘ is the DOCUMENT, the sun/moon is the READER'S settings, and the mark is
+// the APP (the suite's bar layout).
+label('info', ICONS.info, t('About this document'));
+// …and its row in ⋯, shown only once the bar has folded and ⓘ has left it
+label('infoRow', ICONS.info, '', t('About this document'));
+byId('mark').title = t('About bento/type — version, licenses');
+const showAbout = (kind: AboutKind = 'doc') => openAbout({
   store,
   pages: metrics.pages.length,
   onReplaceDoc: json => {
@@ -285,9 +318,57 @@ const showAbout = () => openAbout({
     editor.render();
     schedule();
   },
+  onOffline: on => collabOffline(on),
+}, kind);
+byId('mark').addEventListener('click', () => showAbout('app'));
+byId('info').addEventListener('click', () => showAbout('doc'));
+
+// Keyboard shortcuts — the suite's shared sheet, its own button in the bar.
+// GENERATED from the bar's own tooltips ("Bold (⌘B)"): the shortcut lives in
+// exactly one place, the label of the control it drives, so this list cannot
+// drift from what the keys do.
+/**
+ * A menu row: icon, the words, and — when the label ends in a shortcut,
+ * "Link (⌘K)" — that shortcut pulled out to the row's end edge as a key chip,
+ * the way the Keyboard shortcuts sheet draws keys.
+ */
+function menuRowHtml(icon: string, text: string): string {
+  const m = text.match(CHORD);
+  const words = m ? text.replace(CHORD, '') : text;
+  return icon + `<span>${words}</span>` + (m ? `<kbd class="t-kbd">${m[1]}</kbd>` : '');
+}
+const CHORD = /\s*\(([^()]*[⌘⇧⌥⌃][^()]*)\)\s*$/;
+const keyRows = (titles: string[]) => titles.flatMap(ti => {
+  const m = ti.match(CHORD);
+  return m ? [{ label: ti.replace(CHORD, ''), keys: [m[1]] }] : [];
 });
-byId('mark').addEventListener('click', showAbout);
-byId('about').addEventListener('click', showAbout);
+const openKeys = () => openShortcuts({
+  title: t('Keyboard shortcuts'), closeLabel: t('Close'),
+  groups: [
+    { title: t('Editing'), rows: keyRows([t('Undo (⌘Z)'), t('Redo (⇧⌘Z)'), t('Save (⌘S)'),
+      ...tools('right').map(s => labelText(s.title))]) },
+    { title: t('Format'), rows: keyRows(tools('format').map(s => labelText(s.title))) },
+    { title: t('Insert'), rows: keyRows(tools('insert').map(s => labelText(s.title))) },
+    { title: t('Review'), rows: keyRows(tools('review').map(s => labelText(s.title))) },
+  ].filter(g => g.rows.length),
+});
+label('keys', ICONS.keyboard, t('Keyboard shortcuts (?)'));
+byId('keys').addEventListener('click', openKeys);
+label('keysRow', ICONS.keyboard, '', t('Keyboard shortcuts'));
+byId('keysRow').addEventListener('click', openKeys);
+// …and the ? key, as in every Bento app — outside the page and any field, where
+// a ? is a character somebody is typing
+document.addEventListener('keydown', e => {
+  if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey) return;
+  const el = e.target as HTMLElement | null;
+  if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
+  e.preventDefault();
+  openKeys();
+});
+byId('infoRow').addEventListener('click', () => showAbout('doc'));
+// …and, as slides does, the folded bar's other demoted controls get rows too
+byId('redoRow').innerHTML = menuRowHtml(ICONS.redo, t('Redo (⇧⌘Z)'));
+byId('redoRow').addEventListener('click', () => { store.redo(); editor.render(); refresh(); });
 
 for (const [sub, text] of [['comments', t('Comments')], ['changes', t('Tracked changes')],
                            ['redline', t('Snapshot redline')], ['sigs', t('Signatures')]] as const) {
@@ -324,7 +405,7 @@ store.on(() => {
   }
 });
 
-// The bar's measured fit (fitBar) is wired up much further down, right after
+// The bar's measured fit (fitTopbar) is wired up much further down, right after
 // every group and the ⋯ menu are actually mounted onto it — see the note
 // there for why the ordering matters.
 
@@ -339,7 +420,16 @@ const featureCtx: FeatureContext = {
   toast: (m: string) => toast(m),
   showPanel: (id: string) => {
     sidePanel.expand();
-    showTab(id);
+    // A panel that is a SECTION of a tab (PanelSpec.host) has no tab of its
+    // own: showing it means showing the tab — and the Navigate view — its host
+    // lives in. Calling showTab with the panel's own id switched EVERY tab off
+    // and left the sidebar blank, which is what Find did.
+    const host = panels('left').find(p => p.id === id)?.host;
+    const el = host ? document.getElementById(host) : null;
+    const tab = el?.closest<HTMLElement>('.t-panel')?.dataset.panel;
+    const view = el?.closest<HTMLElement>('.t-view')?.dataset.view;
+    showTab(tab ?? id);
+    if (view) showView(view);
   },
 };
 
@@ -347,14 +437,15 @@ const toolButton = (spec: ReturnType<typeof tools>[number]) => {
   const b = h('button.t-btn', { type: 'button', id: `tool-${spec.id}` });
   const titleText = labelText(spec.title);
   // Icon-only buttons rely on `title` in the BAR, but a row folded into the ⋯
-  // menu (see fitBar/setBarFolded below) has no hover to reveal that — a menu
+  // menu (see fitTopbar/setBarFolded below) has no hover to reveal that — a menu
   // row has to name itself. `.t-mlbl` costs nothing while the button lives in
   // the bar: styles.css only shows it inside `.t-menu`. The parenthetical
   // shortcut ("(⌘K)") is dropped — a shortcut hint is dead weight on a row you
   // reach precisely because a shortcut wasn't an option.
   b.innerHTML = spec.icon + (spec.label
     ? `<span class="t-lbl">${labelText(spec.label)}</span>`
-    : `<span class="t-mlbl">${titleText.replace(/\s*\([^)]*\)\s*$/, '')}</span>`);
+    : `<span class="t-mlbl">${titleText.replace(/\s*\([^)]*\)\s*$/, '')}</span>` +
+      (titleText.match(CHORD) ? `<kbd class="t-kbd t-mkbd">${titleText.match(CHORD)![1]}</kbd>` : ''));
   b.title = titleText;
   // mousedown, not click: the caret must survive pressing a toolbar button
   b.addEventListener('mousedown', e => { e.preventDefault(); spec.run(featureCtx); });
@@ -363,7 +454,13 @@ const toolButton = (spec: ReturnType<typeof tools>[number]) => {
 
 const mountTools = (hostId: string, group: 'format' | 'insert' | 'review' | 'right') => {
   const host = byId(hostId);
-  for (const spec of tools(group)) host.appendChild(toolButton(spec));
+  for (const spec of tools(group)) {
+    // Commenting is REVIEW: it is the first row of Review ▾, by its words,
+    // rather than a second speech-bubble icon beside the menu that holds the
+    // rest of reviewing (Review changes…, Hide comments).
+    if (spec.id === 'comment') { mountReviewRow(spec); continue; }
+    host.appendChild(toolButton(spec));
+  }
   if (!host.children.length) host.remove();
 };
 
@@ -391,7 +488,7 @@ const mountInsertMenu = () => {
   const menu = h('div.t-menu', { hidden: true });
   for (const spec of specs) {
     const item = h('button', { type: 'button' });
-    item.innerHTML = spec.icon + `<span>${labelText(spec.label ?? spec.title)}</span>`;
+    item.innerHTML = menuRowHtml(spec.icon, labelText(spec.label ?? spec.title));
     item.addEventListener('mousedown', e => { e.preventDefault(); menu.hidden = true; spec.run(featureCtx); });
     menu.appendChild(item);
   }
@@ -405,6 +502,15 @@ mountTools('gFormat', 'format');
 mountInsertMenu();
 mountTools('gReview', 'review');
 
+/** A bar tool as a text row at the top of Review ▾ (its title is its label). */
+function mountReviewRow(spec: ReturnType<typeof tools>[number]): void {
+  const menu = byId('reviewMenu');
+  const b = h('button', { type: 'button', id: `tool-${spec.id}` });
+  b.innerHTML = menuRowHtml(spec.icon, labelText(spec.title));
+  b.addEventListener('click', () => spec.run(featureCtx));
+  menu.insertBefore(b, menu.firstChild);
+}
+
 // Menu rows keep a reference to their spec so their labels can be RE-READ when
 // the menu opens. A toggle's label is a function of state — "Hide comments"
 // becomes "Show comments" — and rendering it once at mount left it permanently
@@ -412,34 +518,27 @@ mountTools('gReview', 'review');
 const menuRows: Array<[HTMLElement, ReturnType<typeof menuItems>[number]]> = [];
 for (const spec of menuItems()) {
   const b = h('button', { type: 'button' });
-  b.innerHTML = (spec.icon ?? '') + `<span>${labelText(spec.label)}</span>`;
+  b.innerHTML = menuRowHtml(spec.icon ?? '', labelText(spec.label));
   b.addEventListener('click', () => spec.run(featureCtx));
-  byId('moreMenu').insertBefore(b, byId('about'));
+  // Registered items go where they belong: showing/hiding comments is review,
+  // everything else a feature adds here (a bibliography import) is about the
+  // FILE, so it rides in Save ▾ with snapshot, signing and print.
+  byId(spec.id === 'comments-visibility' ? 'reviewMenu' : 'saveMenu').appendChild(b);
   menuRows.push([b, spec]);
 }
 const refreshMenuLabels = () => {
   for (const [b, spec] of menuRows) {
-    const span = b.querySelector('span');
-    if (span) span.textContent = labelText(spec.label);
+    // the icon too: a toggle's glyph follows its state as its words do
+    b.innerHTML = menuRowHtml(spec.icon ?? '', labelText(spec.label));
   }
 };
 
 /**
- * Size the bar by MEASURING it, not by width breakpoints.
- *
- * The same reasoning as slides' fitTopbar, and the same tiers: start at the
- * widest layout and step down while the bar overflows its own box. Breakpoints
- * were wrong here for the reason they are wrong there — zoom, OS text scaling
- * and longer translations all change how much room the same buttons need at
- * one viewport width.
- *
- * The title is the only shrinkable item, so flexbox crushes it toward its floor
- * before anything technically overflows: stepping down only on hard overflow
- * would leave full labels beside an unusably narrow title. So squeeze counts
- * as overflow too.
+ * Size the bar by MEASURING it (kernel/src/ui/topbar.ts), not by width
+ * breakpoints.
  *
  * THIS BLOCK MUST COME AFTER the groups and the ⋯ menu are mounted (above),
- * not before. Measured: with fitBar wired up where the "obvious" spot was —
+ * not before. Measured: with the fit wired up where the "obvious" spot was —
  * right after the title input, before mountTools('gFormat', …) etc. ran — its
  * FIRST call and its ResizeObservers all saw a bar missing every format/
  * insert/review button. Nothing observed afterward ever re-triggered it (the
@@ -450,8 +549,6 @@ const refreshMenuLabels = () => {
  * 620px wide, forever, since nothing ever asked again).
  */
 const bar = document.querySelector<HTMLElement>('.t-bar')!;
-const TIERS = ['t-bar-compact', 't-bar-tight', 't-bar-fold'];
-const ALL_BAR_CLASSES = [...TIERS, 't-bar-micro'];
 
 // Groups whose buttons are plain, POPOVER-FREE actions — safe to reparent
 // wholesale into the ⋯ menu when the fold tier engages. gInsert stays put: it
@@ -463,11 +560,8 @@ const ALL_BAR_CLASSES = [...TIERS, 't-bar-micro'];
 const FOLD_GROUPS = ['gFormat', 'gReview'];
 const foldHome = new WeakMap<HTMLElement, HTMLElement>();
 const foldSep = h('div.t-menu-sep', { hidden: true });
-byId('moreMenu').insertBefore(foldSep, byId('snap'));
-let barFolded = false;
+byId('moreMenu').insertBefore(foldSep, byId('infoRow'));
 function setBarFolded(next: boolean) {
-  if (next === barFolded) return;
-  barFolded = next;
   const menu = byId('moreMenu');
   if (next) {
     for (const gid of FOLD_GROUPS) {
@@ -491,57 +585,20 @@ function setBarFolded(next: boolean) {
   }
 }
 
-function fitBar() {
-  if (!bar.isConnected) return;
-  bar.classList.remove(...ALL_BAR_CLASSES);
-  setBarFolded(false);
-  const title = bar.querySelector<HTMLElement>('.t-doctitle');
-  const tooTight = () =>
-    bar.scrollWidth - bar.clientWidth > 1 || (title ? title.clientWidth < 96 : false);
-  for (const tier of TIERS) {
-    if (!tooTight()) return;
-    bar.classList.add(tier);
-    if (tier === 't-bar-fold') setBarFolded(true);
-  }
-  // Folding the groups away is the last thing that can free width. If the bar
-  // is STILL too tight — or the title still can't clear its floor — the title
-  // has nowhere left to shrink to, so it drops out cleanly instead of being
-  // crushed below one legible character (measured: 24px wide at ~560px before
-  // this tier existed, narrower than a single glyph).
-  if (tooTight()) bar.classList.add('t-bar-micro');
-}
-// BOTH signals, deliberately. ResizeObserver catches content-driven changes
-// (a longer title, a translated label) that no resize event reports; the
-// resize event catches viewport changes when RO callbacks are being throttled,
-// which happens whenever the page is not painting — a background tab, or a
-// hidden preview pane. Measured: with only the observer, the bar stayed
-// untiered and overflowed at 700px because the callback never ran.
-fitBar();
-new ResizeObserver(() => fitBar()).observe(bar);
-new ResizeObserver(() => fitBar()).observe(document.documentElement);
-window.addEventListener('resize', fitBar);
-
-// And a MutationObserver, which is the third signal slides has always had
-// (CLAUDE.md: "driven by a Resize- + MutationObserver on the bar") and this
-// app was missing.
-//
-// It matters because the bar's own BOX does not change when its CONTENTS do.
-// The document title is painted after this first fitBar() runs, and a longer
-// title makes the bar too tight without resizing it — so no ResizeObserver
-// fires and the bar stays one tier short. Measured: loaded directly at 480px
-// the bar overflowed by 23px with a button hanging past its edge, and a single
-// stray resize event was enough to fix it, which is the signature of a missing
-// re-measure rather than a broken measurement.
-//
-// It DISCONNECTS around its own call: fitBar adds classes and reparents
-// buttons into the ⋯ menu, which are themselves mutations, and an observer
-// that watched its own work would never stop.
-const barWatch = new MutationObserver(() => {
-  barWatch.disconnect();
-  fitBar();
-  barWatch.observe(bar, { childList: true, characterData: true, subtree: true });
+// kernel/src/ui/topbar.ts re-fits on every viewport change AND on content
+// changes: the document title is painted after this first fit runs, and a
+// longer title makes the bar too tight without resizing its box. Folding the
+// groups away is the last thing that can free width; if the bar is STILL too
+// tight the title has nowhere left to shrink to, so `t-bar-micro` drops it
+// out cleanly instead of crushing it below one legible character (measured:
+// 24px wide at ~560px before that tier existed).
+fitTopbar(bar, {
+  tiers: ['t-bar-compact', 't-bar-tight', 't-bar-fold'],
+  title: bar.querySelector<HTMLElement>('.t-doctitle'),
+  titleMin: 96,
+  lastResort: 't-bar-micro',
+  onFold: setBarFolded,
 });
-barWatch.observe(bar, { childList: true, characterData: true, subtree: true });
 
 // LEFT — navigation and review: facts about the document as a whole.
 //
@@ -603,15 +660,21 @@ const paintToolStates = () => {
   }
 };
 
-// the ⋯ menu — secondary actions, off the bar but one click away
-const moreMenu = byId('moreMenu');
-byId('more').addEventListener('click', e => {
-  e.stopPropagation();
-  if (moreMenu.hidden) refreshMenuLabels();
-  moreMenu.hidden = !moreMenu.hidden;
-});
-document.addEventListener('click', () => { moreMenu.hidden = true; });
-moreMenu.addEventListener('click', () => { moreMenu.hidden = true; });
+// The bar's three menus: Save ▾ (the file), Review ▾ (changes and comments)
+// and ⋯ (only on a folded bar — what it had to give up). One open at a time.
+const MENUS: Array<[string, string]> = [['saveMore', 'saveMenu'], ['reviewMore', 'reviewMenu'], ['more', 'moreMenu']];
+const closeMenus = () => { for (const [, m] of MENUS) byId(m).hidden = true; };
+for (const [trigger, menuId] of MENUS) {
+  const menu = byId(menuId);
+  byId(trigger).addEventListener('click', e => {
+    e.stopPropagation();
+    const opening = menu.hidden;
+    closeMenus();
+    if (opening) { refreshMenuLabels(); menu.hidden = false; }
+  });
+  menu.addEventListener('click', () => { menu.hidden = true; });
+}
+document.addEventListener('click', closeMenus);
 
 
 let metrics: Metrics = { pages: [], ms: 0 };
@@ -696,6 +759,13 @@ window.addEventListener('keydown', e => {
   if (e.key === '[') sidePanel.toggle();
   if (e.key === ']') propsPanel.toggle();
 });
+// Undo/redo LOOK unavailable when they are — as in every Bento app
+const syncHistory = () => {
+  (byId('undo') as HTMLButtonElement).disabled = !store.canUndo;
+  (byId('redo') as HTMLButtonElement).disabled = !store.canRedo;
+};
+store.on(syncHistory);
+syncHistory();
 document.getElementById('undo')!.addEventListener('mousedown', (e) => {
   e.preventDefault(); store.undo(); editor.render(); refresh();
 });
@@ -931,9 +1001,9 @@ function paintTitle() {
   // Update the LABEL only. Setting textContent here wiped the icon that
   // label() had just installed, so the button silently lost its glyph the
   // first time the dirty flag moved — which is every document, immediately.
-  const lbl = btn.querySelector('.t-lbl');
-  if (lbl) lbl.textContent = dirty ? t('Save') : t('Saved');
-  btn.classList.toggle('t-primary', dirty);
+  // The suite's Save (kernel/src/ui/savebutton.css): its label stays "Save"
+  // and its COLOUR carries the state — grey when saved, ink-filled when not.
+  btn.classList.toggle('bksv-dirty', dirty);
   // These two were the ONLY strings the pseudo-locale audit caught, and the
   // reason is worth keeping: this function had a local `const t` holding the
   // document title, which shadowed the imported t(). The sweep could not have
@@ -980,41 +1050,15 @@ addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') { e.preventDefault(); doPrint(); }
 });
 
-// theme picker — cycles auto → light → dark, and says which it is
-//
-// Same recipe as icons.ts (24x24 box, 16px render, stroke currentColor at
-// width 2, round caps/joins) kept local rather than added to that file:
-// only this button needs it, and icons.ts is a different owner's file.
-const themeSvg = (body: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
-const THEME_ICON: Record<ThemeChoice, string> = {
-  auto: themeSvg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/>'),
-  light: themeSvg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2 12h2M20 12h2M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5"/>'),
-  dark: themeSvg('<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>'),
-};
-// A FUNCTION, not a const object. Built at import time these three froze in
-// whatever locale was current before the viewer's own was resolved — the rule
-// i18n.ts states and the reason every registered label here is lazy.
-const themeText = (c: ThemeChoice): string =>
-  ({ auto: t('Auto'), light: t('Light'), dark: t('Dark') })[c];
-// This is control (1) of the label rule above: the face has to say what the
-// NEXT click leaves the app in, not just "theme", so it keeps its text label
-// like Save/Saved does.
-const paintTheme = () => {
-  const choice = themeChoice();
-  label('theme', THEME_ICON[choice],
-    t('Theme: {mode} — click to cycle auto/light/dark', { mode: themeText(choice) }),
-    themeText(choice));
-};
-byId('theme').addEventListener('click', () => {
-  const order: ThemeChoice[] = ['auto', 'light', 'dark'];
-  const next = order[(order.indexOf(themeChoice()) + 1) % order.length];
-  setTheme(next);
-  paintTheme();
-  // the page shadow and grid change with the theme, so re-measure
-  repaginate();
-});
-paintTheme();
+// Settings — the reader's preferences, the theme among them: a gear (the
+// suite's bar layout), no longer a three-way theme cycle; the choice itself
+// lives in the Settings card's select.
+label('theme', ICONS.gear, t('Settings — language, appearance and updates'));
+byId('theme').addEventListener('click', () => showAbout('settings'));
+label('themeRow', ICONS.gear, '', t('Settings'));
+byId('themeRow').addEventListener('click', () => showAbout('settings'));
+// the page shadow and grid change with the theme, so re-measure
+onThemeChange(() => repaginate());
 
 repaginate();
 dirty = false; paintTitle();
@@ -1057,5 +1101,5 @@ dirty = false; paintTitle();
 for (const f of readyFns()) f(featureCtx);
 // Live collaboration (bento-sync) — dormant unless the doc carries collab
 // creds or the user opts in via the Share button; see src/collab.ts.
-import { initCollab } from './collab.ts';
+import { initCollab, collabOffline } from './collab.ts';
 initCollab(store, editor);

@@ -104,7 +104,10 @@ const main = readFileSync(join(SRC, 'main.ts'), 'utf8');
 // and mc and stopped — five of the seven ⋯ entries were invisible to a gate
 // whose whole job is to see all of them. Same mistake as the one callsOf()
 // above is written to avoid, made again twenty lines later.
-const menuMarkup = main.slice(main.indexOf('id="moreMenu"'), main.indexOf('</header>'));
+// The bar's menus are three now — Save ▾, Review ▾ and the folded-bar ⋯ —
+// so the scan reads each menu's block, up to the first line that closes it
+// (separators close on their own line, so they never end a block early).
+const menuMarkup = [...main.matchAll(/id="(?:save|review|more)Menu"[\s\S]*?\n\s*<\/div>/g)].map(m => m[0]).join('\n');
 for (const m of menuMarkup.matchAll(/<button id="([a-z]+)"/g)) {
   const id = m[1];
   const lbl = main.match(new RegExp(`label\\('${id}',[^;]*?t\\(\\s*'([^']+)'`, 's'));

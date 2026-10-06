@@ -424,7 +424,9 @@ registerTool({
   // states. Reading it lazily makes this label behave exactly like every label
   // main.ts sets from script.
   get title() { return t('Link (⌘K)'); },
-  group: 'format',
+  // Insert, not a lone icon in the bar: a link is something you put in the
+  // text, beside the citation and the cross-reference.
+  group: 'insert',
   order: 60,
   run: openLinkEditor,
   active: ctx => {

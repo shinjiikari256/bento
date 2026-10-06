@@ -31,12 +31,14 @@
 // sync/session.ts's SyncSession is for.
 
 import './collab.css';
+import '../../kernel/src/ui/sharebutton.css';
+import { ICONS } from './icons.ts';
 import { inviteCopy, readerCopy } from './share.ts';
 import { serializeAuto, writeUpdatedFileAs } from '../../kernel/src/save.ts';
 import { lsGet, lsSet } from '../../kernel/src/storage.ts';
 import { offlineEnabled } from '../../kernel/src/net.ts';
 import {
-  joinFromDoc, onlineTransport, rotateKeys,
+  disconnectOnline, joinFromDoc, onlineTransport, rotateKeys,
   sharingOn, startSharing, stopSharing,
 } from './sync/online.ts';
 import { SyncSession, hostStore, type Peer, type SyncNotice } from './sync/session.ts';
@@ -91,6 +93,11 @@ function blockLabel(doc: TypeDoc, blockId: string): string {
 
 // ───────────────────────────────────────────────────────────────── the wire
 
+/** Settings' Offline switch: hang up the live session, or re-join it. A no-op
+ *  until initCollab has run. */
+let offlineHook: ((on: boolean) => void) | null = null;
+export function collabOffline(on: boolean): void { offlineHook?.(on); }
+
 export function initCollab(store: Store, editor: Editor): void {
   const paper = document.getElementById('paper');
 
@@ -112,6 +119,7 @@ export function initCollab(store: Store, editor: Editor): void {
   }
   tryJoin();
   store.on(() => tryJoin());
+  offlineHook = (on) => { if (on) disconnectOnline(session); else tryJoin(); };
 
   // Sharing sends the CRDT state along with every saved copy (doc.collab.sync)
   // so an offline-edited copy can rejoin as a true fork later (PLATFORM §5).
@@ -136,11 +144,15 @@ export function initCollab(store: Store, editor: Editor): void {
   // ever appeared. A lookup that returns null behind a truthiness guard is the
   // recurring way chrome goes missing here without anything looking broken.
   const bar = document.querySelector('.t-bar');
-  const spacer = document.querySelector('#theme') ?? document.querySelector('#save');
+  // before the Save split button (its wrapper, not Save inside it)
+  const spacer = document.querySelector('.t-savewrap') ?? document.querySelector('#save');
   const presenceBox = el('div', 'tc-presence');
   const wrap = el('div', 'tc-wrap');
-  const shareB = el('button', 'tc-share-btn');
-  shareB.textContent = t('Share');
+  // The suite's Share button (kernel/src/ui/sharebutton.css): an ordinary bar
+  // button — icon and "Share" — whose status dot is the session's state.
+  const shareB = el('button', 't-btn tc-share-btn bksh');
+  shareB.innerHTML = `${ICONS.share}<span class="t-lbl"></span>`;
+  shareB.querySelector('.t-lbl')!.textContent = t('Share');
   shareB.title = t('Share — invite people to edit live, or send a view-only copy');
   const popover = el('div', 'tc-pop');
   wrap.append(shareB, popover);
@@ -166,13 +178,13 @@ export function initCollab(store: Store, editor: Editor): void {
   function wireOnlineStatus() {
     const tr = onlineTransport();
     if (!tr) {
-      shareB.classList.remove('live', 'connecting');
+      shareB.classList.remove('bksh-live', 'bksh-wait');
       shareB.title = t('Not sharing yet — click to start a live session');
       return;
     }
     tr.onStatus = () => wireOnlineStatus();
-    shareB.classList.toggle('live', tr.status === 'open');
-    shareB.classList.toggle('connecting', tr.status !== 'open');
+    shareB.classList.toggle('bksh-live', tr.status === 'open');
+    shareB.classList.toggle('bksh-wait', tr.status !== 'open');
     shareB.title = tr.status === 'open'
       ? t('Live — this document is being shared')
       : t('Connecting to the live session…');

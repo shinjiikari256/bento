@@ -576,6 +576,17 @@ const COMMENT_ICON =
   '<path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.4-4.2A8 8 0 0 1 13 4a8 8 0 0 1 8 8z"/>' +
   '<line x1="8.5" y1="11" x2="15.5" y2="11"/><line x1="8.5" y1="14.5" x2="13" y2="14.5"/></svg>';
 
+// The visibility toggle's glyphs, same recipe: open eye = Show, struck = Hide.
+const EYE_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M9.9 5.2A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.7 17.7 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/>' +
+  '<path d="M14.1 14.1a3 3 0 0 1-4.2-4.2"/><path d="M3 3l18 18"/></svg>';
+
 /**
  * Who you are IF you have already said — never asks.
  *
@@ -1077,6 +1088,8 @@ export const applyCommentVisibility = (): void => {
 registerMenuItem({
   id: 'comments-visibility',
   get label() { return commentsHidden() ? t('Show comments') : t('Hide comments'); },
+  // the eye says the same as the words: open to show, struck to hide
+  get icon() { return commentsHidden() ? EYE_ICON : EYE_OFF_ICON; },
   order: 15,
   run(ctx) {
     setCommentsHidden(!commentsHidden());
