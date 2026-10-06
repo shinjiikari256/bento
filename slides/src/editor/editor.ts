@@ -25,6 +25,8 @@ import { SlideCanvas } from './canvas'
 import { PropsPanel } from './panels'
 import { openCtxMenu, type CtxItem } from '../../../kernel/src/ui/ctxmenu.ts'
 import '../../../kernel/src/ui/ctxmenu.css'
+import { createPanel, type Panel } from '../../../kernel/src/ui/panel.ts'
+import '../../../kernel/src/ui/panel.css'
 import { promptDialog, confirmDialog } from '../../../kernel/src/ui/promptdialog.ts'
 import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
 import '../../../kernel/src/ui/jsoneditor.css'
@@ -39,7 +41,7 @@ import { insertElements, insertSlides, parseClip, serializeElements, serializeSl
 import { openSpeakerWindow, speakerIdleBody } from '../screens'
 import { boxCenter, connectorEndpoint, lineEndpoints, pathEndpoints, setLineEndpoints, setPathEndpoints } from './lineedit'
 import { ICONS } from '../icons'
-import { t, setLocale, locale, localeChoices, LOCALE_CHOICES, applyDirection, isRtl } from '../i18n'
+import { t, setLocale, locale, localeChoices, LOCALE_CHOICES, applyDirection } from '../i18n'
 import { stepOf } from '../steps'
 import { availablePacks, fetchPack, markFileSaved, packCoverage, packsInFile, stageForFile, unstageFromFile } from '../packs'
 import { injectFonts } from '../fonts'
@@ -164,8 +166,10 @@ export class Editor {
   private session: import('../sync/session').SyncSession | null = null
   private updateFound: string | null = null
   private lastAutoCheck: import('../update').UpdateCheck | null = null
-  /** side panel widths (px) — user-resizable, persisted per browser */
-  private panelW = { left: 188, right: 236 }
+  /** the slide list (start) and the properties panel (end) — resize,
+   *  collapse, persistence and the phone drawer are kernel/src/ui/panel.ts's */
+  private sidePanel!: Panel
+  private propsPanel!: Panel
 
   constructor(
     private root: HTMLElement,
@@ -313,6 +317,9 @@ export class Editor {
     // outside-press listeners that kept the old bar alive and re-fitted it.
     this.buildScope.abort()
     this.buildScope = new AbortController()
+    // the panels' own matchMedia listeners die with the DOM they belong to
+    this.sidePanel?.destroy()
+    this.propsPanel?.destroy()
     for (const o of this.buildObservers) o.disconnect()
     this.buildObservers = []
     this.root.innerHTML = ''
@@ -521,16 +528,10 @@ export class Editor {
       if (zb) corner.appendChild(zb)
     })
     this.props = div('ed-props')
-    main.append(this.sidebar, this.makeResizer('left'), canvasWrap, this.makeResizer('right'), this.props)
+    this.mountPanels()
+    main.append(this.sidePanel.root, canvasWrap, this.propsPanel.root)
 
     this.root.append(bar, main)
-
-    // phones/small windows: start with both panels collapsed so the CANVAS
-    // is what you see — the topbar toggles (and [ / ]) bring them back
-    if (window.innerWidth < 700) {
-      this.sidebar.classList.add('ed-collapsed')
-      this.props.classList.add('ed-collapsed')
-    }
 
     actions.insertBefore(formatB, saveGroup)
 
@@ -590,7 +591,6 @@ export class Editor {
     publishBarBottom()
 
     this.wireDrawerDismiss()
-    this.restorePanelWidths()
     this.canvas = new SlideCanvas(canvasWrap, this.store)
     this.canvas.onCommentModeChange = (on) => commentB.classList.toggle('ed-btn-armed', on)
     this.canvas.onSlideNav = (dir) => this.store.goToLinear(dir)
@@ -611,98 +611,51 @@ export class Editor {
 
   // --- resizable side panels ------------------------------------------------
 
-  private static PANEL_BOUNDS = { left: [110, 400], right: [190, 520] } as const
-  private static PANEL_DEFAULTS = { left: 188, right: 236 } as const
-
-  private restorePanelWidths() {
-    try {
-      const saved = lsJson<Record<string, number>>('bento-ed-panels', {})
-      for (const side of ['left', 'right'] as const) {
-        const [min, max] = Editor.PANEL_BOUNDS[side]
-        if (typeof saved[side] === 'number') this.panelW[side] = Math.min(max, Math.max(min, saved[side]))
-      }
-    } catch { /* corrupt storage — keep defaults */ }
-    this.applyPanelWidths()
-  }
-
-  private applyPanelWidths() {
-    this.sidebar.style.setProperty('--panew', `${this.panelW.left}px`)
-    this.props.style.setProperty('--panew', `${this.panelW.right}px`)
-  }
-
-  private panelToggles: { left?: HTMLElement; right?: HTMLElement } = {}
-
-  private updatePanelChevrons() {
-    const glyph = (side: 'left' | 'right') => {
-      const collapsed = (side === 'left' ? this.sidebar : this.props).classList.contains('ed-collapsed')
-      // chevron points where clicking will move the boundary. 'left'/'right'
-      // name the DOM order, not the screen: under an RTL chrome the slide list
-      // sits on the right, so the arrow that means "open me" turns around too.
-      const g = side === 'left' ? (collapsed ? '›' : '‹') : (collapsed ? '‹' : '›')
-      return isRtl() ? (g === '›' ? '‹' : '›') : g
+  /**
+   * The two side panels — kernel/src/ui/panel.ts owns drag-to-size, the
+   * collapse chevron, persistence and the phone drawer (below 700px, booting
+   * shut so the canvas is what you see). What stays here is slides' own:
+   * the bounds, the chevron's tooltip, and refitting the thumbnails when the
+   * slide list's width changes (they render at a width derived from it).
+   */
+  private mountPanels() {
+    // Widths used to live under one 'bento-ed-panels' key ({left, right});
+    // seed the per-panel keys from it once, so nobody loses a width they set.
+    const legacy = lsJson<Record<string, number>>('bento-ed-panels', {})
+    const seed = (key: string, w: unknown) => {
+      if (typeof w === 'number' && lsGet(key) == null) lsSet(key, JSON.stringify({ width: w }))
     }
-    for (const side of ['left', 'right'] as const) {
-      const b = this.panelToggles[side]
-      if (b) {
-        b.textContent = glyph(side)
-        const collapsed = (side === 'left' ? this.sidebar : this.props).classList.contains('ed-collapsed')
-        b.title = collapsed
-          ? side === 'left' ? t('Show slide list ([)') : t('Show properties (])')
-          : side === 'left' ? t('Hide slide list ([)') : t('Hide properties (])')
-      }
-    }
-  }
+    seed('bento-ed-panel-side', legacy.left)
+    seed('bento-ed-panel-props', legacy.right)
 
-  private makeResizer(side: 'left' | 'right'): HTMLElement {
-    const handle = div('ed-resizer')
-    handle.title = t('Drag to resize · double-click to reset')
-    const toggle = h('button.ed-panel-toggle')
-    toggle.addEventListener('click', (ev) => {
-      ev.stopPropagation()
-      this.togglePanel(side)
+    this.sidePanel = createPanel({
+      content: this.sidebar, side: 'start', defaultWidth: 188, minWidth: 110, maxWidth: 400,
+      storageKey: 'bento-ed-panel-side', label: t('Slides'),
     })
-    this.panelToggles[side] = toggle
-    handle.appendChild(toggle)
-    queueMicrotask(() => this.updatePanelChevrons())
-    const commit = () => {
-      lsSet('bento-ed-panels', JSON.stringify(this.panelW))
-      // thumbnails render at a width derived from the sidebar — refit them
-      if (side === 'left') this.rebuildSidebar()
+    this.propsPanel = createPanel({
+      content: this.props, side: 'end', defaultWidth: 236, minWidth: 190, maxWidth: 520,
+      storageKey: 'bento-ed-panel-props', label: t('Format'),
+    })
+    for (const p of [this.sidePanel, this.propsPanel]) p.resizer.title = t('Drag to resize · double-click to reset')
+
+    const titles = () => {
+      const chev = (p: Panel) => p.resizer.querySelector('button')!
+      chev(this.sidePanel).title = this.sidePanel.collapsed ? t('Show slide list ([)') : t('Hide slide list ([)')
+      chev(this.propsPanel).title = this.propsPanel.collapsed ? t('Show properties (])') : t('Hide properties (])')
     }
-    handle.addEventListener('mousedown', (down) => {
-      if (down.target === toggle) return // the chevron is a click, not a drag
-      const panel = side === 'left' ? this.sidebar : this.props
-      if (panel.classList.contains('ed-collapsed')) return
-      down.preventDefault()
-      const startX = down.clientX
-      const startW = this.panelW[side]
-      const [min, max] = Editor.PANEL_BOUNDS[side]
-      panel.classList.add('ed-noanim')
-      document.body.classList.add('ed-col-resizing')
-      const move = (ev: MouseEvent) => {
-        const dx = ev.clientX - startX
-        // clientX is physical; which way widens the panel depends on which
-        // screen edge it is docked to, and RTL swaps the two panels over.
-        const widens = (side === 'left') !== isRtl() ? dx : -dx
-        this.panelW[side] = Math.min(max, Math.max(min, startW + widens))
-        this.applyPanelWidths()
-      }
-      const up = () => {
-        window.removeEventListener('mousemove', move)
-        window.removeEventListener('mouseup', up)
-        panel.classList.remove('ed-noanim')
-        document.body.classList.remove('ed-col-resizing')
-        commit()
-      }
-      window.addEventListener('mousemove', move)
-      window.addEventListener('mouseup', up)
+    titles()
+    this.propsPanel.onChange(titles)
+    // thumbnails are rendered at a width derived from the slide list — refit
+    // them once a drag settles, not on every frame of it
+    let thumbW = this.sidePanel.width
+    let refit = 0
+    this.sidePanel.onChange(() => {
+      titles()
+      if (this.sidePanel.width === thumbW) return
+      thumbW = this.sidePanel.width
+      clearTimeout(refit)
+      refit = window.setTimeout(() => this.rebuildSidebar(), 150)
     })
-    handle.addEventListener('dblclick', () => {
-      this.panelW[side] = Editor.PANEL_DEFAULTS[side]
-      this.applyPanelWidths()
-      commit()
-    })
-    return handle
   }
 
   /** Collapse/expand the slide list or the properties panel. */
@@ -849,10 +802,8 @@ export class Editor {
   }
 
   togglePanel(side: 'left' | 'right') {
-    const el = side === 'left' ? this.sidebar : this.props
-    el.classList.toggle('ed-collapsed')
-    this.updatePanelChevrons()
     // the canvas wrap resizes; its ResizeObserver re-fits the stage
+    ;(side === 'left' ? this.sidePanel : this.propsPanel).toggle()
   }
 
   /**
@@ -872,10 +823,7 @@ export class Editor {
 
   /** Close a panel if it is open — idempotent, unlike togglePanel. */
   private closePanel(side: 'left' | 'right') {
-    const el = side === 'left' ? this.sidebar : this.props
-    if (el.classList.contains('ed-collapsed')) return
-    el.classList.add('ed-collapsed')
-    this.updatePanelChevrons()
+    ;(side === 'left' ? this.sidePanel : this.propsPanel).collapse()
   }
 
   /** Dismiss an open dropdown when a press lands outside it — the behaviour the
@@ -1836,7 +1784,7 @@ export class Editor {
       num.textContent = String(this.linearNumber(i))
     }
     // thumb width tracks the (resizable) sidebar; states render smaller
-    const base = Math.max(96, this.panelW.left - 52)
+    const base = Math.max(96, this.sidePanel.width - 52)
     const surface = renderThumbnail(slide, this.store.doc, isState ? Math.round(base * 0.84) : base)
     if (slide.comments?.some((c) => !c.resolved)) {
       const badge = div('ed-thumb-cmt')
@@ -2080,7 +2028,7 @@ export class Editor {
     this.thumbTimer = window.setTimeout(() => {
       const thumbs = this.sidebar.querySelectorAll<HTMLElement>('.ed-thumb')
       if (thumbs.length !== this.store.doc.slides.length) return this.rebuildSidebar()
-      const base = Math.max(96, this.panelW.left - 52)
+      const base = Math.max(96, this.sidePanel.width - 52)
       thumbs.forEach((item) => {
         const slide = this.store.doc.slides[Number(item.dataset.index)]
         if (!slide) return

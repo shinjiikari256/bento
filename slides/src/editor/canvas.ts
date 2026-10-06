@@ -1265,7 +1265,7 @@ export class SlideCanvas {
     this.selecto.on('dragStart', (e) => {
       const target = e.inputEvent.target as HTMLElement
       // floating controls over the canvas are not marquee territory
-      if (target.closest('.ed-present-fabs, .ed-zoombar, .ed-panel-toggle, .ed-resizer')) {
+      if (target.closest('.ed-present-fabs, .ed-zoombar, .bkp-resizer')) {
         e.stop()
         return
       }
