@@ -17,96 +17,9 @@
    it is used, so --radius-xl means the same thing here whether this file lands
    before or after the one that declares it. */
 
-.dx-about-back {
-  position: fixed;
-  inset: 0;
-  z-index: 10000; /* above .dx-pop (9999): a popover left open must not sit on top */
-  background: var(--scrim);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  /* 4vh, not 5: the dialogs are sized to fit a laptop screen WITHOUT scrolling
-     (scripts/test-dash-surfaces.ts measures it), and 10vh of backdrop was the
-     largest single thing standing between the taller of them and that. */
-  padding: 4vh 16px;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-.dx-about {
-  background: var(--surface);
-  color: var(--ink);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-dialog);
-  padding: 18px 20px 16px;
-  width: min(560px, 100%);
-  /* the notch, same rule as the top bar: the app pads its own chrome */
-  margin-bottom: max(12px, env(safe-area-inset-bottom));
-}
-
-.dx-about h2 {
-  font-size: var(--fs-micro);
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  /* 16/6, not 20/8. Eight sections in one dialog made these margins 200px of
-     the 1361px it measured; two dialogs of four sections each can afford to
-     breathe less between them and still fit a laptop screen without scrolling,
-     which is the whole point of the split. */
-  margin: 14px 0 6px;
-}
-.dx-about h2:first-child { margin-top: 0; }
-
-.dx-about-lede { margin: 0 0 8px; }
-.dx-about-lede b { font-weight: 650; }
-
-.dx-about-note {
-  color: var(--muted);
-  font-size: var(--fs-small);
-  line-height: 1.5;
-  margin: 5px 0 0;
-}
-
-.dx-about-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 2px 0;
-  font-size: var(--fs-ui);
-}
-.dx-about-row > span:first-child {
-  flex: 0 0 8.5rem;
-  color: var(--muted);
-}
-.dx-about-row > :last-child { flex: 1 1 auto; min-width: 0; }
-
-.dx-about-val {
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-  overflow-wrap: anywhere;
-}
-
-.dx-about-in,
-.dx-about select {
-  font: inherit;
-  font-size: var(--fs-ui);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  padding: 4px 7px;
-  background: var(--surface);
-  color: inherit;
-  width: 100%;
-}
-.dx-about-in:focus,
-.dx-about select:focus { outline: none; border-color: var(--blue); }
-.dx-about-in[disabled] { background: var(--panel); color: var(--muted); }
-
-.dx-about-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-}
+/* The card, its sections, rows, notes, fields, buttons and footer are the
+   suite's shared sheet now (kernel/src/ui/sheet.css). What stays here is
+   dash's own: the version list and the update badge. */
 
 .dx-about-paste { margin-top: 8px; }
 
@@ -140,31 +53,6 @@
 .dx-about-ver:hover { background: var(--hover); }
 .dx-about-ver span:first-child { flex: 1 1 auto; font-variant-numeric: tabular-nums; }
 .dx-about-ver span:last-child { color: var(--accent); }
-
-/* The footer: the way ACROSS (About ⇄ Settings) beside the way out. A rule
-   above it, because it is the only part of either dialog that is not about the
-   section it follows. */
-.dx-about-foot {
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-/* The two viewer switches (launch check, Offline mode). A label wrapping its
-   own box, so the text is part of the hit target. */
-.dx-about-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 8px 0 0;
-  cursor: pointer;
-  user-select: none;
-}
-/* Colour comes from `.bk-check` (kernel/src/ui/field.css, applied by
-   fieldize() in dialog.ts) now — this row overrides its vertical margin
-   back to 0 because `gap` already spaces label from box and there is no
-   sibling field in this row for the margin to match the height of. */
-.dx-about-check input { margin: 0; flex: 0 0 auto; }
 
 /* An update was found at launch. The badge sits on the ways INTO About — the
    ⓘ button and the version chip — because an update is never urgent enough to

@@ -26,10 +26,9 @@
 // stops keydown and paste at its backdrop exactly as about.ts does. Without
 // that, reading the shortcut card types into the sheet behind it.
 
-import './help.css'
 import { describeBindings, keyToAction, type BindingRow, type KeyChord } from './select.ts'
 import { t } from './i18n.ts'
-import { h } from '../../kernel/src/dom.ts'
+import { openShortcuts, type Sheet, type ShortcutGroup } from '../../kernel/src/ui/sheet.ts'
 
 // --- naming the actions ------------------------------------------------------
 
@@ -191,84 +190,34 @@ export function helpRows(): Array<{ section: Section; label: string; chords: Key
   return out
 }
 
-let card: HTMLElement | null = null
+let card: Sheet | null = null
 
 export function closeHelp(): void {
-  card?.remove()
+  const c = card
   card = null
+  c?.close()
 }
 
-export function helpOpen(): boolean { return card !== null }
+export function helpOpen(): boolean { return !!card?.dialog.isOpen }
 
+/** The card — the suite's shared shortcuts sheet (kernel/src/ui/sheet.ts),
+ *  filled from select.ts's key map. */
 export function openHelp(): void {
   closeHelp()
-  const back = h('div.dx-help-back')
-  const box = h('div.dx-help[role=dialog][aria-modal=true]')
-
-  // named h2El: `h` is the imported DOM-builder here, and a local `h` would shadow it
-  const h2El = h('h2', { textContent: t('Keyboard shortcuts') })
-  box.append(h2El)
-
-  const cols = h('div.dx-help-cols')
-  box.append(cols)
-
   const rows = helpRows()
+  const groups: ShortcutGroup[] = []
   for (const section of SECTIONS) {
     const mine = rows.filter((r) => r.section === section)
     if (!mine.length) continue
-    const sec = h('section.dx-help-sec')
-    const st = h('h3', { textContent: t(SECTION_TITLE[section]) })
-    sec.append(st)
-    for (const r of mine) {
-      const line = h('div.dx-help-row')
-      const keys = h('span.dx-help-keys')
-      for (const chip of chips(r.chords)) {
-        const kbd = h('kbd', { textContent: chip })
-        keys.append(kbd)
-      }
-      const what = h('span.dx-help-what', { textContent: t(r.label) })
-      line.append(keys, what)
-      sec.append(line)
-    }
-    cols.append(sec)
+    groups.push({ title: t(SECTION_TITLE[section]), rows: mine.map((r) => ({ label: t(r.label), keys: chips(r.chords) })) })
   }
-
-  const tips = h('section.dx-help-sec.dx-help-tipsec')
-  const tt = h('h3', { textContent: t('Good to know') })
-  tips.append(tt)
-  const ul = h('ul.dx-help-tips')
-  for (const tip of TIPS) {
-    const li = h('li', { textContent: t(tip) })
-    ul.append(li)
-  }
-  tips.append(ul)
-  cols.append(tips)
-
-  const close = h('button.dx-btn.dx-help-close', { type: 'button', textContent: t('Close') })
-  close.addEventListener('click', closeHelp)
-  box.append(close)
-
-  // main.ts owns document-level keydown and paste handlers that this card sits
-  // inside: the keydown routes any bare printable key into the selected cell,
-  // and the paste sniffer would treat a stray clipboard drop as a CSV import.
-  // Both are stopped at the backdrop, which contains everything in the card.
-  back.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeHelp()
-    e.stopPropagation()
-  })
-  back.addEventListener('paste', (e) => e.stopPropagation())
-  back.addEventListener('mousedown', (e) => { if (e.target === back) closeHelp() })
-
-  back.append(box)
-  document.body.append(back)
-  card = back
-  // FOCUS THE CARD, NOT THE BUTTON. Focusing Close scrolls the backdrop to the
-  // bottom of a card that is taller than the window — measured: the card opened
-  // showing its last section, with the heading and the whole "Moving around"
-  // group above the fold. The dialog itself takes focus so Escape and the tab
-  // order still start inside it.
-  box.tabIndex = -1
-  box.focus({ preventScroll: true })
+  const sheet = openShortcuts({ title: t('Keyboard shortcuts'), closeLabel: t('Close'), groups })
+  const tips = sheet.section(t('Good to know'))
+  for (const tip of TIPS) tips.append(sheet.note(t(tip)))
+  // main.ts's paste sniffer is a document-level bubble listener; the kernel
+  // dialog stops keys, the overlay stops the paste.
+  sheet.dialog.root.addEventListener('paste', (e) => e.stopPropagation())
+  card = sheet
 }
 
 export function toggleHelp(): void { helpOpen() ? closeHelp() : openHelp() }
@@ -287,25 +236,7 @@ export function toggleHelp(): void { helpOpen() ? closeHelp() : openHelp() }
  * asks `keyToAction`. So '?' and ⌘/ are bound in exactly one place, which is
  * the same place the card reads to describe them.
  */
-export function mountHelp(app: HTMLElement): void {
-  const bar = app.querySelector<HTMLElement>('.dx-bar-end') ?? app.querySelector<HTMLElement>('.dx-bar')
-  if (bar) {
-    const b = h('button.dx-btn.dx-help-btn', {
-      type: 'button',
-      title: t('Keyboard shortcuts (?)'),
-      textContent: '?',
-    })
-    // Literal `dataset.act = 'help'` assignment, not h()'s dataset prop: the
-    // bar-actions inventory (scripts/test-dash-actions.ts) source-scans for
-    // exactly this assignment shape to prove the bar's actions are wired.
-    b.dataset.act = 'help'
-    b.setAttribute('aria-label', t('Keyboard shortcuts'))
-    b.addEventListener('click', toggleHelp)
-    // Before the version chip, so the card's door survives the responsive
-    // ladder that hides the chip first; insertBefore(x, null) appends.
-    bar.insertBefore(b, bar.querySelector('.dx-ver'))
-  }
-
+export function mountHelp(): void {
   document.addEventListener('keydown', (e) => {
     // Escape closes from anywhere — the backdrop only sees it while focus is
     // inside the card, and a click on the sheet behind moves focus out.

@@ -14,6 +14,7 @@
 // call site — see docs/dash-collab.md, "What this needs from main.ts".
 
 import '../sync.css'
+import '../../../kernel/src/ui/sharebutton.css'
 import { t } from '../i18n.ts'
 import type { Store } from '../store.ts'
 import type { SyncSession, Peer } from './session.ts'
@@ -36,7 +37,13 @@ const ROLE_LABEL: Record<string, string> = {
  * heartbeat (5s) — the list is a handful of rows and nothing else on the page
  * depends on it.
  */
-export function mountPeople(host: HTMLElement, session: SyncSession, store: Store): () => void {
+const SVG_ICON = (d: string): string =>
+  `<svg class="dx-i" viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" fill="none" ` +
+  `stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
+const SYNC_ICON = SVG_ICON('<path d="M16.5 4.5v3.6h-3.6"/><path d="M3.5 10a6.5 6.5 0 0 1 11.7-3.9l1.3 2"/><path d="M3.5 15.5v-3.6h3.6"/><path d="M16.5 10a6.5 6.5 0 0 1-11.7 3.9l-1.3-2"/>')
+const STOP_ICON = SVG_ICON('<rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/>')
+
+export function mountPeople(host: HTMLElement, session: SyncSession, store: Store, trigger?: HTMLElement): () => void {
   host.classList.add('dx-people')
   // The HOST carries it too, because the 700px rule hides the whole chip and a
   // class on a child cannot save a parent that is display:none.
@@ -47,32 +54,29 @@ export function mountPeople(host: HTMLElement, session: SyncSession, store: Stor
     const live = sharingOn(store) && session.transportKinds.includes('online')
     const iAmOwner = !!c?.ownerPriv
     const peers = session.peers()
+    // the Share button's status dot (kernel/src/ui/sharebutton.css)
+    trigger?.classList.toggle('bksh-live', live)
+    // The suite's share panel shape (as spaces'): one status line, the
+    // people, then the action as a one-line menu row — its explanation is the
+    // tooltip. The off switch for a running session is always here.
     host.innerHTML =
-      `<div class="dx-people-head${live ? ' dx-live' : ''}">` +
+      `<div class="dx-people-status${live ? ' dx-live' : ''}">` +
       `<span class="dx-people-dot${live ? ' on' : ''}"></span>` +
-      `<span class="dx-people-title">${live ? 'Live' : 'Not sharing'}</span>` +
-      // `dx-live` MARKS THE CHIP WHEN THERE IS SOMETHING TO STOP, and the
-      // responsive rules key off it. Below 900px the toggle was hidden
-      // unconditionally to buy bar width — which also removed the ONLY route to
-      // "Stop sharing": measured at 880px with a session running, `collab.on`
-      // true and the room live, the string was nowhere in the document and the
-      // only trace was an 8px dot. About's nearest control is "Offline mode",
-      // which blocks every network feature including update checks.
-      //
-      // Hiding a control that reports nothing is fine; hiding the off switch
-      // for something already happening is not. So the collapse now applies
-      // only when the workbook is NOT sharing.
-      `<button class="dx-btn dx-people-toggle${live ? ' dx-live' : ''}" title="${esc(live
-        ? t('Disconnect from the relay — collaborators stop seeing your edits')
-        : t('Put this workbook on the relay so people you send a copy to edit it live with you'))}">` +
-      `${live ? t('Stop sharing') : t('Start live session')}</button>` +
+      `<span class="dx-people-title">${esc(live ? t('Live') : t('Not live — turns on when you share'))}</span>` +
       `</div>` +
       `<ul class="dx-people-list">` +
       `<li class="dx-people-me"><span class="dx-people-chip" style="background:${esc(selfColor(session))}"></span>` +
-      `<span class="dx-people-name">You</span></li>` +
+      `<span class="dx-people-name">${esc(t('You'))}</span></li>` +
       peers.map((p) => row(p, iAmOwner)).join('') +
       `</ul>` +
-      (peers.length ? '' : `<p class="dx-people-empty">Nobody else is in this workbook.</p>`)
+      (peers.length ? '' : `<p class="dx-people-empty">${esc(t('Nobody else is in this workbook.'))}</p>`) +
+      `<div class="dx-people-acts">` +
+      `<button class="dx-btn dx-people-toggle${live ? ' dx-live' : ''}" title="${esc(live
+        ? t('Disconnect from the relay — collaborators stop seeing your edits')
+        : t('Put this workbook on the relay so people you send a copy to edit it live with you'))}">` +
+      (live ? STOP_ICON : SYNC_ICON) +
+      `<span>${esc(live ? t('Stop sharing') : t('Start live session'))}</span></button>` +
+      `</div>`
 
     host.querySelector('.dx-people-toggle')?.addEventListener('click', () => {
       if (live) stopSharing(session, store)

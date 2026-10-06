@@ -32,14 +32,20 @@
 // the same box would be one more thing to keep in step.
 
 import './about.css'
-import { h } from '../../kernel/src/dom.ts'
-import '../../kernel/src/ui/field.css'
-import { fieldize } from '../../kernel/src/ui/field.ts'
+import '../../kernel/src/ui/dialog.css'
+import '../../kernel/src/ui/sheet.css'
+import { createSheet, type Sheet } from '../../kernel/src/ui/sheet.ts'
+import { t } from './i18n.ts'
+
+// BUILT ON THE SUITE'S SHARED SHEET (kernel/src/ui/sheet.ts) — the same card,
+// sections, rows, small print and footer every Bento app's About, Settings and
+// shortcut windows use. dash's layout is the one the suite adopted; this file
+// keeps its small API so about.ts and settings.ts read as they always did.
 
 export interface Dialog {
   /** the backdrop; removing it closes everything */
   back: HTMLElement
-  /** the card content goes here */
+  /** the card's BODY — content goes here, the footer is the sheet's */
   card: HTMLElement
   close: () => void
   /** a section heading */
@@ -54,70 +60,44 @@ export interface Dialog {
   actions: (...nodes: HTMLElement[]) => HTMLElement
   /** a checkbox whose LABEL is part of the hit target */
   check: (label: string, on: boolean, onChange: (v: boolean) => void) => HTMLElement
+  /** footer buttons, before Close (the way across, e.g. About ⇄ Settings) */
+  foot: (...nodes: HTMLElement[]) => void
   /** put it on screen and take focus. Call once, after the card is filled. */
   mount: () => void
+  readonly sheet: Sheet
 }
 
 /**
- * Open a modal. ONE AT A TIME, by construction: an existing backdrop is
- * removed first, which is also what makes "Settings…" inside About a
- * navigation rather than a stack of two modals nobody can get out of.
+ * Open a modal. ONE AT A TIME, by construction: an existing one is removed
+ * first, which is also what makes "Settings…" inside About a navigation rather
+ * than a stack of two modals nobody can get out of.
  */
 export function openDialog(label: string): Dialog {
-  document.querySelector('.dx-about-back')?.remove()
-
-  const back = h('div.dx-about-back')
-  const card = h('div.dx-about')
-  card.setAttribute('role', 'dialog')
-  card.setAttribute('aria-modal', 'true')
-  card.setAttribute('aria-label', label)
-  const close = () => back.remove()
-
-  // NOTE: named `headEl`, not `h` — this scope already imports the shared
-  // `h()` DOM builder, and shadowing it here would break every other
-  // factory below that relies on it.
-  const headEl = (text: string) => h('h2', { textContent: text })
-  const note = (text: string) => h('p.dx-about-note', { textContent: text })
-  const value = (text: string) => h('span.dx-about-val', { textContent: text })
-  const row = (rowLabel: string, node: HTMLElement) => {
-    const r = h('div.dx-about-row')
-    const s = h('span', { textContent: rowLabel })
-    r.append(s, node)
-    return r
-  }
-  const button = (text: string, fn: () => void) => {
-    const b = h('button.dx-btn', { textContent: text })
-    b.addEventListener('click', fn)
-    return b
-  }
-  const actions = (...nodes: HTMLElement[]) => {
-    const wrap = h('div.dx-about-actions')
-    wrap.append(...nodes)
-    return wrap
-  }
-  const check = (text: string, on: boolean, onChange: (v: boolean) => void) => {
-    const l = h('label.dx-about-check')
-    const box = h('input', { type: 'checkbox', checked: on })
-    fieldize(box)
-    box.addEventListener('change', () => onChange(box.checked))
-    l.append(box, document.createTextNode(' ' + text))
-    return l
-  }
-
-  // The two document-level handlers, stopped at the backdrop. See the note at
-  // the top of this file for what each of them would otherwise do.
-  back.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') close()
-    e.stopPropagation()
-  })
+  const sheet = createSheet({ title: label, closeLabel: t('Close') })
+  const back = sheet.dialog.root
+  // The paste sniffer is a document-level BUBBLE listener: stopped here, at
+  // the overlay that contains everything in the dialog. (Keys are stopped by
+  // the kernel dialog's capture-phase handler.)
   back.addEventListener('paste', (e) => e.stopPropagation())
-  back.addEventListener('mousedown', (e) => { if (e.target === back) close() })
-
-  const mount = () => {
-    back.append(card)
-    document.body.append(back)
-    card.querySelector('button')?.focus()
+  const heading = (text: string) => {
+    const el = document.createElement('h3')
+    el.className = 'bks-h'
+    el.textContent = text
+    return el
   }
-
-  return { back, card, close, h: headEl, note, value, row, button, actions, check, mount }
+  return {
+    back,
+    card: sheet.body,
+    close: () => sheet.close(),
+    h: heading,
+    note: sheet.note,
+    value: sheet.value,
+    row: sheet.row,
+    button: (text, fn) => sheet.button(text, fn),
+    actions: sheet.actions,
+    check: sheet.check,
+    foot: sheet.foot,
+    mount: () => sheet.open(),
+    sheet,
+  }
 }

@@ -65,6 +65,13 @@
 .dx-tabs.dx-tabs-shut { min-height: 20px; }
 .dx-tabs.dx-tabs-shut > * { display: none; }
 .dx-tabs.dx-tabs-shut .dx-tab-show { display: block; padding: 1px 7px; }
+/* the status line docked at the strip's end (main.ts) — it stays when the
+   strip is shut: a sum is about the selection, not the tabs */
+.dx-tabs > .dx-status {
+  flex: 0 1 auto; min-width: 0; border: 0; background: transparent;
+  padding: 0 8px; gap: 12px;
+}
+.dx-tabs.dx-tabs-shut > .dx-status { display: flex; margin-inline-start: auto; }
 
 /* ————— the scrolling strip ————— */
 .dx-tab-strip {

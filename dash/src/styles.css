@@ -386,13 +386,11 @@ html, body {
   /* 10px / 8px 14px / 1px --line: slides' topbar metrics (its .ed-topbar), so
      the two apps' bars are the same object at the same height. dash's bar had
      been 1px shorter with 2px less gap and a --line-strong rule under it —
-     three small differences that read, side by side, as two products. The bar
-     keeps its --panel tint rather than slides' white: dash's DOCUMENT is the
-     white sheet directly below, and a white bar over a white sheet leaves the
-     seam doing work a 1px line cannot. */
+     three small differences that read, side by side, as two products. */
   gap: 10px;
   border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  /* white, as every Bento bar is; the formula row below is the seam */
+  background: var(--surface);
   flex: 0 0 auto;
   min-width: 0;
   /* THE NOTCH, AND THE HOST THAT LIES ABOUT IT. viewport-fit=cover puts the
@@ -530,7 +528,7 @@ html, body {
 .dx-btn-boxed:hover { background: var(--hover); }
 .dx-i { flex: 0 0 auto; }
 /* the caret on a dropdown trigger is a hint, not a peer of the icon */
-.dx-dd-trig > .dx-i:last-child { opacity: 0.5; margin-inline-start: -2px; }
+.dx-dd-trig:not(.dx-more-trig) > .dx-i:last-child { opacity: 0.5; margin-inline-start: -2px; }
 
 .dx-ver {
   color: var(--muted);
@@ -549,18 +547,10 @@ html, body {
    that. A bare `.dx-dirty { display: block }` lost the specificity duel and the
    dot measured 0×0 at every width under 1280 — i.e. the unsaved-changes signal
    silently vanished on the widths that need it most. */
-.dx-bar .dx-btn-save > .dx-dirty {
-  display: block;
-  position: absolute;
-  top: 3px;
-  inset-inline-end: 3px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  pointer-events: none;
-}
-.dx-bar .dx-btn-save > .dx-dirty[hidden] { display: none; }
+/* the unsaved signal is Save's own colour now (bksv-dirty); the dot
+   element only carries the tooltip */
+.dx-bar .dx-btn-save > .dx-dirty { display: none; }
+
 
 /* The write-back tag: "Saved", for ~1.8s, under the Save button.
    Same specificity ladder as the dot above, and for the same reason — the
@@ -626,7 +616,6 @@ html, body {
 .dx-bar .dx-dd.open > .dx-menu .dx-btn > span { display: inline; }
 .dx-menu-sep { height: 1px; background: var(--line); margin: 4px 6px; }
 /* the data menu hangs off a button near the right edge, so it grows inward */
-.dx-data-dd > .dx-menu { inset-inline-start: auto; inset-inline-end: 0; }
 
 /* ————— responsive top bar —————
    LABELS GIVE WAY, THEN GROUPS FOLD. Never a scrollbar, and never a
@@ -661,122 +650,75 @@ html, body {
 .dx-insert-dd > .dx-menu > .dx-btn:hover { background: var(--hover); }
 .dx-insert-dd > .dx-menu .dx-i { color: inherit; }
 
-/* The People chip is a CHIP, so it takes the bar's height, not its own.
-   sync.css re-lays it out for the bar but leaves the panel's `padding: 8px 10px`
-   standing, and 16px of vertical padding on the tallest thing in a flex row is
-   16px on the whole toolbar: MEASURED, .dx-bar was 62px tall against a 31px
-   button — the bar grew a row it never drew. Scoped through `#app` because
-   sync.css's own `.dx-bar .dx-people` rule is the same specificity and lives in
-   a different file, so which of them won would be decided by import order. */
-#app .dx-bar .dx-people { padding: 0; }
 
-/* …and the swatch for YOU is not news to you. sync.css says exactly that and
-   writes `.dx-bar .dx-people-me { display: none }` — then loses the duel to its
-   own `.dx-bar .dx-people-list li { display: flex }` two lines later, which is
-   more specific (0,2,1 beats 0,2,0). MEASURED: the li was 14px wide and painted
-   a green dot beside the grey "not sharing" one, so the bar reported a live
-   collaborator on a workbook that was not shared with anybody. Same failure
-   mode as the .dx-dirty note above: a rule that reads correctly and never
-   applies. */
-#app .dx-bar .dx-people-me { display: none; }
+/* ————— the bar fits itself by MEASURING —————
+   kernel/src/ui/topbar.ts steps these tiers down while the bar is still
+   cramped — the same three every Bento app uses. They used to be px rungs
+   (1600/1380/1040/860/760/380), each re-measured by hand every time the bar
+   gained a control; a px guess cannot see zoom, OS text size or a longer
+   translation, and the rungs kept falling behind the bar they described. */
 
-/* ————— the ladder, and why each rung is where it is —————
-   RE-MEASURED. The old first rung was 1280, taken when the bar ended at About.
-   It has since gained the People chip (253px), the ? button (28px) and Save's
-   as-caret (24px), and nobody moved the number: MEASURED at 1920 with every
-   label showing, the bar's children come to 1527px + 24px of gaps + 24px of
-   padding = 1575px. Between 1281 and ~1389 that bar had nowhere left to go —
-   .dx-title bottoms out at its 60px min-width and everything else is
-   `flex: 0 0 auto` — so it OVERFLOWED: measured at 1300px, document.scrollWidth
-   was 1382 against a clientWidth of 1300, with About, ? and the version chip
-   hanging past the right edge. A control you have to scroll to reach is a
-   control that is missing, which is the one thing this whole section exists to
-   prevent.
+/* THE RIGHT BLOCK IS ICONS at every width — undo, redo, the panel, About,
+   Settings, shortcuts — as in every Bento bar; only Share and Save are named
+   (until the fold). */
+.dx-bar .dx-bar-end > .dx-btn > span:where(:not(.dx-save-lab):not(.dx-dirty):not(.dx-wb)) { display: none; }
+.dx-bar.dx-bar-compact .dx-share-dd > .dx-dd-trig > span { display: inline; }
+.dx-bar.dx-bar-fold .dx-share-dd > .dx-dd-trig > span { display: none; }
 
-   RE-MEASURED AGAIN when the bar took slides' metrics (10px gaps, 14px side
-   padding, 6px 9px buttons): the bar's requirement moved by about +12px, so the
-   figures below each shift by that much and every rung still clears. MEASURED
-   after, at the tightest point of each rung — 1601px: no overflow, the title at
-   232.8px of its 240 basis; 1381px: no overflow, title 237.1px; 1041px: no
-   overflow, title 185.7px of its 200 basis; 900/375/320px: no overflow.
-   `document.scrollWidth === clientWidth` at every one of them.
+/* compact — the words go, the glyphs stay. Save keeps its word: it is the
+   control the user names when it goes missing. */
+.dx-bar.dx-bar-compact { gap: 6px; }
+.dx-bar.dx-bar-compact .dx-btn { padding: 5px 8px; }
+/* :where() keeps this at (0,3,1), so the menu rule below — (0,4,1) — wins */
+.dx-bar.dx-bar-compact .dx-btn > span:where(:not(.dx-save-lab):not(.dx-dirty):not(.dx-wb)) { display: none; }
+/* …but never inside a menu, where the words are the rows */
+.dx-bar.dx-bar-compact .dx-menu .dx-btn > span,
+.dx-bar.dx-bar-compact .dxs-menu .dx-btn > span { display: inline; }
+.dx-bar.dx-bar-compact .dx-ver { display: none; }
 
-   One rung could not fix it honestly. Collapsing every label at 1575 would
-   leave a 1440px laptop — the commonest window this app will ever open in —
-   with a bar of nothing but icons. So the labels go in the order of how much
-   they are worth: first the ones whose icons are conventions everybody already
-   reads, then the ones that name features only dash has. */
-
-/* Rung 1 — the words a spreadsheet user does not need. Undo's arrow, About's
-   ⓘ and the database cylinder are learned glyphs; "Not sharing" is a state the
-   grey dot beside it already reports. MEASURED saving: 201px, so the bar now
-   needs ~1374px. Save keeps its word at every rung: it is the control the user
-   names when it goes missing, and an unlabelled floppy is a guess. */
-@media (max-width: 1600px) {
-  .dx-bar .dx-bar-end > .dx-btn > span,
-  .dx-bar .dx-data-dd > .dx-dd-trig > span { display: none; }
-  #app .dx-bar .dx-people-title { display: none; }
+/* tight — the six insert tools become one ＋ menu, and "bento" goes from the
+   wordmark (the glyph and "/dash" still say which app this is) */
+.dx-bar.dx-bar-tight .dx-mark-b { display: none; }
+.dx-bar.dx-bar-tight .dx-insert-dd { display: block; position: relative; }
+.dx-bar.dx-bar-tight .dx-insert-dd > .dx-dd-trig { display: inline-flex; }
+.dx-bar.dx-bar-tight .dx-insert-dd > .dx-menu {
+  display: none;
+  position: absolute;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 200px;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
 }
-
-/* Rung 2 — Formula · Chart · 3D · Pivot · Dashboard · Story. These are the
-   labels worth keeping longest, because their icons are the ones nobody has
-   seen before; they hold on for 220px more than the rung above. MEASURED
-   saving: a further 289px, so the bar needs ~1085px and the title stops being
-   squeezed (at 1390 it had been crushed from 240px to its 60px floor — a
-   workbook name you cannot read is a name field that is not there). */
-@media (max-width: 1380px) {
-  .dx-bar .dx-insert-dd .dx-btn > span { display: none; }
-  .dx-bar { gap: 6px; }
-  .dx-btn { padding: 5px 8px; }
-  .dx-title { flex: 0 1 200px; }
+.dx-bar.dx-bar-tight .dx-insert-dd.open > .dx-menu { display: flex; }
+.dx-bar.dx-bar-tight .dx-insert-dd > .dx-menu > .dx-btn {
+  width: 100%;
+  border-color: transparent;
+  background: transparent;
+  padding: 6px 9px;
 }
+.dx-bar.dx-bar-tight .dx-insert-dd > .dx-menu .dx-i { color: var(--muted); }
 
-/* 1040, and it used to be 900. The original note here rejected 1041 because
-   "the icon-only insert row still left 214px of slack" — and it was right at
-   the time. The People chip, ? and Save's caret have since eaten every pixel
-   of that slack: MEASURED with both rungs above applied, the icon-only bar now
-   needs 1037px to leave .dx-title its 200px. Below that the title is the only
-   elastic thing in the bar, so it alone paid, and at 901px it stood at 65px —
-   six characters of a workbook's name. The six insert icons are recoverable
-   from one ＋ menu; a name you cannot read is not recoverable from anywhere.
-   (No overflow either way — this rung buys legibility, not room.) */
-@media (max-width: 1040px) {
-  /* below this the six icon buttons no longer clear the end group, so they
-     become one ＋ menu. Their labels come back inside it. */
-  .dx-insert-dd { display: block; position: relative; }
-  .dx-insert-dd > .dx-dd-trig { display: inline-flex; }
-  .dx-insert-dd > .dx-menu {
-    display: none;
-    position: absolute;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 200px;
-    padding: 5px;
-    border: 1px solid var(--line-strong);
-    background: var(--surface);
-    box-shadow: var(--shadow-pop);
-  }
-  .dx-insert-dd.open > .dx-menu { display: flex; }
-  .dx-insert-dd > .dx-menu > .dx-btn {
-    width: 100%;
-    border-color: transparent;
-    background: transparent;
-    padding: 6px 9px;
-  }
-  .dx-insert-dd > .dx-menu .dx-i { color: var(--muted); }
+/* fold — redo, About, Settings and shortcuts move into ⋯, which exists only
+   here; the mark keeps its glyph alone */
+.dx-more-dd { display: none; }
+.dx-bar.dx-bar-fold .dx-more-dd { display: block; }
+.dx-more-dd > .dx-menu { inset-inline-start: auto; inset-inline-end: 0; }
+.dx-more-dd > .dx-menu .dx-btn { white-space: nowrap; }
+/* a row's shortcut, at its end edge, drawn as a key — as every Bento menu does */
+.dx-kbd {
+  margin-inline-start: auto; padding: 1px 6px; flex: 0 0 auto;
+  font: inherit; font-size: 11.5px; color: var(--muted);
+  background: var(--chrome-2); border: 1px solid var(--line); border-radius: 5px;
 }
-
-@media (max-width: 860px) {
-  /* the version chip is the least load-bearing thing in the bar, and About is
-     now a real button, so the chip is no longer anybody's only way in */
-  .dx-ver { display: none; }
-}
-
-@media (max-width: 760px) {
-  /* "bento" goes first; the glyph plus "/dash" still says which app this is,
-     and slides collapses its wordmark at the same width for the same reason. */
-  .dx-mark-b { display: none; }
-}
+.dx-menu .dx-btn:has(> .dx-kbd) > span { margin-inline-end: 16px; }
+.dx-bar.dx-bar-fold [data-act="redo"],
+.dx-bar.dx-bar-fold [data-act="about"],
+.dx-bar.dx-bar-fold [data-act="settings"],
+.dx-bar.dx-bar-fold [data-act="help"],
+.dx-bar.dx-bar-fold .dx-mark-t { display: none; }
 
 @media (max-width: 700px) {
   /* the full padding is restated, not just the sides: a bare `padding-left`
@@ -803,31 +745,10 @@ html, body {
   .dx-bar .dx-menu .dx-btn { min-width: 0; min-height: 0; } /* menu rows are text */
   /* the trigger carets are the first thing to go: at this width the panel that
      opens is explanation enough, and 15px each is a whole button's worth */
-  .dx-dd-trig > .dx-i:last-child { display: none; }
+  .dx-dd-trig:not(.dx-more-trig) > .dx-i:last-child { display: none; } /* ⋯ IS its icon */
   .dx-title { flex: 0 1 90px; min-width: 36px; }
 }
 
-/* The smallest screen anyone still ships (320px). MEASURED there: the bar came
-   to 348px and ⓘ hung 28px past the edge. The wordmark is the only thing left
-   on the bar that does no work — and About, which is where "what IS this file"
-   lives, is precisely what it was standing in front of. So the brand goes and
-   the button stays. Everything else here is load-bearing. */
-@media (max-width: 380px) {
-  /* The TEXT goes and the glyph STAYS. This rung used to drop the brand
-     entirely, when the brand was only text and 380px could not afford it; a
-     20px logo can be afforded, and it leaves the narrowest bar with an
-     identity and an About target instead of a blank corner. */
-  .dx-mark-t { display: none; }
-  /* …and the bar has since grown a ? button, which put it back over the edge:
-     MEASURED at 351px the bar came to 382px against a 351px viewport, with ?
-     hanging 31px past the right edge — Save and About still reachable, but the
-     body scrolling sideways, which is the thing this section exists to stop.
-     ? is what goes, because of everything in the bar it is the one control that
-     cannot do anything here: the panel it opens is a table of KEYBOARD
-     shortcuts, and this is a screen with no keyboard. Every other button does
-     the same job at 351px that it does at 1600. */
-  .dx-help-btn { display: none; }
-}
 
 /* ————— findings: what import refused to decide ————— */
 .dx-findings {

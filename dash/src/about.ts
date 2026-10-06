@@ -57,8 +57,9 @@ import { addVersion, listVersions } from '../../kernel/src/autosave.ts'
 // two restore paths straight back into disagreeing about reversibility.
 import { offerUndoRestore, restoredWorkbook } from './recovery.ts'
 import { t } from './i18n.ts'
-import { docBudget, docBytes, parseDoc, rowCount, type DashDoc, type DocMeta , docForExport } from './model.ts'
+import { FORMAT_VERSION, docBudget, docBytes, parseDoc, rowCount, type DashDoc, type DocMeta , docForExport } from './model.ts'
 import { h } from '../../kernel/src/dom.ts'
+import { appCardLinks, openAppCard } from '../../kernel/src/ui/sheet.ts'
 import { confirmDialog } from '../../kernel/src/ui/promptdialog.ts'
 import { createJsonEditor } from '../../kernel/src/ui/jsoneditor.ts'
 import '../../kernel/src/ui/jsoneditor.css'
@@ -206,9 +207,10 @@ export async function rememberVersion(doc: DashDoc): Promise<void> {
  *  THE CHIP GOES TO SETTINGS, not here. It reads `v0.3.0`, and when the launch
  *  check finds something it reads `v0.3.0 → v0.4.0` — the question it raises is
  *  "am I running the newest app", which is now a Settings question. The ⓘ
- *  button and the mark, which say *this workbook*, open this dialog. That is
- *  the whole of the promise that you can tell which surface holds what from
- *  the name of the thing you clicked.
+ *  button, which says *this workbook*, opens this dialog; the mark, which
+ *  says *bento/dash*, opens the app's card. That is the whole of the promise
+ *  that you can tell which surface holds what from the name of the thing you
+ *  clicked.
  *
  *  A `[data-act="settings"]` button is wired if the top bar has one. It is
  *  optional because the top bar is another module's, and About's own footer
@@ -224,8 +226,10 @@ export function mountAbout(app: HTMLElement, hooks: AboutHooks): void {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() }
     })
   }
+  // The MARK is the suite's identity, so it opens the app's card — which app,
+  // which version, where it comes from — never the workbook's.
   for (const el of app.querySelectorAll<HTMLElement>('.dx-mark')) {
-    arm(el, t('About this workbook'), () => openAbout(hooks))
+    arm(el, t('About bento/dash — version, licenses'), () => openAppInfo())
   }
   for (const el of app.querySelectorAll<HTMLElement>('.dx-ver')) {
     arm(el, t('Settings — language, appearance and updates'), () => openSettings(hooks))
@@ -235,6 +239,20 @@ export function mountAbout(app: HTMLElement, hooks: AboutHooks): void {
   }
 }
 
+/** The mark's card: the APP, not the workbook (ⓘ) and not the reader (Settings). */
+export function openAppInfo(): void {
+  // the suite's shared app card (kernel/src/ui/sheet.ts) — the same in every app
+  openAppCard({
+    app: 'dash', version: APP_VERSION, format: FORMAT_VERSION,
+    title: t('About bento/dash — version, licenses'), closeLabel: t('Close'),
+    promoHtml: t('New to Bento? Find templates, the gallery and the AI editing guide at {home} — or ⭐ it on {gh}.', appCardLinks),
+    notes: [
+      t('Checks contact the release server and send nothing about you or this document — no ids, no telemetry.'),
+      t('Full license notices travel in this file’s source.'),
+    ],
+  })
+}
+
 export function openAbout(hooks: AboutHooks): void {
   const { store } = hooks
   const d = openDialog(t('About this workbook'))
@@ -242,7 +260,7 @@ export function openAbout(hooks: AboutHooks): void {
 
   // --- what this is ---------------------------------------------------------
   const stats = workbookStats(store.doc)
-  const lede = h('p.dx-about-lede', { textContent: t(
+  const lede = h('p.bks-lede', { textContent: t(
     'bento/dash {version} · {sheets} sheet(s), {rows} row(s), {columns} column(s). The workbook, the grid and the formula engine are all in this one file.',
     { version: APP_VERSION, sheets: stats.sheets, rows: stats.rows, columns: stats.columns },
   ) })
@@ -288,7 +306,7 @@ export function openAbout(hooks: AboutHooks): void {
     ['keywords', t('Keywords')],
   ]
   for (const [key, label] of META) {
-    const input = h('input.dx-about-in', {
+    const input = h('input.bks-input', {
       value: String(store.doc.meta?.[key] ?? ''),
       disabled: store.readOnly,
     })
@@ -374,7 +392,6 @@ export function openAbout(hooks: AboutHooks): void {
     replaceBtn,
   ))
   card.append(outNote)
-  card.append(note(t('A copy, a template or a read-only copy: the ▾ beside Save.')))
 
   /** The paste panel. A textarea, not `prompt()`: this is a whole workbook. */
   function openPaste(): void {
@@ -428,21 +445,17 @@ export function openAbout(hooks: AboutHooks): void {
       close()
     })
     const bar = d.actions(go, d.button(t('Cancel'), () => { ta.remove(); bar.remove() }))
-    // BEFORE the footer, not appended to the card: `append` puts it after the
-    // Close button, which means the panel opens below everything and the click
-    // reads as "nothing happened".
-    card.insertBefore(ta, foot)
+    // The footer is the sheet's, outside the body, so appending lands the panel
+    // above it, where the click can be seen to have done something.
+    card.append(ta)
     // SAY WHAT IT KEEPS. The paste replaces the content and not the room, which
     // is the right answer in both directions but is invisible either way — and
     // a live session quietly ending or quietly moving is exactly the class of
     // thing this app states rather than leaves to be discovered.
     if ((store.doc as { collab?: { on?: boolean } }).collab?.on) {
-      card.insertBefore(
-        note(t('Sharing stays with this workbook: the pasted JSON replaces the content, not the live session or its keys.')),
-        foot,
-      )
+      card.append(note(t('Sharing stays with this workbook: the pasted JSON replaces the content, not the live session or its keys.')))
     }
-    card.insertBefore(bar, foot)
+    card.append(bar)
     ta.focus()
     ta.scrollIntoView({ block: 'nearest' })
   }
@@ -457,9 +470,7 @@ export function openAbout(hooks: AboutHooks): void {
   // …and it carries the update dot, because the badge that brought the reader
   // to ⓘ has to lead somewhere. The release itself is offered in Settings.
   if (updateWaiting()) toSettings.classList.add('dx-update-badge')
-  const foot = d.actions(toSettings, d.button(t('Close'), close))
-  foot.classList.add('dx-about-foot')
-  card.append(foot)
+  d.foot(toSettings)
   d.mount()
 }
 

@@ -363,8 +363,18 @@ function serialize(el: El): string {
 // which is the whole grammar grid.ts and find.ts use between them. An `>` or a
 // `~` would silently match the wrong thing, so they throw.
 
-const COMPOUND = /^([a-zA-Z][-a-zA-Z0-9]*)?((?:[.#][-a-zA-Z0-9_]+|\[[^\]]+\])*)$/
-const PIECE = /[.#][-a-zA-Z0-9_]+|\[[^\]]+\]/g
+// `:not([attr])` too — the kernel dialog's focus list (`button:not([disabled])`)
+// is the one negation anything here asks for.
+const COMPOUND = /^([a-zA-Z][-a-zA-Z0-9]*)?((?:[.#][-a-zA-Z0-9_]+|\[[^\]]+\]|:not\(\[[^\]]+\]\))*)$/
+const PIECE = /[.#][-a-zA-Z0-9_]+|\[[^\]]+\]|:not\(\[[^\]]+\]\)/g
+
+function attrMatches(el: El, inner: string): boolean {
+  const eq = inner.indexOf('=')
+  if (eq < 0) return el.hasAttribute(inner)
+  const k = inner.slice(0, eq)
+  const v = inner.slice(eq + 1).replace(/^["']|["']$/g, '')
+  return el.getAttribute(k) === v
+}
 
 function matchCompound(el: El, sel: string): boolean {
   if (/[>~+]/.test(sel)) throw new Error(`dash-dom: unsupported selector "${sel}"`)
@@ -377,12 +387,8 @@ function matchCompound(el: El, sel: string): boolean {
     const s = p[0]
     if (s[0] === '.') { if (!el.classList.contains(s.slice(1))) return false; continue }
     if (s[0] === '#') { if (el.getAttribute('id') !== s.slice(1)) return false; continue }
-    const inner = s.slice(1, -1)
-    const eq = inner.indexOf('=')
-    if (eq < 0) { if (!el.hasAttribute(inner)) return false; continue }
-    const k = inner.slice(0, eq)
-    const v = inner.slice(eq + 1).replace(/^["']|["']$/g, '')
-    if (el.getAttribute(k) !== v) return false
+    if (s.startsWith(':not(')) { if (attrMatches(el, s.slice(6, -2))) return false; continue }
+    if (!attrMatches(el, s.slice(1, -1))) return false
   }
   return true
 }

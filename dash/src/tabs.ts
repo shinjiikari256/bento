@@ -458,6 +458,7 @@ export type ActionId =
   | 'import' | 'export' | 'import-xlsx' | 'export-xlsx'
   | 'print'
   | 'save' | 'about' | 'settings' | 'help'
+  | 'panel'
 
 /**
  * `on: 'workbook'` means the action is not about the sheet on screen at all —
@@ -537,6 +538,8 @@ export const ACTIONS: Readonly<Record<ActionId, ActionRule>> = {
   // make them inapplicable.
   settings: { on: 'workbook' },
   help: { on: 'workbook' },
+  // the properties panel's show/hide — chrome, about no sheet
+  panel: { on: 'workbook' },
 }
 
 /** The table's own key list — what a caller iterates, and what the rig checks

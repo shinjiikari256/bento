@@ -11,37 +11,8 @@
 
 .dxs-wrap { position: relative; display: inline-flex; align-items: stretch; }
 
-/* THE PAIR IS BOXED while the rest of the bar's buttons are ghosts, which is
-   exactly slides' arrangement (.ed-split / .ed-split-caret take
-   `1px solid var(--line)` on `var(--chrome)` while .ed-btn is transparent).
-   Save is the one control in the bar that has to be findable without being
-   read, and a filled box beside eleven ghosts is how it is. */
-.dxs-wrap > .dx-btn:first-child,
-.dxs-caret {
-  border-color: var(--line);
-  background: var(--chrome);
-}
-.dxs-wrap > .dx-btn:first-child:hover,
-.dxs-caret:hover { background: var(--chrome-2); }
-
-/* The caret sits FLUSH against the Save button so the pair reads as one
-   control. It is its own button rather than a click zone inside Save, because a
-   miss on a split control that saves is a save to the wrong file. */
-.dxs-caret {
-  padding: 6px 7px;
-  font-size: 11px;
-  line-height: 1.4;
-  border-left: 0;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  margin-left: -1px;
-}
-/* …and Save loses its right corners to meet it. Without this the pair read as
-   two buttons that happened to touch. */
-.dxs-wrap > .dx-btn:first-child {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
+/* The pair is the suite's shared Save (kernel/src/ui/savebutton.css): grey
+   with nothing to save, ink-filled when there is. Only the menu is dash's. */
 .dxs-wrap .dxs-caret { align-self: stretch; }
 
 .dxs-menu {
@@ -78,13 +49,18 @@
 .dxs-item:hover:not(:disabled) { background: var(--hover); }
 /* 0.35 — slides' one figure for a dead control; see .dx-btn[disabled] */
 .dxs-item:disabled { opacity: 0.35; cursor: default; }
-.dxs-item small {
-  display: block;
-  color: var(--muted);
-  font-size: var(--fs-small);
-  line-height: 1.35;
-  margin-top: 1px;
+.dxs-item { white-space: nowrap; }
+/* the app's import, export and print rows, docked at the menu's foot: they
+   are bar buttons (.dx-btn), drawn here as rows like the ones above */
+.dxs-menu .dx-data-items { display: flex; flex-direction: column; gap: 1px; }
+.dxs-menu .dx-data-items[hidden] { display: none; }
+.dxs-menu .dx-data-items .dx-btn {
+  width: 100%; justify-content: flex-start; white-space: nowrap;
+  border-color: transparent; background: transparent; padding: 6px 9px;
 }
+.dxs-menu .dx-data-items .dx-btn:hover { background: var(--hover); }
+.dxs-menu .dx-data-items .dx-i { color: var(--muted); }
+.dxs-menu .dx-data-items .dx-menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 .dxs-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 
 /* Toast: the only feedback these actions have. A share export leaves the open

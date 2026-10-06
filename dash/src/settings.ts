@@ -112,8 +112,11 @@ export function checkAtLaunch(opts: { saved: boolean; delayMs?: number }): void 
         el.classList.add('dx-update-badge')
         el.title = t('Version {v} is available — open Settings to update.', { v })
       }
+      // The chip beside the mark exists ONLY when there is a release waiting
+      // (the suite's bar layout): a version that is merely current is the app
+      // card's to show, not the bar's.
       const chip = document.querySelector<HTMLElement>('.dx-ver')
-      if (chip) chip.textContent = `v${APP_VERSION} → v${v}`
+      if (chip) { chip.textContent = `v${APP_VERSION} → v${v}`; chip.hidden = false }
     })
   }, opts.delayMs ?? 1500)
 }
@@ -165,13 +168,10 @@ export function openSettings(hooks: SettingsHooks): void {
   const d = openDialog(t('Settings'))
   const { card, note, close } = d
 
-  const lede = h('p.dx-about-lede', { textContent: t('These are yours, not the workbook’s: they are kept in this browser and never written into the file, so the same workbook can be English and light on your screen and Japanese and dark on someone else’s.') })
-  card.append(d.h(t('Settings')), lede)
-
   // --- language -------------------------------------------------------------
   card.append(d.h(t('Language')))
   const choices = localeChoices()
-  const sel = h('select')
+  const sel = h('select.bks-select')
   for (const c of choices) {
     const o = h('option', { value: c.code, textContent: c.label })
     if (c.code === locale()) o.selected = true
@@ -204,7 +204,7 @@ export function openSettings(hooks: SettingsHooks): void {
     ['light', t('Light')],
     ['dark', t('Dark')],
   ]
-  const themeSel = h('select')
+  const themeSel = h('select.bks-select')
   const current = themeChoice()
   for (const [v, label] of themes) {
     const o = h('option', { value: v, textContent: label })
@@ -332,8 +332,5 @@ export function openSettings(hooks: SettingsHooks): void {
   ))
   card.append(offNote)
 
-  const foot = d.actions(d.button(t('Close'), close))
-  foot.classList.add('dx-about-foot')
-  card.append(foot)
   d.mount()
 }

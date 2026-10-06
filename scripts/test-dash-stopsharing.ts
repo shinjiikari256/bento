@@ -73,9 +73,12 @@ console.log('\nno width hides the off switch')
         'that is how "Stop sharing" left the document at 880px')
     }
   }
-  // GUARD IS LIVE: if the selectors are ever renamed this loop finds nothing
-  // and every check above it passes vacuously.
-  ok(hiding >= 2, `the width rules that hide the chip were found and checked (${hiding})`)
+  // The chip is not in the bar any more: the session lives in the Share
+  // button's panel, so NO width rule may hide any part of it. (Were one
+  // added, the check above would demand it exempt a live session.)
+  ok(hiding === 0, `no width rule hides the share panel or its off switch (${hiding} found)`)
+  ok(/class="dx-dd dx-share-dd"/.test(readFileSync(new URL('../dash/src/main.ts', import.meta.url), 'utf8')),
+    'the session lives behind the bar\'s Share button')
 }
 
 console.log('\nand the label is the one a reader would look for')

@@ -51,6 +51,7 @@
 // nobody honours is worse than no tier at all.
 
 import './saveui.css'
+import '../../kernel/src/ui/savebutton.css'
 import { h } from '../../kernel/src/dom.ts'
 import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import {
@@ -73,6 +74,10 @@ export interface SaveMenuHost {
    * ⌘S does" is how the button and the keystroke drift apart.
    */
   save: () => void | Promise<void>
+  /** Rows docked at the menu's foot on every open — the app's import, export
+   *  and print buttons, kept alive (and their listeners with them) between
+   *  rebuilds. */
+  extra?: HTMLElement
 }
 
 /** A uuid, with the same fallback shape starter.ts uses for old runtimes. */
@@ -180,12 +185,13 @@ export function applyDocLock(doc: DashDoc, store: Store): void {
 export function installSaveMenu(host: SaveMenuHost): void {
   const { button, store } = host
 
-  const wrap = h('span.dxs-wrap')
+  const wrap = h('span.dxs-wrap.bksv')
   button.replaceWith(wrap)
   wrap.appendChild(button)
+  button.classList.add('bksv-main')
 
   const caretTitle = t('Save as… — copy, new workbook, template, read-only, password')
-  const caret = h('button.dx-btn.dxs-caret', {
+  const caret = h('button.dx-btn.dxs-caret.bksv-caret', {
     type: 'button', textContent: '▾', title: caretTitle,
   })
   caret.setAttribute('aria-label', caretTitle)
@@ -208,10 +214,10 @@ export function installSaveMenu(host: SaveMenuHost): void {
     if (ev.key === 'Escape') close()
   })
 
+  // One line per row, as in every Bento menu: the explanation is the tooltip.
   const item = (label: string, why: string, run: () => void | Promise<void>) => {
-    const b = h('button.dxs-item', { type: 'button' })
+    const b = h('button.dxs-item', { type: 'button', title: why })
     b.appendChild(h('span', { textContent: label }))
-    b.appendChild(h('small', { textContent: why }))
     if (store.readOnly) {
       b.disabled = true
       b.title = t('This workbook is open read-only, so this build will not write it.')
@@ -323,7 +329,16 @@ export function installSaveMenu(host: SaveMenuHost): void {
         toast(t('Password set. Save to write the workbook encrypted, and keep the password somewhere safe.'))
       })
     }
+    if (host.extra) {
+      host.extra.hidden = false
+      menu.append(h('div.dxs-sep'), host.extra)
+    }
   }
+
+  // a docked row is a command too: run it and get out of the way
+  host.extra?.addEventListener('click', (e) => {
+    if ((e.target as Element | null)?.closest('button')) close()
+  })
 
   build()
 }

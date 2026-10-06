@@ -30,6 +30,7 @@ import {
   currentFileName,
 } from '../../kernel/src/save.ts'
 import { startTheme } from '../../kernel/src/theme.ts'
+import { fitTopbar } from '../../kernel/src/ui/topbar.ts'
 import { putRecovery, pruneOld } from '../../kernel/src/autosave.ts'
 import { FileWriteBack } from './writeback.ts'
 import { APP_VERSION } from '../../kernel/src/update.ts'
@@ -76,7 +77,7 @@ import { Store, type Patch, setColumnType } from './store.ts'
 import { starterDoc } from './starter.ts'
 import { inferComputedType } from './computedtype.ts'
 import { validateDoc } from './validate.ts'
-import { mountHelp } from './help.ts'
+import { mountHelp, toggleHelp } from './help.ts'
 // The grid's three context menus, and the popover every menu in this file is
 // drawn in. They live outside main.ts because main.ts BOOTS ON EVALUATION and
 // so can never be imported by a rig — and a context menu whose items nothing
@@ -125,6 +126,11 @@ const SVG = (d: string): string =>
   `<svg class="dx-i" viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" fill="none" ` +
   `stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 
+/** An icon drawn on the suite's 24 grid (slides/spaces/type), at dash's size. */
+const SVG24 = (d: string): string =>
+  `<svg class="dx-i" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" ` +
+  `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
+
 const ICON = {
   plus: SVG('<path d="M10 4v12M4 10h12"/>'),
   fx: SVG('<path d="M12 4.5h-1.2a2 2 0 0 0-2 2V16"/><path d="M6.5 9.5h5"/><path d="M13 11l4 5M17 11l-4 5"/>'),
@@ -134,11 +140,11 @@ const ICON = {
   dashboard: SVG('<rect x="3.2" y="3.2" width="6" height="6" rx="1.2"/><rect x="10.8" y="3.2" width="6" height="6" rx="1.2"/>' +
     '<rect x="3.2" y="10.8" width="6" height="6" rx="1.2"/><rect x="10.8" y="10.8" width="6" height="6" rx="1.2"/>'),
   story: SVG('<rect x="2.8" y="4" width="14.4" height="9.6" rx="1.4"/><path d="M7 17h6"/>'),
-  undo: SVG('<path d="M7 7H4.5V4.5"/><path d="M4.9 7.4A5.6 5.6 0 1 1 4.4 12"/>'),
+  // undo/redo: the suite's arrows (slides' icons.ts), on their 24 grid
+  undo: SVG24('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
   // The mirror of undo, because that is what every toolbar in the world uses
   // and a redo arrow that is not undo's reflection reads as a refresh button.
-  redo: SVG('<path d="M13 7h2.5V4.5"/><path d="M15.1 7.4A5.6 5.6 0 1 0 15.6 12"/>'),
-  data: SVG('<ellipse cx="10" cy="5.4" rx="5.6" ry="2.4"/><path d="M4.4 5.4v9.2c0 1.3 2.5 2.4 5.6 2.4s5.6-1.1 5.6-2.4V5.4"/><path d="M4.4 10c0 1.3 2.5 2.4 5.6 2.4s5.6-1.1 5.6-2.4"/>'),
+  redo: SVG24('<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>'),
   // Import and export get OPPOSITE arrows, not two copies of the cylinder. Four
   // rows reading "Import CSV / Export CSV / Import Excel / Export Excel" behind
   // the same glyph is four rows you have to read word by word; the arrow is
@@ -146,7 +152,12 @@ const ICON = {
   imp: SVG('<path d="M10 3v8.5"/><path d="M6.6 8.2L10 11.6l3.4-3.4"/><path d="M4.2 13.6v2.2h11.6v-2.2"/>'),
   exp: SVG('<path d="M10 11.6V3.1"/><path d="M6.6 6.5L10 3.1l3.4 3.4"/><path d="M4.2 13.6v2.2h11.6v-2.2"/>'),
   save: SVG('<path d="M4.4 3.6h8.3l3.3 3.3v9.5H4.4z"/><path d="M7 3.6v4.2h5V3.6"/><path d="M7 16.4v-4.6h6v4.6"/>'),
-  info: SVG('<circle cx="10" cy="10" r="7"/><path d="M10 9.2v4.4"/><path d="M10 6.6h.01"/>'),
+  info: SVG24('<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none"/>'),
+  more: SVG24('<circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>'),
+  share: SVG24('<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17.5" cy="10.5" r="2.4"/><path d="M15.8 15.6c1.9.3 3.6 1.6 4.4 3.9"/>'),
+  keyboard: SVG24('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
+  gear: SVG24('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+  panelRight: SVG24('<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/>'),
   // A printer: the paper going in at the top, the platen, the sheet coming out.
   // Not another arrow — Import and Export own those, and a third would make the
   // menu three rows of the same glyph again.
@@ -349,6 +360,9 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     `</svg>` +
     `<span class="dx-mark-t"><span class="dx-mark-b">bento</span><span class="dx-slash">/</span>dash</span>` +
     `</span>` +
+    // The update chip: beside the mark, and ONLY when a release is waiting
+    // (settings.ts unhides it) — the suite's shared bar layout.
+    `<span class="dx-ver" hidden>v${APP_VERSION}</span>` +
     `<input class="dx-title" value="">` +
     // Insert group. `display: contents` at wide widths (the six buttons sit in
     // the bar); a real dropdown below 1040px, where they do not fit. No JS
@@ -369,10 +383,19 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     // ⌘⇧Z and ⌘Y both worked and the shortcut card documented them, but the bar
     // had undo alone — so a mouse user who over-undid had no way back at all.
     barBtn('redo', ICON.redo, t('Redo'), t('Redo (⇧⌘Z)')) +
-    `<div class="dx-dd dx-data-dd">` +
-    `<button class="dx-btn dx-dd-trig" data-dd="data" title="${esc(t('Import and export CSV and Excel files'))}">` +
-    `${ICON.data}<span>${t('Data')}</span>${ICON.down}</button>` +
-    `<div class="dx-menu">` +
+    // the properties panel's trigger, ALWAYS in the bar — the edge chevron
+    // alone was easy to miss (the suite's bar layout, after type)
+    barBtn('panel', ICON.panelRight, t('Properties'), t('Properties — show or hide the panel')) +
+    // Share — the suite's control (kernel/src/ui/sharebutton.css): one button
+    // with a status dot, the live session and the people in its panel.
+    `<div class="dx-dd dx-share-dd">` +
+    `<button class="dx-btn dx-dd-trig bksh" data-dd="share" title="${esc(t('Share — invite people to edit, send view-only copies, see who’s here'))}">` +
+    `${ICON.share}<span>${t('Share')}</span></button>` +
+    `<div class="dx-menu dx-share-menu"></div></div>` +
+    // IMPORT, EXPORT AND PRINT ride in Save's ▾ — the file operations, in one
+    // list, as in every Bento app. Authored here so each keeps its data-act and
+    // its listener; installSaveMenu docks the block at the foot of that menu.
+    `<div class="dx-data-items" hidden>` +
     barBtn('import', ICON.imp, t('Import CSV…'), t('Add a sheet from a CSV or TSV file')) +
     barBtn('export', ICON.exp, t('Export CSV'), t('Download this sheet as CSV')) +
     `<div class="dx-menu-sep"></div>` +
@@ -385,7 +408,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     // rather than what the windowed grid happens to be showing; print.ts says
     // why that needed a page builder rather than a stylesheet.
     barBtn('print', ICON.print, t('Print…'), t('Print the view, or save it as a PDF (⌘P)')) +
-    `</div></div>` +
+    `</div>` +
     // Save keeps its label all the way down to a phone: it is the control the
     // user names when it is missing, and an unlabelled floppy is a guess.
     // The unsaved dot badges its corner rather than floating loose in the bar,
@@ -406,9 +429,21 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     // seam the codebase already had: what travels IN THE FILE is About's, what
     // follows THE READER and lives in this browser is Settings'.
     // `mountAbout` wires this on sight and the app is unharmed without it.
-    barBtn('settings', SVG('<circle cx="10" cy="10" r="2.6"/><path d="M10 2.6v2M10 15.4v2M17.4 10h-2M4.6 10h-2M15.2 4.8l-1.4 1.4M6.2 13.8l-1.4 1.4M15.2 15.2l-1.4-1.4M6.2 6.2L4.8 4.8"/>'), t('Settings'), t('Settings — language, appearance and updates')) +
+    // About (the workbook), Settings (a gear), then Keyboard shortcuts as the
+    // bar's last icon — the same three, in the same order, in every Bento app.
     barBtn('about', ICON.info, t('About'), t('About this workbook')) +
-    `<span class="dx-ver">v${APP_VERSION}</span>` +
+    barBtn('settings', ICON.gear, t('Settings'), t('Settings — language, appearance and updates')) +
+    // ⋯ — only on a FOLDED bar (the fit below): what the bar had to give up,
+    // one tap away. Its rows press the real buttons, so nothing is wired twice.
+    `<div class="dx-dd dx-more-dd">` +
+    `<button class="dx-btn dx-dd-trig dx-more-trig" data-dd="more" title="${esc(t('More'))}">${ICON.more}</button>` +
+    `<div class="dx-menu dx-more-menu">` +
+    `<button class="dx-btn" data-proxy="redo">${ICON.redo}<span>${t('Redo')}</span><kbd class="dx-kbd">⇧⌘Z</kbd></button>` +
+    `<button class="dx-btn" data-proxy="about">${ICON.info}<span>${t('About this workbook')}</span></button>` +
+    `<button class="dx-btn" data-proxy="settings">${ICON.gear}<span>${t('Settings')}</span></button>` +
+    `<button class="dx-btn" data-proxy="help">${ICON.keyboard}<span>${t('Keyboard shortcuts')}</span><kbd class="dx-kbd">?</kbd></button>` +
+    `</div></div>` +
+    barBtn('help', ICON.keyboard, t('Shortcuts'), t('Keyboard shortcuts (?)')) +
     `</div>` +
     `</header>` +
     `<div class="dx-formula"><span class="dx-ref">A1</span>` +
@@ -435,6 +470,13 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
 
   const titleEl = app.querySelector<HTMLInputElement>('.dx-title')!
   const dirtyEl = app.querySelector<HTMLElement>('.dx-dirty')!
+  // The suite's Save (kernel/src/ui/savebutton.css): its COLOUR is the unsaved
+  // signal — grey with nothing to save, ink-filled when there is. The dot stays
+  // in the DOM as the carrier of the "why" tooltip, but no longer paints.
+  const paintDirty = (on: boolean): void => {
+    dirtyEl.hidden = !on
+    app.querySelector('.bksv')?.classList.toggle('bksv-dirty', on)
+  }
   const findingsEl = app.querySelector<HTMLElement>('.dx-findings')!
   titleEl.value = doc.title
   titleEl.disabled = store.readOnly
@@ -1059,6 +1101,14 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
   // AFTER grid.onSelectionChange is set: mountPanels CHAINS that callback
   // rather than replacing it, so the formula bar and status bar keep working.
   panels = mountPanels({ store, grid, body: app.querySelector<HTMLElement>('.dx-body')! })
+  // THE STATUS LINE RIDES IN THE TAB STRIP, at its end edge — the selection's
+  // sum and the view's "4 of 8 rows" — instead of a row of its own under it,
+  // which stood empty whenever there was nothing to sum or filter.
+  {
+    const tabsNav = app.querySelector<HTMLElement>('.dx-tabs')
+    const statusEl = app.querySelector<HTMLElement>('.dx-status')
+    if (tabsNav && statusEl) tabsNav.insertBefore(statusEl, tabsNav.querySelector('.dx-tab-hide'))
+  }
 
 
   // Comments. AFTER mountPanels, which chains grid.onSheetChange.
@@ -1236,7 +1286,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
   let timer: number | undefined
   const markDirty = () => {
     dirty = true
-    dirtyEl.hidden = false
+    paintDirty(true)
     clearTimeout(timer)
     timer = window.setTimeout(() => {
       // NEVER write an encrypted workbook's plaintext to IndexedDB. The kernel
@@ -1301,7 +1351,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
       // screen and the author has no other way to find that out — the unsaved
       // dot cannot distinguish "not written yet" from "cannot be written".
       dirty = true
-      dirtyEl.hidden = false
+      paintDirty(true)
       dirtyEl.title = t('The last automatic save to the file failed. Press ⌘S.')
       toast(t('Could not save to the file automatically — {why}. Your changes are still here; press ⌘S.')
         .replace('{why}', notice.why))
@@ -1310,7 +1360,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     // The bytes are on disk. Clearing the dot here is the whole point: it is
     // the same claim ⌘S makes, and it is now true without one.
     dirty = false
-    dirtyEl.hidden = true
+    paintDirty(false)
     dirtyEl.title = ''
     if (notice.say === 'recovered') toast(t('Saved to the file — automatic saving is working again.'))
     wbTag ??= app.querySelector<HTMLElement>('.dx-wb')
@@ -1340,7 +1390,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
   // sharing switched on/off or keys rotated: no data edit, but the file is behind
   store.on('unsaved', markDirty)
 
-  // The wordmark and the version chip open About. Mounted AFTER markDirty
+  // The mark opens the app's card, the chip Settings. Mounted AFTER markDirty
   // exists — it takes it as the dirty signal for the edits it makes itself.
   const aboutHooks = {
     store,
@@ -1354,20 +1404,12 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     // next connection — a switch that leaves the current one running is not one
     sync,
   }
-  // The People panel: who else is in this workbook.
-  //
-  // It takes OVER its host (`host.innerHTML = …` on every render), so it gets
-  // a container of its own. Handing it `app` erased the entire application on
-  // boot — grid, panels, everything — and left only the panel markup behind,
-  // with nothing in the console because nothing threw.
-  const peopleEl = h('div')
-  // INSIDE the right-hand group, not after it. The bar's end group is what the
-  // responsive ladder measures and collapses; anything appended after it sits
-  // outside that arithmetic and pushes the whole toolbar — Save included —
-  // straight off the screen again.
-  const barEnd = app.querySelector<HTMLElement>('.dx-bar-end') ?? app.querySelector<HTMLElement>('.dx-bar')!
-  barEnd.insertBefore(peopleEl, barEnd.firstChild)
-  mountPeople(peopleEl, sync, store)
+  // The People panel: who else is in this workbook, and the live session's
+  // on/off — inside the Share button's dropdown (the suite's control). It takes
+  // OVER its host (`host.innerHTML = …` on every render), so it gets the menu
+  // element alone; the trigger's status dot follows the session.
+  mountPeople(app.querySelector<HTMLElement>('.dx-share-menu')!, sync, store,
+    app.querySelector<HTMLElement>('.dx-share-dd .bksh')!)
   mountAbout(app, aboutHooks)
   // PLATFORM §6: the signed update check, once, at launch. It badges ⓘ rather
   // than interrupting. `shouldCheckAtLaunch` gates it on a SAVED workbook, the
@@ -1381,7 +1423,9 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
   // The keyboard, made findable: a ? button beside About, and the ? key. The
   // card is GENERATED from select.ts's key map, so a binding added there shows
   // up here with no edit.
-  mountHelp(app)
+  mountHelp()
+  app.querySelector('[data-act="panel"]')!.addEventListener('click', () => panels.toggle('right'))
+  app.querySelector('[data-act="help"]')!.addEventListener('click', () => toggleHelp())
   void pruneOld()
 
   // --- the READ half of autosave, and opening a file by dropping it ---------
@@ -1464,6 +1508,23 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     button: app.querySelector<HTMLElement>('[data-act="save"]')!,
     store,
     save: doSave,
+    extra: app.querySelector<HTMLElement>('.dx-data-items')!,
+  })
+  // ⋯'s rows press the real bar buttons, so each action is wired exactly once
+  for (const row of app.querySelectorAll<HTMLElement>('[data-proxy]')) {
+    row.addEventListener('click', () => app.querySelector<HTMLElement>(`[data-act="${row.dataset.proxy}"]`)?.click())
+  }
+  // The bar FITS ITSELF BY MEASURING, as every Bento app's does
+  // (kernel/src/ui/topbar.ts): compact drops the labels (Save keeps its word),
+  // tight folds the insert tools into ＋ and drops "bento", fold moves redo,
+  // About, Settings and shortcuts into ⋯. Px breakpoints guessed at room that
+  // zoom, OS text size and a longer translation all change.
+  fitTopbar(app.querySelector<HTMLElement>('.dx-bar')!, {
+    tiers: ['dx-bar-compact', 'dx-bar-tight', 'dx-bar-fold'],
+    title: app.querySelector<HTMLElement>('.dx-title'),
+    titleMin: 110,
+    // re-fitting while a menu is open would move it under the reader
+    hold: () => !!app.querySelector('.dx-dd.open, .dxs-wrap.dxs-open'),
   })
   const undoBtn = app.querySelector<HTMLButtonElement>('[data-act="undo"]')!
   const redoBtn = app.querySelector<HTMLButtonElement>('[data-act="redo"]')!
@@ -2009,7 +2070,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     }
     if (r === 'cancelled') return          // they closed the picker; they know
     dirty = false
-    dirtyEl.hidden = true
+    paintDirty(false)
     dirtyEl.title = ''
     // These bytes ARE the file now, so write-back must not immediately rewrite
     // them — and a manual save that succeeded through the same handle clears

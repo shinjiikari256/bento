@@ -87,12 +87,13 @@ const src = (rel: string) => readFileSync(new URL(`../dash/src/${rel}`, import.m
 
 // --------------------------------------------------------------- the box model
 //
-// about.css, as arithmetic. Every number here is a declaration in that file and
-// nothing else; if a rule changes, this changes with it.
+// kernel/src/ui/sheet.css (+ dialog.css), as arithmetic. Every number here is
+// a declaration in those files and nothing else; if a rule changes, this
+// changes with it. dash's dialogs are the suite's shared sheet now.
 
 const CHAR = (fs: number) => fs * 0.5          // average glyph, UI sans, Latin
-const BTN_H = 29.8                             // .dx-btn: 13px/normal + 6px+6px + 2 borders
-const BTN_W = (label: string) => label.length * CHAR(13) + 20
+const BTN_H = 29.8                             // .bks-btn: 13px/1.45 + 5px+5px + 2 borders
+const BTN_W = (label: string) => label.length * CHAR(13) + 24
 const VERS_CAP = 88                            // .dx-about-vers max-height: 5.5rem
 
 const lineCount = (text: string, fs: number, avail: number): number =>
@@ -100,47 +101,46 @@ const lineCount = (text: string, fs: number, avail: number): number =>
 
 interface Box { mt: number; h: number; mb: number }
 
+function buttonsHeight(el: El, width: number): number {
+  let row = 0, rows = 1
+  for (const b of el.children) {
+    const w = BTN_W(b.textContent)
+    if (row && row + 8 + w > width) { rows++; row = w } else row += (row ? 8 : 0) + w
+  }
+  return rows * BTN_H + (rows - 1) * 8
+}
+
 function boxOf(el: El, width: number, first: boolean): Box {
   const cls = el.className || ''
   const has = (c: string) => cls.split(/\s+/).includes(c)
   const text = el.textContent
 
-  if (el.tagName === 'H2') {                                   // margin: 14px 0 6px
-    return { mt: first ? 0 : 14, h: 11 * 1.45 * lineCount(text, 11, width), mb: 6 }
+  if (has('bks-h')) {                     // 11px, margin 0 0 6px; after the first: 12px + a rule + 11px
+    return { mt: first ? 0 : 12, h: 11 * 1.45 * lineCount(text, 11, width) + (first ? 0 : 12), mb: 6 }
   }
-  if (has('dx-about-lede')) {                                  // margin: 0 0 8px
-    return { mt: 0, h: 14 * 1.45 * lineCount(text, 14, width), mb: 8 }
+  if (has('bks-lede')) {                                       // margin: 0 0 8px
+    return { mt: 0, h: 13 * 1.45 * lineCount(text, 13, width), mb: 8 }
   }
-  if (has('dx-about-note')) {                                  // 11.5px/1.5, margin: 5px 0 0
-    return { mt: 5, h: 11.5 * 1.5 * lineCount(text, 11.5, width), mb: 0 }
+  if (has('bks-note')) {                                       // 12px/1.5, margin: 5px 0 0
+    return { mt: 5, h: 12 * 1.5 * lineCount(text, 12, width), mb: 0 }
   }
-  if (has('dx-about-row')) {                                   // padding: 2px 0, 8.5rem label
+  if (has('bks-row')) {                                        // padding: 2px 0, 8.5rem label
     const control = el.children[1]
     const avail = width - 136 - 10
     const inner = control.tagName === 'INPUT' || control.tagName === 'SELECT'
-      ? 25.6                                                   // 13px + 4+4 padding + 2 borders
+      ? 28.9                                                   // 13px/1.45 + 4+4 padding + 2 borders
       : Math.max(13 * 1.45, 12 * 1.5 * lineCount(control.textContent, 12, avail))
     return { mt: 0, h: inner + 4, mb: 0 }
   }
-  if (has('dx-about-actions') || has('dx-about-foot')) {
-    let row = 0, rows = 1
-    for (const b of el.children) {
-      const w = BTN_W(b.textContent)
-      if (row && row + 8 + w > width) { rows++; row = w } else row += (row ? 8 : 0) + w
-    }
-    const h = rows * BTN_H + (rows - 1) * 8
-    // the footer carries both classes; its own margin-top and rule win
-    if (has('dx-about-foot')) return { mt: 14, h: h + 10 + 1, mb: 0 }
-    return { mt: 6, h, mb: 0 }
-  }
-  if (has('dx-about-check')) {                                 // margin: 8px 0 0
-    return { mt: 8, h: 14 * 1.45 * lineCount(text, 14, width - 21), mb: 0 }
+  if (has('bks-actions')) return { mt: 6, h: buttonsHeight(el, width), mb: 0 }
+  if (has('bks-check')) {                                      // margin: 8px 0 0
+    return { mt: 8, h: 13 * 1.45 * lineCount(text, 13, width - 21), mb: 0 }
   }
   if (has('dx-about-vers')) {                                  // 1px border + 4px padding
     let inner = 0
     for (const c of el.children) {
-      inner += (c.className || '').includes('dx-about-note')
-        ? 11.5 * 1.5 * lineCount(c.textContent, 11.5, width - 26)
+      inner += (c.className || '').includes('bks-note')
+        ? 12 * 1.5 * lineCount(c.textContent, 12, width - 26)
         : 25.6 + 2                                             // .dx-about-ver + gap
     }
     return { mt: 0, h: Math.min(inner, VERS_CAP) + 8 + 2, mb: 0 }
@@ -152,22 +152,30 @@ function boxOf(el: El, width: number, first: boolean): Box {
 
 /** The card's outer height at this card width, margins collapsed. */
 function cardHeight(card: El, cardWidth: number): number {
-  const width = cardWidth - 40                    // .dx-about padding: 18px 20px 16px
-  let total = 0
+  const width = cardWidth - 40                    // .bks-card padding: 18px 20px 14px
+  const body = card.querySelector('.bks-body')!
+  const foot = card.querySelector('.bks-foot')!
+  let total = 17 * 1.2 + 10                       // .bkd-title 17px + margin-bottom 10
   let prevMb = 0
-  card.children.forEach((child: El, i: number) => {
+  body.children.forEach((child: El, i: number) => {
     const b = boxOf(child, width, i === 0)
     total += Math.max(prevMb, b.mt) + b.h
     prevMb = b.mb
   })
-  return total + prevMb + 34
+  // the footer: margin-top 14, padding-top 10, a 1px rule, one row of buttons
+  total += Math.max(prevMb, 14) + 10 + 1 + BTN_H
+  return total + 18 + 14
 }
 
 /**
- * The shortest viewport this surface fits in WITHOUT the backdrop scrolling.
- * `.dx-about-back` pads 4vh top and bottom and the card keeps a 12px tail.
+ * The shortest viewport this surface fits in WITHOUT scrolling. The overlay
+ * pads 24px top and bottom (dialog.css), the card caps at 100vh - 48px.
  */
-const needsViewport = (cardH: number): number => Math.ceil((cardH + 12) / 0.92)
+const needsViewport = (cardH: number): number => Math.ceil(cardH + 48)
+
+/** A card's name: its visible title, or the label of one that draws its own. */
+const nameOf = (card: El | null): string =>
+  card ? (card.getAttribute('aria-label') ?? card.querySelector('.bkd-title')?.textContent ?? '') : '(nothing opened)'
 
 // ------------------------------------------------------------------- fixtures
 
@@ -194,9 +202,9 @@ const hooks = {
 async function open(fn: () => void): Promise<El> {
   fn()
   await new Promise((r) => setTimeout(r, 20))   // listVersions resolves empty here
-  return doc.body.querySelector('.dx-about')!
+  return doc.body.querySelector('.bkd-card')!
 }
-const closeAll = () => doc.body.querySelector('.dx-about-back')?.remove()
+const closeAll = () => doc.body.querySelector('.bkd-overlay')?.remove()
 
 // ============================================================ the seam
 //
@@ -206,18 +214,18 @@ const closeAll = () => doc.body.querySelector('.dx-about-back')?.remove()
 
 const aboutCard = await open(() => about.openAbout(hooks))
 const aboutText = aboutCard.textContent
-const aboutHeads = aboutCard.querySelectorAll('h2').map((n) => n.textContent)
+const aboutHeads = aboutCard.querySelectorAll('h3').map((n) => n.textContent)
 closeAll()
 
 const setCard = await open(() => settings.openSettings(hooks))
 const setText = setCard.textContent
-const setHeads = setCard.querySelectorAll('h2').map((n) => n.textContent)
+const setHeads = setCard.querySelectorAll('h3').map((n) => n.textContent)
 closeAll()
 
 {
   ok(aboutHeads.join('|') === 'This file|Document properties|Version history|Take it elsewhere',
     `About holds the file's own four sections and no others (got: ${aboutHeads.join(' · ')})`)
-  ok(setHeads.join('|') === 'Settings|Language|Appearance|Updates',
+  ok(setHeads.join('|') === 'Language|Appearance|Updates',
     `Settings holds the reader's own preferences and no others (got: ${setHeads.join(' · ')})`)
   ok(!aboutHeads.some((h) => setHeads.includes(h)),
     'no section is on both surfaces — a heading in two places is how they start being kept in step by hand')
@@ -228,13 +236,13 @@ closeAll()
   // and About must not have grown one.
   ok(aboutCard.querySelectorAll('select').length === 0,
     'About has no preference picker — language and theme belong to the reader, not to the file')
-  ok(aboutCard.querySelectorAll('.dx-about-check').length === 0,
+  ok(aboutCard.querySelectorAll('.bks-check').length === 0,
     'and no per-browser switch either (the launch check and Offline mode are Settings)')
-  ok(setCard.querySelectorAll('.dx-about-in').length === 0,
+  ok(setCard.querySelectorAll('.bks-input').length === 0,
     'Settings writes nothing into the document — no author, company, subject or keywords field')
   ok(!setText.includes('Document id') && !setText.includes('JSON'),
     'and says nothing about the identity or the bytes of this particular workbook')
-  ok(aboutText.includes('Document id') && aboutCard.querySelectorAll('.dx-about-in').length === 4,
+  ok(aboutText.includes('Document id') && aboutCard.querySelectorAll('.bks-input').length === 4,
     'About still carries the docId and the four document properties')
   ok(setCard.querySelectorAll('select').length === 2 && setText.includes('Offline mode'),
     'Settings still carries both pickers and the network switch')
@@ -266,8 +274,8 @@ closeAll()
     'nor a second spelling of the identity fork')
   ok(aboutText.includes('Copy document JSON') && aboutText.includes('Replace from JSON'),
     'what stayed is the thing that is not a save at all: the document as text, for an AI or another tool')
-  ok(/beside Save/.test(aboutText),
-    'and the reader who came looking for a copy is told where it went')
+  // (the copy/template/read-only routes are Save ▾'s, as in every Bento app;
+  // About no longer points at it — the windows read the same everywhere)
   const menu = src('saveui.ts')
   ok(/import \{ duplicateWorkbook \} from '\.\/about\.ts'/.test(menu)
     && /duplicateWorkbook\(store\.doc, newDocId\(\)\)/.test(menu),
@@ -287,10 +295,10 @@ closeAll()
   const click = (sel: string) => {
     closeAll()
     app.querySelector(sel)!.dispatchEvent({ type: 'click' })
-    return doc.body.querySelector('.dx-about')?.getAttribute('aria-label') ?? '(nothing opened)'
+    return nameOf(doc.body.querySelector('.bkd-card'))
   }
-  ok(click('.dx-mark') === 'About this workbook',
-    'the wordmark opens About — it says bento/dash, and what it opens is what this file is')
+  ok(click('.dx-mark') === 'About bento/dash — version, licenses',
+    'the wordmark opens the APP\'s card — the suite\'s shared one, named for the app')
   ok(click('.dx-ver') === 'Settings',
     'the version chip opens SETTINGS: it reads v0.3.0, and the question a version raises — am I running the newest app — is now answered there')
   ok(click('[data-act="settings"]') === 'Settings',
@@ -334,10 +342,10 @@ closeAll()
 // Node has no localStorage here, which is precisely the storage-blocked case.
 {
   const card = await open(() => settings.openSettings(hooks))
-  const box = card.querySelectorAll('.dx-about-check input')[1]
+  const box = card.querySelectorAll('.bks-check input')[1]
   ;(box as unknown as { checked: boolean }).checked = true
   box.dispatchEvent({ type: 'change' })
-  const note = card.querySelectorAll('.dx-about-note').pop()!
+  const note = card.querySelectorAll('.bks-note').pop()!
   ok(/Offline mode is on/.test(note.textContent),
     'ticking Offline says the switch is on')
   ok(/could not be saved/.test(note.textContent),
