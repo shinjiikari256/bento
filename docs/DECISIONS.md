@@ -8849,3 +8849,125 @@ does the work — with legitimate `.pptx`/`.xlsx` imports unaffected. Rule: a
 size limit must be enforced DURING decompression, never after; the declared
 size in a container header is an attacker input, and the primitive, not the
 caller's preflight, must hold the ceiling.
+
+## 2026-10 — Shared UI primitives: the topbar fit
+
+**Decision.** The measure-not-breakpoint topbar fit moves into the kernel as
+`kernel/src/ui/topbar.ts` (`fitTopbar(bar, opts)`), guarded by
+`scripts/test-ui-topbar.ts`. It owns the MEASURING and the three re-fit
+signals (ResizeObserver on the bar, window `resize`, MutationObserver with its
+own records dropped); the tiers stay the host's classes and folding buttons
+into a menu stays the host's `onFold` callback. No CSS — what a tier hides is
+the host's stylesheet.
+
+**Why.** slides (#239), spaces and type each carried a copy, and each learned
+one signal alone: type's comment records the bar left permanently untiered
+when the fit ran before the bar was assembled, and again when only a
+ResizeObserver listened; spaces and slides record the content-at-constant-width
+case. The rules that genuinely differ are options, not forks: slides folds only
+on real overflow (`foldOnOverflowOnly`) and folds every phone outright
+(`foldBelow: 700`), type drops its title last (`lastResort: 't-bar-micro'`),
+slides and spaces hold still while a menu is open (`hold`). dash keeps CSS
+breakpoints for now; adopting the fit there is a separate change.
+
+## 2026-10 — One top-bar layout for every app: zones, About vs Settings, the mark
+
+**Decision.** Every app's bar follows one layout, block by block (slides
+first, then dash, spaces, type):
+
+    LEFT   mark · [update chip] · left-panel trigger · document title
+    CENTRE the app's own tools
+    RIGHT  undo redo · right-panel trigger · people · Share · Save · About · Settings
+
+- **The mark opens the APP's card** (name, version, licenses, site) — never
+  the document's. It is the suite's identity, not the file's.
+- **About is the document, Settings is the reader** (dash's split, taken as
+  is): About holds what travels in the file (properties, app-specific document
+  actions); Settings holds what stays in this browser (language, appearance,
+  update checks, offline mode, app preferences, help & shortcuts). Settings'
+  icon is the theme's sun/moon, not a gear. The update chip opens Settings,
+  where updates live.
+- **Undo/redo in every bar**, at the start of the right block.
+- **Panel triggers always visible** (type's), beside the panel each owns.
+- **Save's menu carries print/PDF and import** with the other file
+  operations, instead of loose bar buttons.
+
+**Why.** Each app grew its bar alone, so the same control sat in four places
+and the same click meant four things (slides' mark opened a dialog mixing app
+version, viewer preferences and document properties). Per-block choice, not
+"slides is the reference": slides had the most mature structure and Save,
+dash the right About/Settings split, type the visible panel triggers.
+
+## 2026-10 — One look for the suite's windows; Settings is a gear; shortcuts get a door
+
+Supersedes the Settings-icon line of "One top-bar layout for every app".
+
+**Decision.** The app card (the mark), About, Settings and Keyboard shortcuts
+are ONE component in every app — `kernel/src/ui/sheet.ts` + `sheet.css`, built
+on the kernel dialog and guarded by `scripts/test-ui-sheet.ts`. The layout is
+dash's: a titled card, small-caps sections, muted label · control rows, small
+print, a footer behind a rule that always ends in Close with the way across
+before it (About → Settings). Each app supplies content only, and the sections
+come in one order everywhere: Settings = Language, Appearance, Updates (with
+Offline mode), then the app's own preferences. The app card is identical in
+every app but for the name, the version and the credits.
+
+- **Settings is a gear.** The theme's sun/moon on it was a mixed signal (it
+  looked like a theme toggle); the theme is chosen inside Settings.
+- **Keyboard shortcuts have their own button**, the bar's LAST icon: the
+  corner reads About · Settings · keyboard in every app (after ⋯ where an app
+  has one), and `?` opens the same sheet. type's list is generated from its controls' own tooltips.
+- **One sheet at a time, closed properly**: opening one closes the last through
+  its close(), never by removing its overlay (which left its capture-phase key
+  handler on the document).
+
+**Why.** After the bar layout was shared, the windows behind it were still four
+designs with four contents — headings, footers and Close buttons differed, and
+the same question looked different in each app. The maintainer's ask was
+predictable placement, behaviour and look, not one base overridden per app.
+
+## 2026-10 — Save's colour is its state; one Save, one Undo/Redo in every bar
+
+**Decision.** Every app's Save is the suite's split button
+(`kernel/src/ui/savebutton.css`, classes `.bksv` / `.bksv-main` /
+`.bksv-caret` / `.bksv-dirty`): icon + "Save" + a ▾ caret for the app's own
+save-as list. With nothing to save it is a quiet grey button; with unsaved
+changes it is filled with the ink (ruling D1's fill, now conditional). The
+colour IS the unsaved signal — the separate amber dot is gone, and the hint it
+carried ("⌘S rewrites this file…") moves onto Save's tooltip while it is
+filled. type's "Saved"/"Save" label flip goes too: the label is always "Save".
+Undo/Redo dim (opacity 0.35, the suite's dead-control figure) when there is
+nothing to undo or redo, in every app.
+
+**Why.** The maintainer's rule: nothing to save → grey; something to save →
+bright. Four Saves (ink-filled, outlined, dark-wide, label-only) and two
+Undo/Redo behaviours made the same state read differently per app.
+
+## 2026-10 — One Share button; the app's own menu left of a divider
+
+**Decision.**
+- **Share** is slides' control in every app (`kernel/src/ui/sharebutton.css`):
+  an ordinary bar button — the share icon and "Share" — with a status dot
+  (grey not sharing, amber connecting, green live) that opens the app's share
+  panel. Nothing about the session sits loose in the bar: dash's inline
+  "Start live session" / people strip moved into that panel.
+- **The app's own commands** sit in one labelled dropdown at the START of the
+  right block, set off by a divider — everything right of it is the suite's,
+  identical in every app: spaces' "Space ▾" (new page, journal, issues,
+  graph). ⋯ is only the folded bar's overflow (spaces, type, slides).
+- **type**: Save gains a ▾ (Snapshot, Sign…, Print or PDF…, Import BibTeX…) —
+  they are about the file; "Review ▾" (Review changes…, Hide/Show comments)
+  joins the review tools in the centre.
+
+## 2026-10 — dash's bar fits by measuring, like the other three
+
+**Decision.** dash drops its px ladder (1600/1380/1040/860/760/380) for the
+kernel fit (`fitTopbar`) with the suite's three tiers: compact (labels go, Save
+keeps its word), tight (the insert tools fold into ＋, "bento" leaves the
+wordmark), fold (redo, About, Settings and shortcuts move into a fold-only ⋯).
+The Data ▾ menu goes: import, export and print dock at the foot of Save ▾, as
+in every app. The bar is white like slides' and spaces'.
+
+**Why.** The rungs were re-measured by hand each time the bar gained a
+control and still fell behind it (at 400px the bar overflowed by 109px); the
+measured fit removes the guess, and the bar now fits at 400px.

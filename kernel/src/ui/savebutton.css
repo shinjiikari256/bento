@@ -1,0 +1,74 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SUITE'S SAVE BUTTON — one look in every app's top bar.
+
+   [ 💾 Save | ▾ ]  — a split button: the main half saves, the caret opens the
+   app's own "save as" list. Its COLOUR is its state, and that is the whole
+   signal: nothing to save → a quiet grey button; unsaved changes → filled with
+   the ink (dark in light theme, near-white in dark). No separate dot.
+
+   Markup the apps give it:
+     .bksv                 the wrapper (or the lone button, where there is no caret)
+       .bksv-main          the save half (icon + label)
+       .bksv-caret         the caret half (optional)
+     .bksv-dirty           on the wrapper while there is something to save
+
+   Selectors are wrapper-scoped (0,2,0) so an app's generic button rule
+   (.ed-btn/.dx-btn/.sp-btn/.t-btn, 0,1,0) can never repaint it. Values are the
+   host's through `--bksv-*` chains; the theme guard checks them. */
+
+.bksv { display: inline-flex; align-items: stretch; flex: 0 0 auto; }
+
+.bksv > .bksv-main,
+.bksv .bksv-caret,
+.bksv.bksv-main {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--bksv-idle-ink, var(--muted, #6b7280));
+  background: var(--bksv-idle-bg, var(--chrome-2, #eef1f5));
+  border: 1px solid var(--bksv-idle-line, var(--line, #e3e8ef));
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.bksv > .bksv-main { position: relative; }
+/* split: the two halves read as one control */
+.bksv > .bksv-main:not(:last-child) { border-start-end-radius: 0; border-end-end-radius: 0; }
+.bksv .bksv-caret {
+  padding: 0 7px;
+  font-size: 10px; /* the caret is a ▾ glyph in every app */
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  border-inline-start-color: transparent;
+}
+.bksv > .bksv-main:hover,
+.bksv .bksv-caret:hover,
+.bksv.bksv-main:hover { color: var(--bksv-hover-ink, var(--ink, #1e2a3a)); }
+
+/* something to save: filled with the ink */
+.bksv.bksv-dirty > .bksv-main,
+.bksv.bksv-dirty .bksv-caret,
+.bksv.bksv-main.bksv-dirty {
+  color: var(--bksv-ink, var(--chrome, #fff));
+  background: var(--bksv-bg, var(--ink, #1e2a3a));
+  border-color: var(--bksv-bg, var(--ink, #1e2a3a));
+}
+/* the seam between the filled halves */
+.bksv.bksv-dirty .bksv-caret { border-inline-start-color: var(--bksv-seam, var(--chrome, #fff)); }
+.bksv.bksv-dirty > .bksv-main:hover,
+.bksv.bksv-dirty .bksv-caret:hover,
+.bksv.bksv-main.bksv-dirty:hover { opacity: 0.88; color: var(--bksv-ink, var(--chrome, #fff)); }
+
+.bksv > .bksv-main:focus-visible,
+.bksv .bksv-caret:focus-visible,
+.bksv.bksv-main:focus-visible { outline: 2px solid var(--bksv-focus, var(--blue, #2f6fde)); outline-offset: 2px; }

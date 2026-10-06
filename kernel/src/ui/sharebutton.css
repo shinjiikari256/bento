@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SUITE'S SHARE BUTTON — slides' control, made every app's: an ordinary
+   bar button (the share icon and "Share", which the bar's compact tier drops
+   like every other label) that opens the app's share panel, with a status dot
+   in its corner:
+
+     grey   not sharing (or offline)
+     amber  connecting — pulsing, it is not a failure yet
+     green  live
+
+   The app puts `.bksh` on its own bar button and toggles `.bksh-wait` /
+   `.bksh-live`. Everything else about the session — start/stop, people,
+   invite and view-only copies — lives in the panel it opens, never loose in
+   the bar. The dot colours are status signals, the same in both themes. */
+
+.bksh { position: relative; }
+.bksh::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  inset-inline-end: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9aa4b2;
+  pointer-events: none;
+}
+.bksh.bksh-wait::after { background: #d9a13b; animation: bksh-pulse 1.1s ease-in-out infinite; }
+.bksh.bksh-live::after { background: #34a866; }
+@keyframes bksh-pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.3 } }
+@media (prefers-reduced-motion: reduce) { .bksh.bksh-wait::after { animation: none; } }

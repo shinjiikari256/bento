@@ -352,6 +352,21 @@ jobs:
         # plus the theming guard (every colour chain reaches a token each of the
         # four apps defines and themes). Each is mutation-caught.
         run: node scripts/test-ui-panel.ts
+      - name: Shared topbar fit rig
+        # kernel/src/ui/topbar.ts is the measuring loop slides, spaces and type
+        # each carried a copy of. The checks pin the rules that differed between
+        # them — fold only on real overflow (slides), the title's last-resort
+        # tier (type), every phone folded outright, holding still while a menu
+        # is open — plus the loop guard: the fit's own class flips and
+        # reparenting must not re-trigger it.
+        run: node scripts/test-ui-topbar.ts
+      - name: Shared info sheet rig
+        # kernel/src/ui/sheet.ts is the one card behind every app's app card,
+        # About, Settings and Keyboard shortcuts windows. The checks pin the
+        # structure the apps rely on (title, sections, rows, a footer ending in
+        # Close), one-sheet-at-a-time closing the last through its own close(),
+        # and the theming guard.
+        run: node scripts/test-ui-sheet.ts
       - name: Shared dialog primitive rig
         # kernel/src/ui/dialog.ts is the tier-3 consolidation: the modal all
         # four apps build their About dialog on. The checks guard behaviour that

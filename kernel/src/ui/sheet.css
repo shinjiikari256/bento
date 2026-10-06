@@ -1,0 +1,127 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SHARED INFO SHEET — dash's dialog layout, made the suite's. See sheet.ts.
+   Rules as in menu/panel/dialog: values are the HOST's through `--bks-*`
+   chains onto tokens every app defines (--ink, --muted, --line, --blue,
+   --chrome, --chrome-2), never light-dark(); the shared theme guard checks. */
+
+.bks-card {
+  width: min(560px, 100%);
+  padding: 18px 20px 14px;
+  /* the BODY scrolls, the title and the footer stay: a long list (shortcuts)
+     must not carry Close off the bottom of the card */
+  overflow: hidden;
+}
+.bks-card .bkd-title { margin: 0 0 10px; } /* 17px/650 — the dialog's own, ruling D4 */
+.bks { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; font-size: 13px; line-height: 1.45; }
+.bks-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+
+/* a section: small caps, the muted ink, generous air above */
+/* Sections are PARTED, not just spaced: a rule and air above every heading
+   after the first, so where one block ends and the next begins reads at a
+   glance (a heading alone left the small print of one section looking like
+   the lede of the next). The same whether an app builds sections or a flat
+   run of headings. */
+.bks-body > * + .bks-sec,
+.bks-body > * + .bks-h {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--bks-line, var(--line, #e3e8ef));
+}
+.bks-h {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bks-muted, var(--muted, #6b7280));
+}
+
+.bks-lede { margin: 0 0 8px; }
+.bks-lede a, .bks-note a { color: var(--bks-link, var(--blue, #2f6fde)); }
+.bks-note { margin: 5px 0 0; font-size: 12px; line-height: 1.5; color: var(--bks-muted, var(--muted, #6b7280)); }
+
+.bks-row { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
+.bks-label { flex: 0 0 8.5rem; color: var(--bks-muted, var(--muted, #6b7280)); }
+.bks-row > :last-child { flex: 1 1 auto; min-width: 0; }
+.bks-val { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+
+.bks-select, .bks-input {
+  font: inherit;
+  width: 100%;
+  padding: 4px 7px;
+  color: inherit;
+  background: var(--bks-field, var(--field, var(--surface, var(--chrome, #fff))));
+  border: 1px solid var(--bks-line, var(--line, #e3e8ef));
+  border-radius: 6px;
+}
+.bks-select:focus, .bks-input:focus { outline: none; border-color: var(--bks-focus, var(--blue, #2f6fde)); }
+
+.bks-check { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; cursor: pointer; user-select: none; }
+.bks-check input { margin: 0; flex: 0 0 auto; }
+
+.bks-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.bks-btn {
+  font: inherit;
+  padding: 5px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--bks-ink, var(--ink, #1e2a3a));
+  background: transparent;
+  border: 1px solid var(--bks-line, var(--line, #e3e8ef));
+}
+.bks-btn:hover { background: var(--bks-hover, var(--chrome-2, #eef1f5)); }
+.bks-btn:disabled { opacity: 0.5; cursor: default; }
+.bks-primary {
+  color: var(--bks-primary-ink, var(--chrome, #fff));
+  background: var(--bks-primary, var(--ink, #1e2a3a));
+  border-color: var(--bks-primary, var(--ink, #1e2a3a));
+}
+.bks-primary:hover { background: var(--bks-primary, var(--ink, #1e2a3a)); opacity: 0.9; }
+/* a destructive action (remove a password, reset access): red words, and the
+   confirming press filled red. Status colours, the same in both themes. */
+.bks-btn.bks-danger { color: #a3231a; border-color: rgb(163 35 26 / 0.3); }
+.bks-btn.bks-danger:hover { background: rgb(163 35 26 / 0.08); }
+.bks-btn.bks-danger-fill { color: #fff; background: #a3231a; border-color: #a3231a; }
+.bks-btn.bks-danger-fill:hover { background: #8a1d15; }
+
+/* the footer: the way across beside the way out, behind a rule */
+.bks-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--bks-line, var(--line, #e3e8ef));
+}
+.bks-foot-extra { display: flex; gap: 8px; margin-inline-end: auto; }
+.bks-foot-extra:empty { display: none; }
+
+/* the app's card head: the mark, the wordmark, the version */
+.bks-app-head { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; }
+.bks-app-head .bk-wordmark { display: block; font-size: 17px; font-weight: 650; }
+.bk-slash { color: #ff9e8a; }
+.bks-app-ver { display: block; font-size: 12px; color: var(--bks-muted, var(--muted, #6b7280)); font-variant-numeric: tabular-nums; }
+
+/* keyboard shortcuts: label · key chips, right-aligned */
+.bks-keyrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.bks-kbds { flex: 0 0 auto; color: var(--bks-muted, var(--muted, #6b7280)); white-space: nowrap; }
+.bks-kbd {
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: var(--bks-ink, var(--ink, #1e2a3a));
+  background: var(--bks-hover, var(--chrome-2, #eef1f5));
+  border: 1px solid var(--bks-line, var(--line, #e3e8ef));
+}
+@media (min-width: 720px) {
+  /* two columns of sections on a wide screen keep a long list short */
+  .bks-card.bks-keys { width: min(780px, 100%); max-width: min(780px, 100%); }
+  .bks-keys .bks-body { columns: 2; column-gap: 28px; }
+  .bks-keys .bks-sec { break-inside: avoid; margin-top: 0; margin-bottom: 14px; }
+  /* in columns, a rule would cut across the column flow: air only */
+  .bks-keys .bks-body > * + .bks-sec { padding-top: 0; border-top: 0; }
+}

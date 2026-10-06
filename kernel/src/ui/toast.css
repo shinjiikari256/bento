@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SUITE'S TOAST (toast.ts): a pill in the ink colour, bottom centre.
+   Values are the host's through `--bkto-*` chains; the theme guard checks. */
+
+.bkto {
+  position: fixed;
+  left: 50%;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  z-index: var(--bkto-z, 1100);
+  max-width: min(92vw, 480px);
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--bkto-ink, var(--chrome, #fff));
+  background: var(--bkto-bg, var(--ink, #1e2a3a));
+  box-shadow: 0 10px 34px rgb(0 0 0 / 0.28);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  transition: opacity 0.18s, transform 0.18s;
+}
+.bkto:empty { display: none; }
+.bkto.bkto-show { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .bkto { transition: opacity 0.18s; transform: translate(-50%, 0); } }
