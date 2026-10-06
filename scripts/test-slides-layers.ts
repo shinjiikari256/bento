@@ -136,8 +136,13 @@ const panels = read('slides/src/editor/panels.ts')
   ok(/const diff = signatureDiff\(this\.sig, next\)[\s\S]*if \(diff === 'same'\) \{ this\.highlight\(\); return \}/.test(ui), 'refresh compares the signature first and only re-highlights when nothing a row says changed')
   ok(/if \(diff === 'labels'\)[\s\S]*label\.textContent = r\.label/.test(ui), 'a labels-only change patches text in place')
   ok(!/store\.on\(/.test(ui) && !/'selection'/.test(ui), 'the list has no store subscription of its own — the panel drives it, and selection never rebuilds rows')
+  // The per-header listener guard (a header outliving a rebuild gets no
+  // second click handler) moved to kernel/src/ui/accordion.ts
+  // (scripts/test-ui-accordion.ts owns that check now); this just pins
+  // that the panel's call site still wires THIS panel's header class in.
   const acc = panels.slice(panels.indexOf('private applyAccordion()'), panels.indexOf('// --- builders'))
-  ok(/if \(h\.dataset\.acc\) continue/.test(acc) && /h\.nextElementSibling/.test(acc), 'the accordion attaches one click handler per header for its lifetime and finds the body live (the Layers h3 outlives rebuilds)')
+  ok(/kernelAccordion\(this\.host, \{/.test(acc) && /headerClass: 'bka-section'/.test(acc),
+    'the accordion is the shared kernel primitive, wired to this panel\'s own header class')
 }
 ok(/setOrder: \(elements\) => this\.store\.commit\(/.test(panels), 'a move is one store.commit — one undo step, no new field')
 ok(/'Layers'\]\)/.test(panels.slice(panels.indexOf('CLOSED_BY_DEFAULT ='), panels.indexOf('CLOSED_BY_DEFAULT =') + 200)), 'closed by default (opened state persists per title like the other sections)')

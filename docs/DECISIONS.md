@@ -126,6 +126,19 @@ Pointers: `kernel/src/ui/accordion.ts`, `kernel/src/ui/accordion.css`,
 Adopted in dash, slides and spaces — see each app's own entry; `type` has
 no accordion to replace, so it is not touched.
 
+### Adopted in `slides`
+
+`panels.ts`'s private `applyAccordion()` becomes a thin wrapper
+delegating to the kernel's, same shape dash's `askForm`→`promptDialog`
+wrapper took. `section()` and `layers.ts`'s persistent header switch from
+`.ed-section` to `.bka-section`; the dead `.ed-section`/`.ed-sec-toggle`/
+`.ed-section-body` rules (plus their `[dir="rtl"]` chevron-flip) drop from
+styles.css — `accordion.css` is this exact design now, shared with dash.
+The primitive's `toggleClass` option (kernel, previous commit) exists
+because of this adoption: the retrofit itself used to add
+`.ed-sec-toggle` to every header it processed, separately from the
+always-present `.ed-section` — dropped by mistake in the first draft of
+the primitive, caught before any app had adopted it.
 ## 2026-10-04 — Accordion sections are CARDS, not flat headers on white
 
 **Correction to the entry above.** The first pass of `accordion.css`

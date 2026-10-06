@@ -13,6 +13,8 @@ import { confirmDialog, promptDialog } from '../../../kernel/src/ui/promptdialog
 import '../../../kernel/src/ui/field.css'
 import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
 import '../../../kernel/src/ui/jsoneditor.css'
+import { applyAccordion as kernelAccordion } from '../../../kernel/src/ui/accordion.ts'
+import '../../../kernel/src/ui/accordion.css'
 import { fieldize } from '../../../kernel/src/ui/field.ts'
 import { resolveAsset } from '../render'
 import { measureElement } from '../measure'
@@ -29,7 +31,6 @@ import { stepOf } from '../steps'
 import { ICONS } from '../icons'
 import { LayersUI } from './layers'
 import { t } from '../i18n'
-import { lsJson, lsSet } from '../../../kernel/src/storage.ts'
 
 // Hover help for panel rows, keyed by the RAW English label (translated at
 // render). A missing entry means no tooltip — better silence than an echo.
@@ -237,45 +238,21 @@ export class PropsPanel {
   })
 
   /**
-   * Retrofit the flat panel into an accordion: every .ed-section header
-   * gathers its following siblings into a collapsible body. Open state is
+   * Retrofit the flat panel into an accordion: every section header gathers
+   * its following siblings into a collapsible body. Open state is
    * remembered per section title — everything stays discoverable (headers
    * always visible) while rarely-used sections stop costing space.
+   *
+   * kernel/src/ui/accordion.ts owns the walk itself now (dash and spaces
+   * wrote the identical thing independently); this is the thin call that
+   * wires it to THIS panel's classes and storage key.
    */
   private applyAccordion() {
-    let openState: Record<string, boolean> = {}
-    openState = lsJson<Record<string, boolean>>('bento-panel-open', {})
-    const headers = [...this.host.querySelectorAll<HTMLElement>('.ed-section')]
-    for (const h of headers) {
-      const key = h.textContent ?? ''
-      const body = document.createElement('div')
-      body.className = 'ed-section-body'
-      let n: ChildNode | null = h.nextSibling
-      while (n && !(n instanceof HTMLElement && n.classList.contains('ed-section'))) {
-        const next: ChildNode | null = n.nextSibling
-        body.appendChild(n)
-        n = next
-      }
-      h.after(body)
-      const isOpen = openState[key] ?? !PropsPanel.CLOSED_BY_DEFAULT.has(key)
-      h.classList.add('ed-sec-toggle')
-      h.classList.toggle('closed', !isOpen)
-      if (!isOpen) body.style.display = 'none'
-      // A header can outlive a rebuild (the Layers h3 is one node for the
-      // panel's life), so the click handler is attached once and reads its
-      // body from the DOM each time rather than closing over one that a later
-      // rebuild threw away.
-      if (h.dataset.acc) continue
-      h.dataset.acc = '1'
-      h.addEventListener('click', () => {
-        const nowClosed = h.classList.toggle('closed')
-        const live = h.nextElementSibling as HTMLElement | null
-        if (live?.classList.contains('ed-section-body')) live.style.display = nowClosed ? 'none' : ''
-        const state = lsJson<Record<string, boolean>>('bento-panel-open', {})
-        state[key] = !nowClosed
-        lsSet('bento-panel-open', JSON.stringify(state))
-      })
-    }
+    kernelAccordion(this.host, {
+      headerClass: 'bka-section', bodyClass: 'bka-body', closedClass: 'bka-closed',
+      toggleClass: 'bka-toggle', groupClass: 'bka-group', storageKey: 'bento-panel-open',
+      closedByDefault: PropsPanel.CLOSED_BY_DEFAULT,
+    })
   }
 
   // --- builders ---------------------------------------------------------------
@@ -2214,7 +2191,7 @@ export class PropsPanel {
 
   private section(title: string) {
     const h = document.createElement('h3')
-    h.className = 'ed-section'
+    h.className = 'bka-section'
     h.textContent = title
     this.host.appendChild(h)
   }

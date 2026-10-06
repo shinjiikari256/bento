@@ -43,7 +43,7 @@ export class LayersUI {
     // ONE header node for the life of the panel, like the list: the accordion
     // retrofit keys its open state and its click handler off this element.
     this.header = document.createElement('h3')
-    this.header.className = 'ed-section'
+    this.header.className = 'bka-section'
     this.header.textContent = t('Layers')
   }
 
