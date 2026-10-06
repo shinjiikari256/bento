@@ -71,9 +71,13 @@
    Both are the majority of the four, and both stay overridable. slides moves
    2px and spaces 1px on adoption; that difference was never designed. */
 
-.bkm {
+:where(.bkm) {
   /* The wrapper is the positioning context. It must be `relative` and it must
-     not establish anything else — see the z-index note below. */
+     not establish anything else — see the z-index note below. Zero
+     specificity on purpose: an app hides or shows a whole menu with its own
+     class (`.sp-more { display: none }` until the bar folds), and a tie with
+     this rule went to whichever stylesheet loaded last — ⋯ showed, empty, on
+     a wide bar. */
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -124,6 +128,11 @@
 .bkm.bkm-open > .bkm-menu {
   display: flex;
 }
+/* the ▾ of a labelled menu trigger ("Space ▾", "Review ▾") */
+.bkm-caret { font-size: 10px; opacity: 0.6; margin-inline-start: -2px; }
+/* a PANEL (a form, a list of people) holds its own layout: wider, and no
+   command-row padding imposed on what it contains */
+.bkm-menu.bkm-panel { min-width: var(--bkm-panel-width, 260px); padding: 6px; }
 
 /* DIRECT child, not any descendant. Phone chrome demotes whole dropdown widgets
    into a ⋯ menu, so a descendant selector opens their popups too — slides' ⋯
@@ -194,6 +203,7 @@
 
 .bkm-ico {
   display: inline-flex;
+  min-width: 16px;
   color: var(--bkm-ico, var(--muted, #6b7789));
   flex: none;
 }
@@ -202,28 +212,14 @@
   display: block;
 }
 
-.bkm-body {
-  display: block;
-  min-width: 0;
-}
-
-/* A row that TEACHES rather than naming a command needs to WRAP. dash cut
-   "Typed columns — for volume, joins and charts" mid-phrase inside a 220px
-   menu, because the row inherited a one-line ellipsis meant for "Rename". A
-   truncated explanation of a central concept explains nothing and reads as a
-   bug. */
-.bkm-hint {
-  display: block;
-  font-size: var(--bkm-hint-size, 12px);
-  line-height: 1.35;
-  color: var(--muted, #6b7789);
-  white-space: normal;
-}
-
+/* One line per row in every Bento menu: the words, then — when the row has a
+   shortcut — the key at the end edge (.bk-kbd, bar.css). An explanation is the
+   row's tooltip, never a second line of small print. */
 .bkm-text {
-  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
 }
-
 .bkm-sep {
   height: 1px;
   background: var(--bkm-border, var(--line, #e3e8ef));

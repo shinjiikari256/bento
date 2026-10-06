@@ -16,6 +16,11 @@
    the bar. The dot colours are status signals, the same in both themes. */
 
 .bksh { position: relative; }
+/* One height in every bar. Share wears the app's own button class for
+   everything else, and type's .t-btn carried a 32px minimum the other three
+   bars do not: Share stood 2px taller there. `button.` outranks a bare app
+   class and still yields to an app's touch-size rule (`.x-bar …`). */
+button.bksh { min-height: 30px; min-width: 0; }
 .bksh::after {
   content: '';
   position: absolute;

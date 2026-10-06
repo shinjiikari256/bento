@@ -25,8 +25,8 @@
   border: 1px solid var(--bkb-line, var(--line, #e3e8ef));
   border-radius: 5px;
 }
-/* in a row that ends in a key, the words keep their distance from it */
-:where(*):has(> .bk-kbd) > :where(span):not(.bk-kbd) { margin-inline-end: 16px; }
+/* in a row that ends in a key, the words just before it keep their distance */
+:where(*) > :where(:has(+ .bk-kbd)) { margin-inline-end: 16px; }
 
 .bk-bar-sep {
   flex: 0 0 auto;

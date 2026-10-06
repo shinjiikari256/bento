@@ -8992,3 +8992,25 @@ measured fit removes the guess, and the bar now fits at 400px.
 **Why.** The same control drawn four ways came out different per app (three
 panel glyphs, a vertical ⋯), and every fix had to be made four times. Size
 moves +0.4–0.9KB per app (the favicon, and chrome icons an app does not use).
+
+## 2026-10 — Every top-bar dropdown is the kernel menu
+
+**Decision.** The bar's dropdowns in all four apps — Insert, Review, Space,
+Shape, Media, Save ▾, Share, ⋯ and slides' present menu — are
+`kernel/src/ui/menu.ts` menus. Each app keeps its own classes on the wrapper
+and the list as styling hooks (slides' fold keys on `.ed-dropdown`/`.ed-menu`,
+dash's wide insert row on `.dx-insert-dd > .dx-menu`), but opening, closing,
+Escape, the outside press, arrow keys and one-open-at-a-time are the
+kernel's. The kernel menu also supports nesting (a menu demoted into ⋯ leaves
+⋯ open; closing ⋯ closes it; Escape closes the inner one), an `onOpen` hook,
+and keeps an open menu inside the viewport.
+
+`.bkm`'s base rule has zero specificity (`:where`): an app hides or shows a
+whole menu with its own single class, and a tie with the kernel went to
+whichever stylesheet loaded last (spaces' fold-only ⋯ showed, empty, on a wide
+bar). Save ▾ and Share state their own minimum sizes, so an app's button
+class cannot resize them (type's `.t-btn` made both 32px).
+
+**Why.** Five hand-rolled implementations of the same behaviour each missed
+part of it (no Escape here, two menus open at once there, a menu cut off at
+the screen edge), and a fix made in one never reached the others.

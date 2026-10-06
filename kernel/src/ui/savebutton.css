@@ -27,7 +27,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  /* both minimums are stated: an app's own button class (type's .t-btn is
+     32×32 minimum) otherwise sized the ▾ — 32px wide in type, 21 elsewhere */
   min-height: 30px;
+  min-width: 0;
   margin: 0;
   padding: 0 12px;
   font: inherit;

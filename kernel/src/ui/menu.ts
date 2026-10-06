@@ -66,7 +66,14 @@
 export interface MenuItemOpts {
   /** Inline SVG (or any markup) for the row's leading icon. */
   icon?: string
-  /** Secondary line under the label. */
+  /** A keyboard shortcut ("⌘K"), drawn as a key at the row's end edge
+   *  (`.bk-kbd`, bar.css) — every Bento menu shows shortcuts this way. */
+  shortcut?: string
+  /** An explanation of the row. It is the row's TOOLTIP: rows are one line in
+   *  every Bento menu, and a second line of small print under each item made
+   *  menus twice the height of the words they hold. */
+  tip?: string
+  /** @deprecated — kept so older callers still compile; shown as the tooltip. */
   hint?: string
   /** Present but not runnable: dimmed, unfocusable, announced `aria-disabled`. */
   off?: boolean
@@ -89,6 +96,21 @@ export interface MenuOpts {
    *  state — "Hide comments" becomes "Show comments" — and rendering it once at
    *  mount leaves it permanently wrong after the first use. */
   fill?: (menu: HTMLElement, close: () => void) => void
+  /** The host app's own button class(es) for the trigger (`ed-btn`, `sp-btn`,
+   *  `dx-btn`, `t-btn`), so the trigger sits in the bar like its neighbours. */
+  triggerClass?: string
+  /** A leading icon for the trigger (inline SVG). */
+  icon?: string
+  /** A ▾ after the label — the mark of a labelled menu ("Space ▾", "Review ▾"). */
+  caret?: boolean
+  /** The popup is a PANEL (a form, a list of people) rather than a list of
+   *  commands: no `role=menu`, no arrow-key walking, and clicks inside it do
+   *  not close it. Escape, an outside press and mutual exclusion still apply. */
+  panel?: boolean
+  /** Runs as the menu opens, after `fill` — for a popup that is not rebuilt
+   *  wholesale but must be current when it shows (slides' ⋯ adds its phone
+   *  save-as rows; a Share panel re-renders its people). */
+  onOpen?: () => void
 }
 
 export interface Menu {
@@ -111,6 +133,25 @@ export interface Menu {
 }
 
 const OPEN = 'bkm-open'
+
+/** Slide an open menu sideways back onto the screen. alignEnd covers the
+ *  usual case, but a trigger can itself sit past the edge — type's folded bar
+ *  at 380px pushed ⋯ off the right, and its menu, anchored to it, hung 45px
+ *  off-screen with every row behind the cut. A sideways `translate` keeps the
+ *  menu's own anchoring (and the `.bkm-fixed` variant) intact; closing clears it. */
+const EDGE = 6
+function keepOnScreen(menu: HTMLElement): void {
+  menu.style.translate = ''
+  // no layout (a node rig's fake DOM, a menu not yet in the page): nothing to measure
+  if (typeof menu.getBoundingClientRect !== 'function') return
+  const r = menu.getBoundingClientRect()
+  const vw = document.documentElement?.clientWidth || (globalThis as { innerWidth?: number }).innerWidth || 0
+  if (!r.width || !vw) return
+  let dx = 0
+  if (r.right > vw - EDGE) dx = vw - EDGE - r.right
+  if (r.left + dx < EDGE) dx = EDGE - r.left
+  if (dx) menu.style.translate = `${Math.round(dx)}px 0`
+}
 
 /** Every live menu, so one document listener can serve all of them.
  *
@@ -140,8 +181,16 @@ function onDocPointerDown(ev: Event): void {
   }
 }
 
+/** The innermost open menu. A folded bar nests whole menus inside ⋯ (slides
+ *  demotes Share there), so two can be open at once, one inside the other; the
+ *  keyboard belongs to the inner one. */
+function innermostOpen(): MenuState | undefined {
+  const open = [...live].filter((m) => m.root.classList.contains(OPEN))
+  return open.find((m) => !open.some((o) => o !== m && m.root.contains(o.root)))
+}
+
 function onDocKeyDown(ev: KeyboardEvent): void {
-  const open = [...live].find((m) => m.root.classList.contains(OPEN))
+  const open = innermostOpen()
   if (!open) return
   if (ev.key === 'Escape') {
     ev.stopPropagation()
@@ -152,6 +201,9 @@ function onDocKeyDown(ev: KeyboardEvent): void {
     return
   }
   if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp' || ev.key === 'Home' || ev.key === 'End') {
+    // a field in a panel keeps its own arrow keys
+    const t = ev.target as HTMLElement | null
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
     const rows = focusableRows(open.menu)
     if (!rows.length) return
     ev.preventDefault()
@@ -201,7 +253,8 @@ export function createMenu(label: string, tip: string, opts: MenuOpts = {}): Men
 
   const trigger = document.createElement('button')
   trigger.type = 'button'
-  trigger.className = 'bkm-trigger'
+  trigger.className = 'bkm-trigger' + (opts.triggerClass ? ' ' + opts.triggerClass : '')
+  if (opts.icon) trigger.insertAdjacentHTML('afterbegin', opts.icon)
   trigger.title = tip
   trigger.setAttribute('aria-label', tip)
   trigger.setAttribute('aria-haspopup', 'menu')
@@ -216,10 +269,18 @@ export function createMenu(label: string, tip: string, opts: MenuOpts = {}): Men
     span.textContent = label
     trigger.appendChild(span)
   }
+  if (opts.caret) {
+    const c = document.createElement('span')
+    c.className = 'bkm-caret'
+    c.setAttribute('aria-hidden', 'true')
+    c.textContent = '▾'
+    trigger.appendChild(c)
+  }
 
   const menu = document.createElement('div')
-  menu.className = 'bkm-menu' + (opts.menuClass ? ' ' + opts.menuClass : '')
-  menu.setAttribute('role', 'menu')
+  menu.className = 'bkm-menu' + (opts.panel ? ' bkm-panel' : '') + (opts.menuClass ? ' ' + opts.menuClass : '')
+  if (!opts.panel) menu.setAttribute('role', 'menu')
+  trigger.setAttribute('aria-haspopup', opts.panel ? 'dialog' : 'menu')
   if (opts.alignEnd) root.classList.add('bkm-end')
 
   let dead = false
@@ -229,8 +290,12 @@ export function createMenu(label: string, tip: string, opts: MenuOpts = {}): Men
     trigger,
     menu,
     close(): void {
+      // a menu nested inside this one (a demoted Share inside ⋯) goes with it,
+      // or it would come back already open the next time ⋯ does
+      for (const m of live) if (m !== state && root.contains(m.root) && m.root.classList.contains(OPEN)) m.close()
       root.classList.remove(OPEN)
       trigger.setAttribute('aria-expanded', 'false')
+      menu.style.translate = ''
     },
   }
 
@@ -239,13 +304,16 @@ export function createMenu(label: string, tip: string, opts: MenuOpts = {}): Men
     // Mutual exclusion: opening one menu shuts every other. Without it a bar
     // ends up with two popups overlapping each other, which dash fixed and the
     // other three did not.
-    for (const m of live) if (m !== state) m.close()
+    // A menu this one sits INSIDE stays open — it is the list holding it.
+    for (const m of live) if (m !== state && !m.root.contains(root)) m.close()
     if (opts.fill) {
       menu.replaceChildren()
       opts.fill(menu, state.close)
     }
+    opts.onOpen?.()
     root.classList.add(OPEN)
     trigger.setAttribute('aria-expanded', 'true')
+    keepOnScreen(menu)
   }
 
   const api: Menu = {
@@ -262,47 +330,12 @@ export function createMenu(label: string, tip: string, opts: MenuOpts = {}): Men
       else open()
     },
     item(text: string, onClick: () => void, io: MenuItemOpts = {}): HTMLButtonElement {
-      const b = document.createElement('button')
-      b.type = 'button'
-      b.className =
-        'bkm-item' + (io.off ? ' bkm-off' : '') + (io.selected ? ' bkm-selected' : '')
-      b.setAttribute('role', 'menuitem')
-      if (io.off) b.setAttribute('aria-disabled', 'true')
-      if (io.selected) b.setAttribute('aria-current', 'true')
-      if (io.icon) {
-        const ico = document.createElement('span')
-        ico.className = 'bkm-ico'
-        ico.innerHTML = io.icon
-        b.appendChild(ico)
-      }
-      const body = document.createElement('span')
-      body.className = 'bkm-body'
-      const strong = document.createElement('span')
-      strong.className = 'bkm-text'
-      strong.textContent = text
-      body.appendChild(strong)
-      if (io.hint) {
-        const hint = document.createElement('span')
-        hint.className = 'bkm-hint'
-        hint.textContent = io.hint
-        body.appendChild(hint)
-      }
-      b.appendChild(body)
-      b.addEventListener('click', (ev) => {
-        ev.stopPropagation()
-        if (io.off) return
-        if (!io.keepOpen) state.close()
-        onClick()
-      })
+      const b = menuItem(text, onClick, io, state.close)
       menu.appendChild(b)
       return b
     },
     separator(): HTMLElement {
-      const sep = document.createElement('div')
-      sep.className = 'bkm-sep'
-      // A hairline is decoration; a screen reader walking the menu should not
-      // stop on it.
-      sep.setAttribute('role', 'separator')
+      const sep = menuSeparator()
       menu.appendChild(sep)
       return sep
     },
@@ -319,6 +352,8 @@ export function createMenu(label: string, tip: string, opts: MenuOpts = {}): Men
     ev.stopPropagation()
     api.toggle()
   })
+  // a panel's content is not a command: a click inside it never closes it
+  if (opts.panel) menu.addEventListener('click', (ev) => ev.stopPropagation())
   // ArrowDown on a CLOSED trigger opens it and lands on the first row — the
   // standard menu-button gesture, and the one that makes the arrow handling
   // above reachable without a mouse.
@@ -333,6 +368,56 @@ export function createMenu(label: string, tip: string, opts: MenuOpts = {}): Men
   live.add(state)
   wire()
   return api
+}
+
+/**
+ * A menu row, for a `fill` callback (or any menu-shaped list): the icon, the
+ * words, the shortcut as a key at the end edge, the explanation as the
+ * tooltip. Choosing it runs `onClick` and, unless `keepOpen`, calls `close`.
+ */
+export function menuItem(text: string, onClick: () => void, io: MenuItemOpts = {}, close?: () => void): HTMLButtonElement {
+  const b = document.createElement('button')
+  b.type = 'button'
+  b.className = 'bkm-item' + (io.off ? ' bkm-off' : '') + (io.selected ? ' bkm-selected' : '')
+  b.setAttribute('role', 'menuitem')
+  if (io.off) b.setAttribute('aria-disabled', 'true')
+  if (io.selected) b.setAttribute('aria-current', 'true')
+  const tip = io.tip ?? io.hint
+  if (tip) b.title = tip
+  // an EMPTY icon ('') still takes its slot, so a row without a glyph lines up
+  // with the rows that have one
+  if (io.icon !== undefined) {
+    const ico = document.createElement('span')
+    ico.className = 'bkm-ico'
+    ico.innerHTML = io.icon
+    b.appendChild(ico)
+  }
+  const words = document.createElement('span')
+  words.className = 'bkm-text'
+  words.textContent = text
+  b.appendChild(words)
+  if (io.shortcut) {
+    const k = document.createElement('kbd')
+    k.className = 'bk-kbd'
+    k.textContent = io.shortcut
+    b.appendChild(k)
+  }
+  b.addEventListener('click', (ev) => {
+    ev.stopPropagation()
+    if (io.off) return
+    if (!io.keepOpen) close?.()
+    onClick()
+  })
+  return b
+}
+
+/** A hairline between groups of rows. Decoration: a screen reader walking the
+ *  menu does not stop on it. */
+export function menuSeparator(): HTMLElement {
+  const sep = document.createElement('div')
+  sep.className = 'bkm-sep'
+  sep.setAttribute('role', 'separator')
+  return sep
 }
 
 /** Close every open menu. For an app that needs to shut the bar on its own

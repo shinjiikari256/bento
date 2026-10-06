@@ -261,6 +261,46 @@ const A = (el: unknown, k: string): string | null => (el as any).getAttribute(k)
   inner.destroy()
 }
 
+// ————— 9b. the suite's row and trigger shape —————
+// Rows are ONE line in every Bento menu: a shortcut is a key at the end edge,
+// an explanation is the tooltip. A trigger can wear its app's button class,
+// an icon and a ▾. A PANEL (Share's people and actions) is not a menu.
+{
+  const m = createMenu('Space', 'Space — new pages', { triggerClass: 'sp-btn', icon: '<svg></svg>', caret: true })
+  bar.appendChild(m.root as never)
+  ok('the trigger wears the app\'s button class', String((m.trigger as unknown as { className: string }).className).includes('sp-btn'))
+  ok('…and a ▾', !!(m.trigger as unknown as { querySelector(s: string): unknown }).querySelector('.bkm-caret'))
+  const r = m.item('New page', () => {}, { shortcut: '⌘⌥N', tip: 'Adds a page' })
+  eq('a shortcut is a key chip', (r as unknown as { querySelector(s: string): { textContent: string } | null }).querySelector('.bk-kbd')?.textContent, '⌘⌥N')
+  eq('an explanation is the tooltip', (r as unknown as { title: string }).title, 'Adds a page')
+  ok('…never a second line', !(r as unknown as { querySelector(s: string): unknown }).querySelector('.bkm-hint'))
+  m.destroy()
+  const p = createMenu('Share', 'Share', { panel: true })
+  bar.appendChild(p.root as never)
+  eq('a panel is not announced as a menu', A(p.menu, 'role'), null)
+  eq('…its trigger opens a dialog-like popup', A(p.trigger, 'aria-haspopup'), 'dialog')
+  p.destroy()
+}
+
+// ————— 9c. nesting — a folded bar demotes whole menus into ⋯ (slides' Share) —————
+{
+  let opened = 0
+  const outer = createMenu('', 'More')
+  const inner = createMenu('Share', 'Share', { panel: true, onOpen: () => { opened++ } })
+  bar.appendChild(outer.root as never)
+  outer.menu.appendChild(inner.root as never)
+  click(outer.trigger)
+  click(inner.trigger)
+  ok('opening a menu nested in another leaves the outer one open', outer.isOpen && inner.isOpen)
+  eq('onOpen runs as the menu opens', opened, 1)
+  key('Escape')
+  ok('Escape closes the INNER menu first', outer.isOpen && !inner.isOpen)
+  click(inner.trigger)
+  click(outer.trigger)
+  ok('closing the outer menu closes the one inside it', !outer.isOpen && !inner.isOpen)
+  inner.destroy(); outer.destroy()
+}
+
 // ————— 10. THE THEMING GUARD — every colour chain resolves, for each of the
 // four apps, to a token that app both DEFINES and THEMES. Shared with the panel
 // primitive's rig through scripts/lib/ui-theme-guard.ts; that file states what
