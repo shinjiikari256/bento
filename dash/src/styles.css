@@ -578,23 +578,10 @@ html, body {
 
 /* ————— top-bar dropdowns —————
    One panel style, shared with .dx-pop and the save menu. */
-.dx-dd { position: relative; flex: 0 0 auto; }
-.dx-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  inset-inline-start: 0;
-  z-index: 60;
-  min-width: 200px;
-  flex-direction: column;
-  gap: 1px;
-  padding: 5px;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-pop);
-}
-.dx-dd.open > .dx-menu { display: flex; }
+/* The panel itself — position, surface, border, shadow, open/closed — is the
+   suite's menu (kernel/src/ui/menu.css, in dash's tokens); what stays here is
+   how dash's own bar buttons sit in it as rows. */
+.dx-dd { flex: 0 0 auto; }
 .dx-menu .dx-btn {
   width: 100%;
   justify-content: flex-start;
@@ -611,9 +598,9 @@ html, body {
    live inside a .dx-menu that is a plain inline row until 900px. Written with
    `!important` the exception forced labels back on in that row too, so the bar
    never actually shrank (measured: the group stayed 516px wide at 1100px).
-   Keying on `.open` says the real thing — a FLOATING PANEL is what needs
+   Keying on `.bkm-open` says the real thing — a FLOATING PANEL is what needs
    words — and wins on specificity without reaching for !important. */
-.dx-bar .dx-dd.open > .dx-menu .dx-btn > span { display: inline; }
+.dx-bar .dx-dd.bkm-open > .dx-menu .dx-btn > span { display: inline; }
 .dx-menu-sep { height: 1px; background: var(--line); margin: 4px 6px; }
 /* the data menu hangs off a button near the right edge, so it grows inward */
 
@@ -692,12 +679,13 @@ html, body {
   background: var(--surface);
   box-shadow: var(--shadow-pop);
 }
-.dx-bar.dx-bar-tight .dx-insert-dd.open > .dx-menu { display: flex; }
+.dx-bar.dx-bar-tight .dx-insert-dd.bkm-open > .dx-menu { display: flex; }
 .dx-bar.dx-bar-tight .dx-insert-dd > .dx-menu > .dx-btn {
   width: 100%;
   border-color: transparent;
   background: transparent;
-  padding: 6px 9px;
+  gap: 9px;
+  padding: 7px 9px; /* the kernel row's own (.bkm-item) */
 }
 .dx-bar.dx-bar-tight .dx-insert-dd > .dx-menu .dx-i { color: var(--muted); }
 
@@ -705,8 +693,6 @@ html, body {
    here; the mark keeps its glyph alone */
 .dx-more-dd { display: none; }
 .dx-bar.dx-bar-fold .dx-more-dd { display: block; }
-.dx-more-dd > .dx-menu { inset-inline-start: auto; inset-inline-end: 0; }
-.dx-more-dd > .dx-menu .dx-btn { white-space: nowrap; }
 .dx-bar.dx-bar-fold [data-act="redo"],
 .dx-bar.dx-bar-fold [data-act="about"],
 .dx-bar.dx-bar-fold [data-act="settings"],

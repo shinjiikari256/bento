@@ -15,53 +15,21 @@
    with nothing to save, ink-filled when there is. Only the menu is dash's. */
 .dxs-wrap .dxs-caret { align-self: stretch; }
 
-.dxs-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 60;
-  min-width: 260px;
-  /* capped at the viewport: this menu hangs off a button in the right half of
-     the bar, and on a phone a 260px start-anchored panel walks off the screen */
-  max-width: calc(100vw - 16px);
-  padding: 5px;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-pop);
-  display: none;
-}
-.dxs-wrap.dxs-open .dxs-menu { display: block; }
-
-.dxs-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 6px 9px;
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: var(--fs-ui);
-  cursor: pointer;
-}
-.dxs-item:hover:not(:disabled) { background: var(--hover); }
-/* 0.35 — slides' one figure for a dead control; see .dx-btn[disabled] */
-.dxs-item:disabled { opacity: 0.35; cursor: default; }
-.dxs-item { white-space: nowrap; }
+/* The panel and its rows are the suite's menu (kernel/src/ui/menu.css); the
+   one dash figure kept is the width, for the longest Save-as label. */
+.dxs-menu { --bkm-min-width: 260px; }
 /* the app's import, export and print rows, docked at the menu's foot: they
    are bar buttons (.dx-btn), drawn here as rows like the ones above */
 .dxs-menu .dx-data-items { display: flex; flex-direction: column; gap: 1px; }
 .dxs-menu .dx-data-items[hidden] { display: none; }
 .dxs-menu .dx-data-items .dx-btn {
   width: 100%; justify-content: flex-start; white-space: nowrap;
-  border-color: transparent; background: transparent; padding: 6px 9px;
+  border-color: transparent; background: transparent;
+  gap: 9px; padding: 7px 9px; /* the kernel row's own (.bkm-item) */
 }
 .dxs-menu .dx-data-items .dx-btn:hover { background: var(--hover); }
 .dxs-menu .dx-data-items .dx-i { color: var(--muted); }
 .dxs-menu .dx-data-items .dx-menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
-.dxs-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 
 /* The toast is the suite's (kernel/src/ui/toast.css), in dash's toast colours */
 :root { --bkto-bg: var(--toast-bg); --bkto-ink: var(--toast-ink); }

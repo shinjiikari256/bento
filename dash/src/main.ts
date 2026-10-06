@@ -31,6 +31,8 @@ import {
 } from '../../kernel/src/save.ts'
 import { startTheme } from '../../kernel/src/theme.ts'
 import { fitTopbar } from '../../kernel/src/ui/topbar.ts'
+import { createMenu, type Menu } from '../../kernel/src/ui/menu.ts'
+import '../../kernel/src/ui/menu.css'
 import { BENTO_MARK_SVG } from '../../kernel/src/ui/mark.ts'
 import { CHROME_ICONS, withIconClass } from '../../kernel/src/ui/icons.ts'
 import { putRecovery, pruneOld } from '../../kernel/src/autosave.ts'
@@ -163,6 +165,33 @@ const ICON = {
 /** A top-bar button: icon + collapsible label, the one shape the bar can shrink. */
 const barBtn = (act: string, icon: string, label: string, tip: string, extra = ''): string =>
   `<button class="dx-btn${extra}" data-act="${act}" title="${esc(tip)}">${icon}<span>${esc(label)}</span></button>`
+
+/**
+ * Hand a dropdown authored as markup — `.dx-dd` > `.dx-dd-trig` + `.dx-menu` —
+ * to the suite's menu. The trigger keeps its classes, content and data, the
+ * list keeps its classes and children, so styles.css and every listener bound
+ * by selector keep working. Its bar buttons close the menu once they have run,
+ * as a kernel row does.
+ */
+function adoptDropdown(dd: HTMLElement, opts: { alignEnd?: boolean; panel?: boolean } = {}): Menu {
+  const trig = dd.querySelector<HTMLElement>(':scope > .dx-dd-trig')!
+  const list = dd.querySelector<HTMLElement>(':scope > .dx-menu')!
+  const m = createMenu('', trig.title, {
+    className: dd.className, triggerClass: trig.className, menuClass: list.className,
+    alignEnd: opts.alignEnd, panel: opts.panel,
+  })
+  m.trigger.innerHTML = trig.innerHTML
+  Object.assign(m.trigger.dataset, trig.dataset)
+  m.menu.append(...list.childNodes)
+  if (!opts.panel) {
+    for (const b of m.menu.querySelectorAll<HTMLElement>(':scope > .dx-btn')) {
+      b.setAttribute('role', 'menuitem')
+      b.addEventListener('click', () => m.close())
+    }
+  }
+  dd.replaceWith(m.root)
+  return m
+}
 
 configureApp({
   appId: 'bento-dash',
@@ -426,12 +455,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     // one tap away. Its rows press the real buttons, so nothing is wired twice.
     `<div class="dx-dd dx-more-dd">` +
     `<button class="dx-btn dx-dd-trig dx-more-trig" data-dd="more" title="${esc(t('More'))}">${ICON.more}</button>` +
-    `<div class="dx-menu dx-more-menu">` +
-    `<button class="dx-btn" data-proxy="redo">${ICON.redo}<span>${t('Redo')}</span><kbd class="bk-kbd">⇧⌘Z</kbd></button>` +
-    `<button class="dx-btn" data-proxy="about">${ICON.info}<span>${t('About this workbook')}</span></button>` +
-    `<button class="dx-btn" data-proxy="settings">${ICON.gear}<span>${t('Settings')}</span></button>` +
-    `<button class="dx-btn" data-proxy="help">${ICON.keyboard}<span>${t('Keyboard shortcuts')}</span><kbd class="bk-kbd">?</kbd></button>` +
-    `</div></div>` +
+    `<div class="dx-menu dx-more-menu"></div></div>` +
     barBtn('help', ICON.keyboard, t('Shortcuts'), t('Keyboard shortcuts (?)')) +
     `</div>` +
     `</header>` +
@@ -457,6 +481,22 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     `<footer class="dx-status"><span class="dx-status-view"></span>` +
     `<span class="dx-status-sum"></span></footer>`
 
+  // The bar's dropdowns are the suite's menu (kernel/src/ui/menu.ts): one open
+  // at a time across the whole bar (Save's ▾ included), Esc, arrow keys, and a
+  // menu that stays on screen. The markup above stays the authoring form —
+  // `adoptDropdown` hands each group's trigger and contents to a kernel menu.
+  adoptDropdown(app.querySelector<HTMLElement>('.dx-insert-dd')!)
+  adoptDropdown(app.querySelector<HTMLElement>('.dx-share-dd')!, { alignEnd: true, panel: true })
+  const moreMenu = adoptDropdown(app.querySelector<HTMLElement>('.dx-more-dd')!, { alignEnd: true })
+  // ⋯'s rows press the real bar buttons, so each action is wired exactly once
+  for (const [act, icon, label, key] of [
+    ['redo', ICON.redo, t('Redo'), '⇧⌘Z'],
+    ['about', ICON.info, t('About this workbook'), undefined],
+    ['settings', ICON.gear, t('Settings'), undefined],
+    ['help', ICON.keyboard, t('Keyboard shortcuts'), '?'],
+  ] as const) {
+    moreMenu.item(label, () => app.querySelector<HTMLElement>(`[data-act="${act}"]`)?.click(), { icon, shortcut: key })
+  }
   const titleEl = app.querySelector<HTMLInputElement>('.dx-title')!
   const dirtyEl = app.querySelector<HTMLElement>('.dx-dirty')!
   // The suite's Save (kernel/src/ui/savebutton.css): its COLOUR is the unsaved
@@ -1459,37 +1499,9 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     document.title = `${titleEl.value} — ${appConfig().appName}`
   })
 
-  // --- the top-bar dropdowns.
-  // Two rules, and they are the whole of it: a trigger toggles its own group,
-  // and ANY click outside shuts every group. The second rule has to be
-  // pointerdown on the document — a menu that survives the click that opened
-  // the next one leaves two panels overlapping, which is how a bar with one
-  // menu is fine and a bar with two is not.
-  //
-  // Note the menus are NOT rebuilt per width: at wide widths CSS gives the
-  // group `display: contents` and its buttons sit in the bar, so `.open` is
-  // simply inert. Nothing moves, so nothing loses a listener.
-  const shutMenus = (except?: Element) => {
-    for (const dd of app.querySelectorAll('.dx-dd.open')) if (dd !== except) dd.classList.remove('open')
-  }
-  for (const trig of app.querySelectorAll<HTMLElement>('.dx-dd-trig')) {
-    trig.addEventListener('click', (e) => {
-      e.stopPropagation()
-      const dd = trig.closest('.dx-dd')!
-      const opening = !dd.classList.contains('open')
-      shutMenus()
-      dd.classList.toggle('open', opening)
-    })
-  }
-  // a menu item is a command: run it and get out of the way
-  for (const item of app.querySelectorAll('.dx-menu .dx-btn')) {
-    item.addEventListener('click', () => shutMenus())
-  }
-  document.addEventListener('pointerdown', (e) => {
-    const dd = (e.target as HTMLElement | null)?.closest?.('.dx-dd')
-    shutMenus(dd ?? undefined)
-  })
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') shutMenus() })
+  // --- the top-bar dropdowns: the kernel menu runs them (adoptDropdown above).
+  // At wide widths CSS gives the insert group's menu a plain-row look and its
+  // buttons sit in the bar; nothing moves per width, so nothing loses a listener.
 
   // --- actions
   app.querySelector('[data-act="save"]')!.addEventListener('click', () => { void doSave() })
@@ -1499,10 +1511,6 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     save: doSave,
     extra: app.querySelector<HTMLElement>('.dx-data-items')!,
   })
-  // ⋯'s rows press the real bar buttons, so each action is wired exactly once
-  for (const row of app.querySelectorAll<HTMLElement>('[data-proxy]')) {
-    row.addEventListener('click', () => app.querySelector<HTMLElement>(`[data-act="${row.dataset.proxy}"]`)?.click())
-  }
   // The bar FITS ITSELF BY MEASURING, as every Bento app's does
   // (kernel/src/ui/topbar.ts): compact drops the labels (Save keeps its word),
   // tight folds the insert tools into ＋ and drops "bento", fold moves redo,
@@ -1513,7 +1521,7 @@ function boot(doc: DashDoc, repaired: number, frozen?: 'policy' | 'version', sav
     title: app.querySelector<HTMLElement>('.dx-title'),
     titleMin: 110,
     // re-fitting while a menu is open would move it under the reader
-    hold: () => !!app.querySelector('.dx-dd.open, .dxs-wrap.dxs-open'),
+    hold: () => !!app.querySelector('.dx-bar .bkm-open'),
   })
   const undoBtn = app.querySelector<HTMLButtonElement>('[data-act="undo"]')!
   const redoBtn = app.querySelector<HTMLButtonElement>('[data-act="redo"]')!

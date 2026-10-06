@@ -55,6 +55,8 @@ import '../../kernel/src/ui/savebutton.css'
 import { toast as kernelToast } from '../../kernel/src/ui/toast.ts'
 import '../../kernel/src/ui/toast.css'
 import { h } from '../../kernel/src/dom.ts'
+import { createMenu, menuItem, menuSeparator } from '../../kernel/src/ui/menu.ts'
+import '../../kernel/src/ui/menu.css'
 import { confirmDialog, promptDialog } from '../../kernel/src/ui/promptdialog.ts'
 import {
   saveFile, serializeAuto, writeUpdatedFileAs, canWriteInPlace, adoptFileHandle,
@@ -190,44 +192,33 @@ export function installSaveMenu(host: SaveMenuHost): void {
   button.classList.add('bksv-main')
 
   const caretTitle = t('Save as… — copy, new workbook, template, read-only, password')
-  const caret = h('button.dx-btn.dxs-caret.bksv-caret', {
-    type: 'button', textContent: '▾', title: caretTitle,
-  })
-  caret.setAttribute('aria-label', caretTitle)
-
-  const menu = h('div.dxs-menu')
-  wrap.append(caret, menu)
-
-  const close = () => wrap.classList.remove('dxs-open')
-  caret.addEventListener('click', () => {
-    const opening = !wrap.classList.contains('dxs-open')
-    wrap.classList.toggle('dxs-open', opening)
+  // The suite's menu (kernel/src/ui/menu.ts): one open at a time across the
+  // bar, Esc and arrow keys, and it stays on screen. The ▾ is its trigger.
+  const m = createMenu('', caretTitle, {
+    triggerClass: 'dx-btn dxs-caret bksv-caret', alignEnd: true, className: 'dxs-dd',
+    menuClass: 'dxs-menu',
     // Rebuilt on every open because it reflects live state — a read-only file
     // offers nothing, and the labels name the file we would actually write.
-    if (opening) build()
+    fill: () => build(),
   })
-  document.addEventListener('pointerdown', (ev) => {
-    if (!wrap.contains(ev.target as Node)) close()
-  })
-  document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape') close()
-  })
+  m.trigger.textContent = '▾'
+  const menu = m.menu
+  const close = m.close
+  wrap.append(m.root)
 
   // One line per row, as in every Bento menu: the explanation is the tooltip.
   const item = (label: string, why: string, run: () => void | Promise<void>) => {
-    const b = h('button.dxs-item', { type: 'button', title: why })
-    b.appendChild(h('span', { textContent: label }))
-    if (store.readOnly) {
-      b.disabled = true
-      b.title = t('This workbook is open read-only, so this build will not write it.')
-    } else {
-      b.addEventListener('click', () => { close(); void run() })
-    }
-    menu.appendChild(b)
+    const ro = store.readOnly
+    menu.appendChild(menuItem(label, () => { void run() }, {
+      tip: ro ? t('This workbook is open read-only, so this build will not write it.') : why,
+      off: ro,
+      // an empty icon slot: these rows line up with the docked ones below,
+      // which carry their bar icons
+      icon: '',
+    }, close))
   }
 
   const build = () => {
-    menu.textContent = ''
 
     item(t('Save'), t('Write this workbook back to its own file.'),
       () => host.save())
@@ -271,7 +262,7 @@ export function installSaveMenu(host: SaveMenuHost): void {
         }
       })
 
-    menu.appendChild(h('div.dxs-sep'))
+    menu.appendChild(menuSeparator())
 
     item(t('Save as template…'), t('A starting point: every open of it becomes a fresh workbook of its own.'),
       async () => {
@@ -297,7 +288,7 @@ export function installSaveMenu(host: SaveMenuHost): void {
           t('Read-only copy saved — it opens locked'))
       })
 
-    menu.appendChild(h('div.dxs-sep'))
+    menu.appendChild(menuSeparator())
 
     // The password. Nothing is written here — it sets the standing instruction
     // that every path above then honours through `serializeAuto`.
@@ -330,7 +321,13 @@ export function installSaveMenu(host: SaveMenuHost): void {
     }
     if (host.extra) {
       host.extra.hidden = false
-      menu.append(h('div.dxs-sep'), host.extra)
+      menu.append(menuSeparator(), host.extra)
+      // the docked bar buttons become menu rows: the arrow keys walk them too
+      for (const b of host.extra.querySelectorAll<HTMLElement>('.dx-btn')) {
+        b.classList.add('bkm-item')
+        b.setAttribute('role', 'menuitem')
+      }
+      for (const sep of host.extra.querySelectorAll<HTMLElement>('.dx-menu-sep')) sep.setAttribute('role', 'separator')
     }
   }
 
