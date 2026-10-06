@@ -82,6 +82,10 @@ body.bkp-resizing { cursor: col-resize; user-select: none; }
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
+  /* Half the chevron overhangs the NEIGHBOUR — the canvas, for a start panel.
+     A positioned neighbour later in the DOM (slides' .ed-canvas-wrap) painted
+     over that half at z auto. Above it; below menus (50–60) and drawers (40). */
+  z-index: var(--bkp-toggle-z, 5);
 }
 .bkp-toggle::before { content: ''; width: 0; height: 0; border-block: 4px solid transparent; }
 /* the arrow points toward the edge the panel would collapse into, and flips
