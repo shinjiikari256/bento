@@ -100,6 +100,7 @@ export const pt: Catalog = {
   "Document id": "ID do documento",
   "Document title": "Título do documento",
   "Drag to move, click for options": "Arraste para mover, clique para ver opções",
+  "Drag to resize · double-click to reset": "Arraste para redimensionar · clique duplo para redefinir",
   "Edit": "Editar",
   "Edit your comment": "Editar seu comentário",
   "Edit “{name}”": "Editar “{name}”",

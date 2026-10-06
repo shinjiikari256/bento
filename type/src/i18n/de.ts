@@ -83,6 +83,7 @@ export const de: Catalog = {
   "Document id": "Dokument-ID",
   "Document title": "Dokumenttitel",
   "Drag to move, click for options": "Ziehen zum Verschieben, klicken für Optionen",
+  "Drag to resize · double-click to reset": "Ziehen zum Anpassen · Doppelklick zum Zurücksetzen",
   "Edit": "Bearbeiten",
   "Edit your comment": "Ihren Kommentar bearbeiten",
   "Edit “{name}”": "„{name}“ bearbeiten",

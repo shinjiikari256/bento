@@ -97,6 +97,7 @@ export const PACKED: Record<string, ReadonlyArray<string | 0>> = {
   "Document id": ["文書 ID","文档 ID","文件 ID","ID del documento","ID du document","Dokument-ID","ID documento","ID do documento"],
   "Document title": ["文書のタイトル","文档标题","文件標題","Título del documento","Titre du document","Dokumenttitel","Titolo del documento","Título do documento"],
   "Drag to move, click for options": ["ドラッグで移動、クリックでオプション","拖动以移动，点击查看选项","拖曳以移動，點按查看選項","Arrastra para mover, haz clic para ver opciones","Faites glisser pour déplacer, cliquez pour les options","Ziehen zum Verschieben, klicken für Optionen","Trascina per spostare, fai clic per le opzioni","Arraste para mover, clique para ver opções"],
+  "Drag to resize · double-click to reset": ["ドラッグでサイズ変更 · ダブルクリックでリセット","拖动调整大小 · 双击重置","拖曳調整大小 · 連按兩下重設","Arrastra para redimensionar · doble clic para restablecer","Glisser pour redimensionner · double-clic pour réinitialiser","Ziehen zum Anpassen · Doppelklick zum Zurücksetzen","Trascina per ridimensionare · doppio clic per azzerare","Arraste para redimensionar · clique duplo para redefinir"],
   "Edit": ["編集","编辑","編輯","Editar","Modifier","Bearbeiten","Modifica","Editar"],
   "Edit your comment": ["自分のコメントを編集","编辑你的批注","編輯你的註解","Editar tu comentario","Modifier votre commentaire","Ihren Kommentar bearbeiten","Modifica il tuo commento","Editar seu comentário"],
   "Edit “{name}”": ["「{name}」を編集","编辑“{name}”","編輯「{name}」","Editar «{name}»","Modifier « {name} »","„{name}“ bearbeiten","Modifica «{name}»","Editar “{name}”"],

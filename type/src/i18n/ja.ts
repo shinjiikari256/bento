@@ -83,6 +83,7 @@ export const ja: Catalog = {
   "Document id": "文書 ID",
   "Document title": "文書のタイトル",
   "Drag to move, click for options": "ドラッグで移動、クリックでオプション",
+  "Drag to resize · double-click to reset": "ドラッグでサイズ変更 · ダブルクリックでリセット",
   "Edit": "編集",
   "Edit your comment": "自分のコメントを編集",
   "Edit “{name}”": "「{name}」を編集",

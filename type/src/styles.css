@@ -103,19 +103,17 @@ html, body {
 #app { display: grid; grid-template-rows: auto 1fr; height: 100vh; overflow: hidden; }
 /* THREE columns, the suite's arrangement: navigation, the document, and the
    properties of what is selected. slides and dash both do this and say so —
-   two Bento apps that lay themselves out differently read as two products. */
-.t-main { display: grid; grid-template-columns: 250px minmax(0, 1fr) 250px; overflow: hidden; }
+   two Bento apps that lay themselves out differently read as two products.
+   Flex, not grid: `.t-side`/`.t-props` are each `kernel/src/ui/panel.ts`'s
+   `.bkp` now, which sizes itself via `width`/`--bkp-w` as a flex item (resize,
+   collapse and persistence all come from the primitive — this app used to
+   have none of the three, only the 250px metric, borrowed "as slides and dash
+   both do" per a comment once here). */
+.t-main { display: flex; min-height: 0; overflow: hidden; }
 /* The paper is a FIXED width — it is paper — so the middle column can be too
    narrow for it. Never clip: scroll. Measured at 1120px with both panels open,
    the column was 620px against a 1066px page and the page was cut off. */
-.t-scroll { overflow-x: auto; }
-.t-main.t-side-off { grid-template-columns: 0 1fr 250px; }
-.t-main.t-props-off { grid-template-columns: 250px 1fr 0; }
-.t-main.t-side-off.t-props-off { grid-template-columns: 0 1fr 0; }
-.t-props {
-  background: var(--chrome); border-inline-start: 1px solid var(--line);
-  overflow: auto; min-width: 0;
-}
+.t-scroll { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
 .t-props .t-panel { display: block; }
 .t-props .t-panel[hidden] { display: none; }
 /* the house geometry: 11px uppercase section headers, copied deliberately */
@@ -139,7 +137,9 @@ html, body {
 .t-field { width: 68px; }
 .t-field-wide { width: 130px; }
 .t-props .t-note { margin: 4px 0 8px; }
-.t-side { background: var(--chrome); border-inline-end: 1px solid var(--line); overflow: auto; }
+/* background/border/overflow now live on .bkp/.bkp-content (panel.css) —
+   .t-side is .bkp-content's child, not the panel root, since panel.ts
+   adoption. */
 .t-tabs { display: flex; position: sticky; top: 0; z-index: 5;
   background: var(--chrome); border-bottom: 1px solid var(--line); }
 .t-tabs button { flex: 1; border: 0; border-radius: 0; background: transparent;

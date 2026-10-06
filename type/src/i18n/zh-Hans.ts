@@ -83,6 +83,7 @@ export const zhHans: Catalog = {
   "Document id": "文档 ID",
   "Document title": "文档标题",
   "Drag to move, click for options": "拖动以移动，点击查看选项",
+  "Drag to resize · double-click to reset": "拖动调整大小 · 双击重置",
   "Edit": "编辑",
   "Edit your comment": "编辑你的批注",
   "Edit “{name}”": "编辑“{name}”",

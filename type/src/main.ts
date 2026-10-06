@@ -27,6 +27,8 @@ import { printDocument, buildPrintDocument } from './print.ts';
 import { sign as signDoc, verifyChain, newKey } from './canon.ts';
 import { h } from '../../kernel/src/dom.ts';
 import { promptDialog } from '../../kernel/src/ui/promptdialog.ts';
+import { createPanel } from '../../kernel/src/ui/panel.ts';
+import '../../kernel/src/ui/panel.css';
 
 // Tell the kernel who this app is — must precede any kernel module use
 // (window title suffix, save-picker label, update manifest).
@@ -177,6 +179,38 @@ const paper = document.getElementById('paper')!;
 const deco = document.getElementById('deco')!;
 const statEl = document.getElementById('status')!;
 
+// Side panels: outline/navigate on 'start', properties on 'end'. Both used to
+// be fixed-width and all-or-nothing (.t-side-off/.t-props-off grid-column
+// collapse, no resize, no memory between sessions) — kernel/src/ui/panel.ts
+// gives all three for free. The properties panel's OPENS-SHUT boot rule
+// survives as its `collapsed` option: the page is 816px plus a 250px note
+// gutter, so with both panels open the document needs 1566px before it stops
+// being scrolled sideways — a laptop often does not have that (overridden by
+// whatever was persisted last session, same as any other panel field).
+const scrollEl = document.querySelector('.t-scroll') as HTMLElement;
+const sidePanel = createPanel({
+  content: document.querySelector('.t-side') as HTMLElement,
+  side: 'start',
+  defaultWidth: 250,
+  minWidth: 180,
+  maxWidth: 420,
+  storageKey: 'bento-type-side',
+  label: t('Outline — show or hide the document map'),
+});
+const propsPanel = createPanel({
+  content: document.getElementById('propsPanel') as HTMLElement,
+  side: 'end',
+  defaultWidth: 250,
+  minWidth: 220,
+  maxWidth: 440,
+  storageKey: 'bento-type-props',
+  collapsed: window.innerWidth < 1566,
+  label: t('Format — show or hide the properties panel'),
+});
+sidePanel.resizer.title = t('Drag to resize · double-click to reset');
+propsPanel.resizer.title = t('Drag to resize · double-click to reset');
+document.querySelector('.t-main')!.append(sidePanel.root, scrollEl, propsPanel.root);
+
 const store = new Store(doc);
 const editor = new Editor(paper, store);
 
@@ -304,7 +338,7 @@ const featureCtx: FeatureContext = {
   refresh: () => { editor.render(); schedule(); },
   toast: (m: string) => toast(m),
   showPanel: (id: string) => {
-    document.querySelector('.t-main')!.classList.remove('t-side-off');
+    sidePanel.expand();
     showTab(id);
   },
 };
@@ -652,19 +686,15 @@ editor.onSelection = (active) => {
 // bulleted returns it to a paragraph. Without that the button is a one-way door
 // and the only way back is the style menu, which is not where anyone looks.
 
-byId('sidebar').addEventListener('click', () => {
-  document.querySelector('.t-main')!.classList.toggle('t-side-off');
-});
-byId('props').addEventListener('click', () => {
-  document.querySelector('.t-main')!.classList.toggle('t-props-off');
-});
+byId('sidebar').addEventListener('click', () => { sidePanel.toggle(); });
+byId('props').addEventListener('click', () => { propsPanel.toggle(); });
 // `[` and `]` collapse the panels, as they do in slides and dash
 window.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const tag = (e.target as HTMLElement)?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
-  if (e.key === '[') document.querySelector('.t-main')!.classList.toggle('t-side-off');
-  if (e.key === ']') document.querySelector('.t-main')!.classList.toggle('t-props-off');
+  if (e.key === '[') sidePanel.toggle();
+  if (e.key === ']') propsPanel.toggle();
 });
 document.getElementById('undo')!.addEventListener('mousedown', (e) => {
   e.preventDefault(); store.undo(); editor.render(); refresh();
@@ -1024,13 +1054,6 @@ dirty = false; paintTitle();
 // boots blank. The agent that needed this hook found that by applying the patch
 // and loading the app, not by reading, and said so in its note; this comment is
 // here so the next person does not move it back.
-// The properties panel starts CLOSED, and this is arithmetic rather than taste:
-// the page is 816px plus a 250px note gutter, so with both panels open the
-// document needs 1566px before it stops being scrolled sideways. A laptop does
-// not have that. It opens on ] or the toolbar button, and slides makes the same
-// trade on a phone by booting with both panels collapsed.
-if (window.innerWidth < 1566) document.querySelector('.t-main')!.classList.add('t-props-off');
-
 for (const f of readyFns()) f(featureCtx);
 // Live collaboration (bento-sync) — dormant unless the doc carries collab
 // creds or the user opts in via the Share button; see src/collab.ts.

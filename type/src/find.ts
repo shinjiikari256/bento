@@ -12,12 +12,6 @@
 //      grow its own subscription and its own de-duplication. Fix: in the panel
 //      loop, `if (spec.update) store.on(() => spec.update!(panel, featureCtx))`
 //      — or drop `update` from the interface so it cannot be believed.
-//   2. There is no way for a feature to SHOW its own panel. `showTab` is a
-//      local function in main.ts, and ⌘F must raise the Find panel (and undo a
-//      collapsed sidebar) to be worth anything. This module therefore clicks
-//      the registered tab button and clears `.t-side-off` through the DOM,
-//      which works but reaches into chrome the registry is supposed to hide.
-//      Fix: add `showPanel(id: string): void` to FeatureContext.
 //
 // WHAT THIS FILE IS CAREFUL ABOUT.
 //
@@ -497,14 +491,12 @@ class FindPanel {
 let panel: FindPanel | null = null;
 
 /**
- * Show the Find panel. See NEEDS FROM THE CORE (2): with no `showPanel` on the
- * context, the tab the registry itself created is clicked, and a sidebar the
- * reader collapsed is re-opened first — ⌘F that reveals nothing is a bug
- * report, not a shortcut.
+ * Show the Find panel: `ctx.showPanel('find')` re-opens a sidebar the reader
+ * collapsed (⌘F that reveals nothing is a bug report, not a shortcut) and
+ * activates the Find tab the registry itself created.
  */
-function showPanel(): void {
-  document.querySelector('.t-main')?.classList.remove('t-side-off');
-  document.querySelector<HTMLElement>('.t-tabs button[data-tab="find"]')?.click();
+function showFindPanel(ctx: FeatureContext): void {
+  ctx.showPanel('find')
 }
 
 // The house icon recipe, from icons.ts: 24 box, 16 render, currentColor,
@@ -535,11 +527,11 @@ registerTool({
   get title() { return t('Find and replace (⌘F)'); },
   group: 'review',
   order: 10,
-  run() { showPanel(); panel?.focus(); },
+  run(ctx) { showFindPanel(ctx); panel?.focus(); },
 });
 
 registerKey({
   key: 'f',
   mod: true,
-  run() { showPanel(); panel?.focus(); },
+  run(ctx) { showFindPanel(ctx); panel?.focus(); },
 });

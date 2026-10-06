@@ -83,6 +83,7 @@ export const zhHant: Catalog = {
   "Document id": "文件 ID",
   "Document title": "文件標題",
   "Drag to move, click for options": "拖曳以移動，點按查看選項",
+  "Drag to resize · double-click to reset": "拖曳調整大小 · 連按兩下重設",
   "Edit": "編輯",
   "Edit your comment": "編輯你的註解",
   "Edit “{name}”": "編輯「{name}」",
