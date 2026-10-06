@@ -108,15 +108,7 @@
 /* keyboard shortcuts: label · key chips, right-aligned */
 .bks-keyrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 3px 0; }
 .bks-kbds { flex: 0 0 auto; color: var(--bks-muted, var(--muted, #6b7280)); white-space: nowrap; }
-.bks-kbd {
-  font: inherit;
-  font-size: 12px;
-  padding: 1px 6px;
-  border-radius: 5px;
-  color: var(--bks-ink, var(--ink, #1e2a3a));
-  background: var(--bks-hover, var(--chrome-2, #eef1f5));
-  border: 1px solid var(--bks-line, var(--line, #e3e8ef));
-}
+/* the keys themselves are .bk-kbd (bar.css), as in every menu */
 @media (min-width: 720px) {
   /* two columns of sections on a wide screen keep a long list short */
   .bks-card.bks-keys { width: min(780px, 100%); max-width: min(780px, 100%); }

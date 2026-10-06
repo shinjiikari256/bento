@@ -21,6 +21,7 @@
 // every kernel primitive (a .css import would break the node rigs).
 
 import { createDialog, type Dialog } from './dialog.ts'
+import { BENTO_MARK_SVG, wordmarkHtml } from './mark.ts'
 
 export interface SheetOpts {
   /** the card's visible title — also its accessible name */
@@ -134,20 +135,8 @@ export function createSheet(opts: SheetOpts): Sheet {
   return api
 }
 
-// ——— the suite's mark ———————————————————————————————————————————————
-// ONE drawing of it. Every app carried its own copy of these four rects (in the
-// topbar and again in its About head); two hand-kept copies of a logo drift.
-export const BENTO_MARK_SVG = (size = 20): string =>
-  `<svg class="bk-mark-svg" viewBox="0 0 32 32" width="${size}" height="${size}" aria-hidden="true">` +
-  '<rect width="32" height="32" rx="7" fill="#16273E"/>' +
-  '<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>' +
-  '<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>' +
-  '<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>' +
-  '</svg>'
-
-/** "bento/slides" with the peach slash — the wordmark, as markup. */
-export const wordmarkHtml = (app: string): string =>
-  `<b class="bk-wordmark">bento<span class="bk-slash">/</span>${app}</b>`
+// the suite's mark lives in mark.ts; re-exported for the app card's callers
+export { BENTO_MARK_SVG, wordmarkHtml } from './mark.ts'
 
 export interface AppCardOpts {
   /** 'slides' | 'dash' | … — the part after the slash */
@@ -206,7 +195,7 @@ export function openShortcuts(o: { title: string; closeLabel: string; groups: Sh
       const keys = el('span', 'bks-kbds')
       r.keys.forEach((k, i) => {
         if (i) keys.append(document.createTextNode(' / '))
-        keys.append(el('kbd', 'bks-kbd', k))
+        keys.append(el('kbd', 'bk-kbd', k))
       })
       const row = el('div', 'bks-keyrow')
       row.append(el('span', '', r.label), keys)

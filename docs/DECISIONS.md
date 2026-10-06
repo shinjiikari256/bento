@@ -8971,3 +8971,24 @@ in every app. The bar is white like slides' and spaces'.
 **Why.** The rungs were re-measured by hand each time the bar gained a
 control and still fell behind it (at 400px the bar overflowed by 109px); the
 measured fit removes the guess, and the bar now fits at 400px.
+
+## 2026-10 — The mark, the favicon, the chrome icons, key chips and the toast live in the kernel
+
+**Decision.** Five things every app drew for itself now have one home:
+- the mark — `kernel/src/ui/mark.ts` (`BENTO_MARK_SVG`, `wordmarkHtml`), used
+  by every top bar and the app card;
+- the favicon — the same mark, put into every app's `<head>` at build time by
+  `kernel/vite/favicon.ts` (slides had the only one, a slightly different
+  drawing; the others had none). Encoded short — it ships uncompressed;
+- the chrome icons — `kernel/src/ui/icons.ts` `CHROME_ICONS` (undo, redo,
+  panels, Share, Save, About, Settings, shortcuts, ⋯, eye, print…), spread
+  into each app's own ICONS, which adds what only it needs;
+- key chips and the bar divider — `kernel/src/ui/bar.css` `.bk-kbd`,
+  `.bk-bar-sep` (they existed as t-kbd/sp-kbdchip/dx-kbd/bks-kbd and
+  sp-bar-sep/t-bar-sep);
+- the toast — `kernel/src/ui/toast.ts` in all four (dash keeps its toast
+  colours through `--bkto-*`).
+
+**Why.** The same control drawn four ways came out different per app (three
+panel glyphs, a vertical ⋯), and every fix had to be made four times. Size
+moves +0.4–0.9KB per app (the favicon, and chrome icons an app does not use).

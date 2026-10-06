@@ -123,6 +123,19 @@ console.log('\ntheming')
   })) ok(r.pass, r.msg)
 }
 
+console.log('\nthe bar pieces (bar.css) theming')
+{
+  const appStyles = Object.fromEntries(
+    ['slides', 'spaces', 'dash', 'type'].map((a) => [a, join(root, `${a}/src/styles.css`)]),
+  )
+  for (const r of checkThemedChains({
+    cssPath: join(root, 'kernel/src/ui/bar.css'),
+    prefix: 'bkb',
+    colourProps: new Set(['kbd-ink', 'kbd-bg', 'line']),
+    appStyles,
+  })) ok(r.pass, r.msg)
+}
+
 console.log('\nthe toast (toast.css) theming')
 {
   const appStyles = Object.fromEntries(
