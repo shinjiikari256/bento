@@ -94,6 +94,72 @@ links opening outside it, that answer is "no" and the rating 4+.
 the host should not launch another app on its say-so. http, https and mailto are
 what a link in a document means. A custom URL scheme is dropped rather than
 opened, the same choice Android makes.
+## 2026-10-04 — `kernel/src/ui/accordion.ts` + `.css`: the panel-retrofit primitive
+
+**Decision.** `applyAccordion(host, opts)` — the flat-panel-into-
+collapsible-sections retrofit dash, slides and spaces each wrote
+independently (dash's own comment: "Copied from slides' applyAccordion
+including that detail"). Every header matching `opts.headerClass` gathers
+the siblings that follow it (up to the next header) into a generated
+`opts.bodyClass` body; open/closed state persists in `localStorage` keyed
+by section TITLE (not index), so a section keeps its state across a
+rebuild even though the DOM under it changed shape. Takes the union of
+what the three independently added: dash's `staticClass` opt-out for a
+plain heading, spaces' `aria-expanded` and `keyOf` override (a stable key
+distinct from the visible title), and a guard neither dash nor spaces had
+— a header that OUTLIVES a rebuild (slides' own Layers section, mounted
+once and re-appended) does not accumulate a second click listener.
+
+**The CSS is adopted by two of the three, not three.** dash's and
+slides' section-header typography and disclosure chevron were, by
+measurement, byte-identical already (dash's comment again: "18 above, 8
+below — slides' `.ed-section` exactly") — `accordion.css`'s
+`.bka-section`/`.bka-toggle`/`.bka-body` is that shared design, moved
+here once instead of kept as two copies. spaces built a visibly
+different header (a filled hover row, a unicode ▾/▸ glyph, a trailing
+sub-label) and keeps it — it adopts `accordion.ts`'s BEHAVIOUR only, same
+"share the algorithm, not the row markup" line `ctxmenu.ts` draws against
+`menu.ts`'s row rendering.
+
+Pointers: `kernel/src/ui/accordion.ts`, `kernel/src/ui/accordion.css`,
+`scripts/test-ui-accordion.ts`, `working/PLAN-1-shared-infra.md` (item 7).
+Adopted in dash, slides and spaces — see each app's own entry; `type` has
+no accordion to replace, so it is not touched.
+
+## 2026-10-04 — Accordion sections are CARDS, not flat headers on white
+
+**Correction to the entry above.** The first pass of `accordion.css`
+reproduced dash/slides' section typography and chevron, but NOT the
+card treatment slides' own in-progress redesign (`slides-editor-refresh`
+branch, not yet merged here) had already landed: each section as its
+own bordered, shadowed card on a dimmer panel backdrop, not a flat
+header sitting directly on the same white as everything else. Caught by
+the user looking at the actual rendered panel — "уродство" — after the
+first pass shipped without a visual check.
+
+**Fix.** `AccordionOpts` gains `groupClass?: string`: when set, the
+primitive wraps a header + its generated body TOGETHER in one element of
+that class (`kernel/src/ui/accordion.ts`), instead of leaving them flat
+siblings of the host. `accordion.css`'s `.bka-group` is the card itself
+— `background: var(--bka-card, var(--surface))`, a border, `border-radius:
+10px`, a subtle `box-shadow`, `margin: 0 0 10px` between cards — ported
+from that branch's `.ed-accordion-group` rule verbatim (same values, same
+reasoning: "a white-on-white panel gave them nothing to sit against").
+dash and slides both pass `groupClass: 'bka-group'` and dim their own
+panel backdrop (`.dp-panel`/`.ed-props`) from `--surface` to `--chrome`
+so the white cards have contrast. spaces omits `groupClass` entirely —
+its own header design was never flat-on-white to begin with (a filled
+hover row), so there is nothing to fix there.
+
+**Verified by actually opening the built shell in a browser this time**
+(dash and slides' `dist-single`, Playwright + system Chromium, no
+project skill for this existed yet) — not just tsc and the test suite,
+which cannot see a visual regression. Screenshots confirmed cards in
+both apps and confirmed spaces' panel is untouched.
+
+Pointers: `kernel/src/ui/accordion.ts`, `kernel/src/ui/accordion.css`,
+`scripts/test-ui-accordion.ts` (the `groupClass` block).
+
 ## 2026-10-04 — `kernel/src/ui/jsoneditor.ts`, a plain value↔textarea↔value round trip
 
 **Decision.** `createJsonEditor(opts)` returns `{ el, read(), write(value) }`

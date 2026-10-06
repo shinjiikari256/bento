@@ -1,0 +1,89 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2026 The Bento authors
+
+   THE SHARED ACCORDION primitive's styles — the section-header typography,
+   spacing and disclosure chevron dash and slides had each written
+   byte-for-byte identically (dash's own comment said so outright). spaces
+   wrote a visibly different header (a filled row, a hover background, a
+   unicode triangle glyph, a trailing sub-label) and keeps that look — it
+   adopts accordion.ts's BEHAVIOUR only, not this sheet, the same "share the
+   algorithm, not the row markup" line ctxmenu.ts draws against menu.ts.
+
+   Same theming discipline as every other kernel/ui sheet: `--bka-*` chains
+   onto whatever the host app already themes, checked by the shared guard
+   (scripts/lib/ui-theme-guard.ts). */
+
+.bka-section {
+  font-size: var(--bka-font-size, 11px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--bka-label, var(--muted, #8a95a6));
+  margin: 18px 0 8px;
+}
+.bka-section:first-child { margin-top: 2px; }
+.bka-body { display: flex; flex-direction: column; }
+.bka-body > :last-child { margin-bottom: 0; }
+
+/* Each section as its own CARD, on a dimmer panel backdrop (the caller's
+   own job — see accordion.ts's `groupClass` doc) — a white section on a
+   white panel has nothing to sit against. The card's own padding stands
+   in for the header's top gap, so a grouped header carries none of its
+   own. */
+.bka-group {
+  display: block;
+  background: var(--bka-card, var(--surface, #fff));
+  border: 1px solid var(--bka-border, var(--line, #e3e8ef));
+  border-radius: var(--bka-radius, var(--radius, 10px));
+  padding: 12px;
+  /* room for the header's chevron (see .bka-toggle): an edge gap of the
+     same size as the chevron's own gap to the text, plus the glyph. Rows
+     move with the header, so the two stay on one line. */
+  padding-inline-start: 22px;
+  margin: 0 0 10px;
+  box-shadow: var(--bka-shadow, 0 1px 2px rgb(15 23 36 / 0.04));
+}
+.bka-group:last-child { margin-bottom: 0; }
+.bka-group .bka-section { margin-top: 0; }
+
+/* THE CHEVRON IS ANCHORED TO THE TEXT, not the text to the chevron: the
+   header's text stays on the same line as its rows, and the glyph hangs
+   off to its inline-start — its END edge a fixed --bka-chev-gap before the
+   first letter, whatever the glyph's size. A card makes room for it by
+   widening its own inline-start padding (below), which moves header and
+   rows together, so they stay aligned. Ungrouped (no card), the glyph
+   hangs into the host panel's own padding instead. Logical properties
+   throughout — RTL mirrors with no extra rule.
+
+   Two SEPARATE shapes rather than one rotated 90deg: a 5×8 border-triangle
+   rotated swaps its width and height, so the two states' edges landed at
+   different x. Both shapes are a square --bka-chev footprint (length = the
+   size, cross = half of it either side), so both sit identically. */
+.bka-toggle {
+  --bka-chev: 8px;
+  --bka-chev-gap: 7px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+.bka-toggle::before {
+  content: '';
+  position: absolute;
+  inset-inline-end: calc(100% + var(--bka-chev-gap));
+  top: 50%;
+  width: 0;
+  height: 0;
+  opacity: 0.75;
+  transform: translateY(-50%);
+}
+/* open (expanded): points toward block-end (down). */
+.bka-toggle:not(.bka-closed)::before {
+  border-inline: calc(var(--bka-chev) / 2) solid transparent;
+  border-block-start: var(--bka-chev) solid currentColor;
+}
+/* closed: points toward inline-end (into the panel — right in LTR, left in RTL). */
+.bka-toggle.bka-closed::before {
+  border-block: calc(var(--bka-chev) / 2) solid transparent;
+  border-inline-start: var(--bka-chev) solid currentColor;
+}
+.bka-toggle:hover { color: var(--bka-hover-ink, var(--ink, #1e2a3a)); }

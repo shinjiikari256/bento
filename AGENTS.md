@@ -307,6 +307,15 @@ something `kernel/` already has:
   JSON…" paste box that commits on an explicit button), so the primitive
   owns only the live feedback and leaves WHEN to call `read()` to the
   caller. Adopted in all four apps.
+- `kernel/src/ui/accordion.ts` — `applyAccordion(host, opts)`, the
+  flat-panel-into-collapsible-sections retrofit dash/slides/spaces each
+  wrote independently: every `opts.headerClass` header gathers its
+  following siblings into a generated body, open state persists by
+  section TITLE so it survives a rebuild. `accordion.css`'s
+  `.bka-section`/`.bka-toggle`/`.bka-body` is the byte-identical header
+  typography and chevron dash and slides already shared — adopted by
+  those two; spaces keeps its own visibly different header and uses only
+  the behaviour. `type` has no accordion, not touched.
 
 If a new shared primitive is worth extracting, it follows the same
 discipline as the ones already there: `kernel/src/ui/<name>.ts` (+ `.css`
