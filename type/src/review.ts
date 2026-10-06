@@ -37,6 +37,8 @@ import {
   type Change, type TrackView,
 } from './track.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { fieldize } from '../../kernel/src/ui/field.ts';
+import '../../kernel/src/ui/field.css';
 
 // ═══════════════════════════════════════════════════════ display mode
 
@@ -279,7 +281,8 @@ function buildViewPanel(host: HTMLElement, ctx: FeatureContext): void {
 
   const row = h('div.t-row');
   const label = h('span', { textContent: t('Display') });
-  const sel = h('select');
+  const sel = h('select.t-select');
+  fieldize(sel);
   const OPTIONS: Array<[TrackView, string]> = [
     ['all', t('All markup')],
     ['final', t('No markup')],

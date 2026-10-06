@@ -50,6 +50,7 @@ import { t } from './i18n.ts';
 import { spliceText, type Block } from './model.ts';
 import { isNoteAtom } from './render.ts';
 import { h } from '../../kernel/src/dom.ts';
+import { fieldize } from '../../kernel/src/ui/field.ts';
 
 // ───────────────────────────────────────────────────────────── the search
 
@@ -269,6 +270,7 @@ class FindPanel {
       const cb = h('input', {
         type: 'checkbox', onchange: () => { set(cb.checked); this.#search(true); },
       });
+      fieldize(cb);
       l.append(cb, document.createTextNode(label));
       opts.appendChild(l);
     };

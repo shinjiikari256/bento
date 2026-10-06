@@ -20,6 +20,7 @@ import { checkForUpdates, applyUpdate, APP_VERSION, type ReleaseInfo } from '../
 import { canWriteInPlace, openedFileName } from '../../kernel/src/save.ts';
 import { setTheme, themeChoice, type ThemeChoice } from '../../kernel/src/theme.ts';
 import { h } from '../../kernel/src/dom.ts';
+import '../../kernel/src/ui/field.css';
 import type { Store } from './store.ts';
 import { wordCount, docForExport } from './model.ts';
 import { t } from './i18n.ts';
@@ -129,7 +130,7 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
 
   // ---- appearance ---------------------------------------------------------
   card.append(sectionHead(t('Appearance')));
-  const themeSel = h('select.t-select');
+  const themeSel = h('select.t-select.bk-field');
   for (const [val, label] of [['auto', t('Follow the system')], ['light', t('Light')], ['dark', t('Dark')]] as const) {
     const o = h('option', { value: val, textContent: label, selected: themeChoice() === val });
     themeSel.append(o);
@@ -152,7 +153,7 @@ export function openAbout({ store, pages, onReplaceDoc, onRestoreDoc }: AboutHoo
   // opened About before commenting or turning on tracking (both read/write the
   // same 'bento-author' key, so whichever runs first is what the other sees).
   card.append(sectionHead(t('You')));
-  const nameInput = h('input.t-input.t-about-name-input', {
+  const nameInput = h('input.t-input.t-about-name-input.bk-field', {
     type: 'text',
     placeholder: t('Your name'),
     value: knownAuthor(),

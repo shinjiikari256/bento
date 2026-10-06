@@ -37,6 +37,13 @@ import './docstyles.css';
 // aliased: this file's `section()` helper below declares a local `h` of its
 // own (the section header element) that would shadow the builder in its scope
 import { h as buildEl } from '../../kernel/src/dom.ts';
+import '../../kernel/src/ui/field.css';
+// Found while wiring this up: type had THREE near-identical field styles
+// (`.t-input`, `.t-field`, `.t-select`) differing only in a pixel or two of
+// padding/radius/font-size — an in-app duplicate this file's own panel and
+// about.ts/layout.ts had each grown independently, on top of the four-app
+// one `.bk-field` fixes.
+import { fieldize } from '../../kernel/src/ui/field.ts';
 
 // ─────────────────────────────────────────────────────────────── small parts
 
@@ -57,6 +64,7 @@ function row(host: HTMLElement, label: string, control: HTMLElement): HTMLElemen
   const r = el('div', 't-row');
   const s = el('span');
   s.textContent = label;
+  fieldize(control);
   r.append(s, control);
   host.appendChild(r);
   return r;
@@ -83,7 +91,7 @@ function toggles(
 function select(
   options: Array<[string, string]>, value: string, onChange: (v: string) => void,
 ): HTMLSelectElement {
-  const s = el('select', 't-select');
+  const s = el('select', 't-select.bk-field');
   for (const [v, label] of options) {
     const o = el('option');
     o.value = v; o.textContent = label; o.selected = v === value;

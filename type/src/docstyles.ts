@@ -319,7 +319,7 @@ const row = (host: HTMLElement, label: string, control: HTMLElement): void => {
   host.appendChild(r);
 };
 const select = (options: Array<[string, string]>, value: string, onChange: (v: string) => void): HTMLSelectElement => {
-  const s = el('select', 't-select');
+  const s = el('select', 't-select bk-field');
   for (const [v, label] of options) {
     const o = el('option'); o.value = v; o.textContent = label; o.selected = v === value;
     s.appendChild(o);
@@ -487,7 +487,7 @@ export function stylesSection(host: HTMLElement, ctx: FeatureContext, b: Block):
   row(edit, t('Typeface'), select(faceOptions, active?.family ?? '', v =>
     patchStyle(ctx, activeId, b.kind, { family: v || undefined })));
 
-  const sizeIn = el('input', 't-field') as HTMLInputElement;
+  const sizeIn = el('input', 't-field bk-field') as HTMLInputElement;
   sizeIn.type = 'number';
   sizeIn.value = active?.size === undefined ? '' : String(active.size);
   sizeIn.placeholder = t('default');
@@ -529,7 +529,7 @@ export function stylesSection(host: HTMLElement, ctx: FeatureContext, b: Block):
     patchStyle(ctx, activeId, b.kind, { align: (v || undefined) as DocStyle['align'] })));
 
   const px = (label: string, key: 'sb' | 'sa' | 'ind') => {
-    const i = el('input', 't-field') as HTMLInputElement;
+    const i = el('input', 't-field bk-field') as HTMLInputElement;
     i.type = 'number';
     i.value = active?.[key] === undefined ? '' : String(active[key]);
     i.placeholder = t('default');
@@ -544,7 +544,7 @@ export function stylesSection(host: HTMLElement, ctx: FeatureContext, b: Block):
   px(t('Space after (px)'), 'sa');
   px(t('First-line indent (px)'), 'ind');
 
-  const lhIn = el('input', 't-field') as HTMLInputElement;
+  const lhIn = el('input', 't-field bk-field') as HTMLInputElement;
   lhIn.type = 'number';
   lhIn.step = '0.01';
   lhIn.value = active?.lh === undefined ? '' : String(active.lh);

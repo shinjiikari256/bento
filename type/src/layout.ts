@@ -161,6 +161,7 @@ import type { Block, PageSpec, TypeDoc } from './model.ts';
 import { registerKey, registerPanel, type FeatureContext } from './features.ts';
 import { locale, t } from './i18n.ts';
 import { h } from '../../kernel/src/dom.ts';
+import '../../kernel/src/ui/field.css';
 
 // ────────────────────────────────────────────────────────────────── geometry
 
@@ -769,7 +770,7 @@ export function openPageSetup(ctx: FeatureContext): void {
     return r;
   };
   const num = (value: number, on: (v: number) => void) => {
-    const i = el('input', 't-input') as HTMLInputElement;
+    const i = el('input', 't-input.bk-field') as HTMLInputElement;
     i.type = 'text';
     i.inputMode = 'decimal';
     i.value = formatLen(value, unit);
@@ -780,7 +781,7 @@ export function openPageSetup(ctx: FeatureContext): void {
     return i;
   };
   const select = (options: Array<[string, string]>, value: string, on: (v: string) => void) => {
-    const s = el('select', 't-select') as HTMLSelectElement;
+    const s = el('select', 't-select.bk-field') as HTMLSelectElement;
     for (const [v, label] of options) {
       s.append(h('option', { value: v, textContent: label }));
     }
@@ -940,7 +941,7 @@ function mountPanel(host: HTMLElement, ctx: FeatureContext): void {
     const r = el('div', 't-lay-row');
     const l = el('label');
     l.textContent = labelText;
-    const i = el('input', 't-input') as HTMLInputElement;
+    const i = el('input', 't-input.bk-field') as HTMLInputElement;
     i.type = 'text';
     i.inputMode = 'decimal';
     i.addEventListener('change', () => {
@@ -964,7 +965,7 @@ function mountPanel(host: HTMLElement, ctx: FeatureContext): void {
     b => formatLen(effective(ctx.store.doc, b).ind, unit),
     v => ({ ind: v === undefined ? undefined : fromUnit(v, unit) }));
 
-  const lineSel = el('select', 't-select') as HTMLSelectElement;
+  const lineSel = el('select', 't-select.bk-field') as HTMLSelectElement;
   for (const [v, label] of [['1', '1.0'], ['1.15', '1.15'], ['1.5', '1.5'],
                             ['1.62', t('Book (1.62)')], ['2', '2.0']] as Array<[string, string]>) {
     lineSel.append(h('option', { value: v, textContent: label }));
