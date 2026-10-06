@@ -29,10 +29,14 @@ import '../../../kernel/src/ui/panel.css'
 import { fitTopbar, type TopbarFit } from '../../../kernel/src/ui/topbar.ts'
 import { promptDialog, confirmDialog } from '../../../kernel/src/ui/promptdialog.ts'
 import { createJsonEditor } from '../../../kernel/src/ui/jsoneditor.ts'
+import { BENTO_MARK_SVG } from '../../../kernel/src/ui/mark.ts'
 import { appCardLinks, createSheet, openAppCard, openShortcuts, sheetSelect, themeSelect, type Sheet, type ShortcutGroup } from '../../../kernel/src/ui/sheet.ts'
 import '../../../kernel/src/ui/dialog.css'
 import '../../../kernel/src/ui/sheet.css'
 import '../../../kernel/src/ui/savebutton.css'
+import '../../../kernel/src/ui/bar.css'
+import { toast } from '../../../kernel/src/ui/toast.ts'
+import '../../../kernel/src/ui/toast.css'
 import '../../../kernel/src/ui/jsoneditor.css'
 import { startPresentation } from '../present'
 // serializeFile (plain output) is deliberately NOT imported here: every path
@@ -348,12 +352,8 @@ export class Editor {
     logo.className = 'ed-logo'
     logo.setAttribute('aria-label', t('About bento/slides — version, updates, licenses'))
     logo.innerHTML =
-      `<svg class="ed-logo-mark" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">` +
-      `<rect width="32" height="32" rx="7" fill="#16273E"/>` +
-      `<rect x="5" y="5" width="7" height="22" rx="2.5" fill="#5E7699"/>` +
-      `<rect x="14" y="5" width="13" height="10" rx="2.5" fill="#FF9E8A"/>` +
-      `<rect x="14" y="17" width="13" height="10" rx="2.5" fill="#F0EBE0"/>` +
-      `</svg> <b>bento<span style="color:#FF9E8A">/</span>slides</b>`
+      // the suite's mark (kernel/src/ui/mark.ts) — one drawing, every app
+      `${BENTO_MARK_SVG(20, 'ed-logo-mark')} <b>bento<span style="color:#FF9E8A">/</span>slides</b>`
     logo.title = t('About bento/slides — version, updates, licenses')
     logo.addEventListener('click', () => this.openAppInfo())
     const title = h('input.ed-title', {
@@ -3605,16 +3605,9 @@ export class Editor {
     dlg.open()
   }
 
+  /** A short message — the suite's toast (kernel/src/ui/toast.ts). */
   toast(message: string) {
-    document.querySelector('.ed-toast')?.remove()
-    const t = div('ed-toast')
-    t.textContent = message
-    document.body.appendChild(t)
-    setTimeout(() => t.classList.add('show'))
-    setTimeout(() => {
-      t.classList.remove('show')
-      setTimeout(() => t.remove(), 300)
-    }, 2200)
+    toast(message)
   }
 }
 

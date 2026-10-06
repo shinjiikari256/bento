@@ -806,23 +806,6 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 
 /* ————— toast ————— */
 
-.ed-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 26px;
-  transform: translate(-50%, 12px);
-  background: var(--ink);
-  color: var(--surface);
-  font-size: 13px;
-  padding: 9px 16px;
-  border-radius: 999px;
-  opacity: 0;
-  transition: all 0.25s ease;
-  z-index: 2000;
-  pointer-events: none;
-}
-.ed-toast.show { opacity: 1; transform: translate(-50%, 0); }
-
 /* ————— present overlay ————— */
 
 .bento-present-overlay {
@@ -1456,7 +1439,7 @@ a.ed-btn { text-decoration: none; }  /* the update block's "What's new" link is 
 /* PDF export: each linear slide is one exact 1600×900 page */
 #bento-print { display: none; }
 @media print {
-  #app, #bento-splash, .bento-present-overlay, .ed-toast { display: none !important; }
+  #app, #bento-splash, .bento-present-overlay, .bkto { display: none !important; }
   #bento-print { display: block; }
   @page { size: 1600px 900px; margin: 0; }
   #bento-print .bp-page {

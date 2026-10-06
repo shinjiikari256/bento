@@ -4,6 +4,7 @@
 // selected, element properties otherwise. Bursts of 'input' events collapse
 // into a single undo checkpoint.
 
+import { toast } from '../../../kernel/src/ui/toast.ts'
 import type { Store } from '../store'
 import { MEDIA_EMBED_BUDGET, applyChartPalette, defaultChart, internAsset, morphKey, paginates, isWebUrl, tableStyleFor, uid, type ChartElement, type ImageElement, type LineEnding, type MediaElement, type ShapeElement, type Slide, type SlideElement, type TableElement, type TextElement, type TransitionKind, type CodeElement, type BentoDoc, type EmbedElement } from '../model'
 import { CROP_MAX_SCALE, normalizeCrop } from '../crop'
@@ -903,15 +904,9 @@ export class PropsPanel {
     this.toast(`Synced — ${bits.join('; ')}`)
   }
 
+  /** A short message — the suite's toast (kernel/src/ui/toast.ts). */
   private toast(message: string) {
-    document.querySelector('.ed-toast')?.remove()
-    const t = h('div.ed-toast', { textContent: message })
-    document.body.appendChild(t)
-    setTimeout(() => t.classList.add('show'))
-    setTimeout(() => {
-      t.classList.remove('show')
-      setTimeout(() => t.remove(), 300)
-    }, 2600)
+    toast(message)
   }
 
   /** Duplicate the current slide as a hidden state and link `el` to it. */
